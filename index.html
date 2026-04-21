@@ -145,13 +145,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   transform-origin:center center}
 @keyframes pet-blink-click{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.05)}}
 
-/* paw wave */
-#pet-paw-r{animation:paw-wave 3.5s ease-in-out infinite;transform-origin:92px 144px;transform-box:fill-box}
-#pet-paw-l{animation:paw-wave 3.5s ease-in-out infinite .4s;transform-origin:38px 144px;transform-box:fill-box}
-@keyframes paw-wave{0%,100%{transform:rotate(0)}50%{transform:rotate(4deg)}}
-#pw.happy #pet-paw-r{animation:paw-happy .4s ease-in-out 3;transform-origin:92px 144px;transform-box:fill-box}
-#pw.happy #pet-paw-l{animation:paw-happy .4s ease-in-out 3;transform-origin:38px 144px;transform-box:fill-box}
-@keyframes paw-happy{0%,100%{transform:rotate(0)}50%{transform:rotate(-15deg)}}
+/* gentle body wobble on click */
+#pw.happy #pet-body-grp{animation:body-wobble .5s ease-in-out 2,breathe-svg 3.6s ease-in-out infinite}
+@keyframes body-wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}50%{transform:rotate(-15deg)}}
 
 /* ═══ HEARTS ═══ */
 .heart{position:fixed;font-size:22px;pointer-events:none;z-index:30;
@@ -1571,19 +1567,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <path d="M76.0,116.7 Q80.0,118.4 84.0,120.2" stroke="#eee" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.65"/></g>
 
     <!-- LEFT PAW -->
-    <g id="pet-paw-l">
-      <ellipse cx="38" cy="144" rx="15" ry="11" fill="white" filter="url(#furEdgeSm)"/>
-      <ellipse cx="30" cy="137" rx="4" ry="3" fill="#222"/>
-      <ellipse cx="37" cy="135" rx="4" ry="3" fill="#222"/>
-      <ellipse cx="44" cy="137" rx="4" ry="3" fill="#222"/>
-    </g>
-    <!-- RIGHT PAW -->
-    <g id="pet-paw-r">
-      <ellipse cx="92" cy="144" rx="15" ry="11" fill="white" filter="url(#furEdgeSm)"/>
-      <ellipse cx="84" cy="137" rx="4" ry="3" fill="#222"/>
-      <ellipse cx="91" cy="135" rx="4" ry="3" fill="#222"/>
-      <ellipse cx="98" cy="137" rx="4" ry="3" fill="#222"/>
-    </g>
+    <!-- FEET -->
+    <ellipse cx="38" cy="144" rx="16" ry="11" fill="white" filter="url(#furEdgeSm)"/>
+    <ellipse cx="29" cy="137" rx="3.5" ry="2.5" fill="#222" transform="rotate(-15,29,137)"/>
+    <ellipse cx="37" cy="135" rx="3.5" ry="2.5" fill="#222"/>
+    <ellipse cx="45" cy="137" rx="3.5" ry="2.5" fill="#222" transform="rotate(10,45,137)"/>
+    <ellipse cx="92" cy="144" rx="16" ry="11" fill="white" filter="url(#furEdgeSm)"/>
+    <ellipse cx="83" cy="137" rx="3.5" ry="2.5" fill="#222" transform="rotate(-10,83,137)"/>
+    <ellipse cx="91" cy="135" rx="3.5" ry="2.5" fill="#222"/>
+    <ellipse cx="99" cy="137" rx="3.5" ry="2.5" fill="#222" transform="rotate(15,99,137)"/>
 
     <!-- HEAD -->
     <ellipse cx="65" cy="66" rx="36" ry="34" fill="url(#faceG)" filter="url(#furEdge)"/>
