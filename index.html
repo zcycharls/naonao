@@ -114,10 +114,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 #save-btn:active{transform:scale(.97)}
 
 /* ═══ PET ═══ */
-#pw{position:fixed;width:110px;height:130px;cursor:grab;z-index:10;transition:filter .2s}
+#pw{position:fixed;width:120px;height:140px;cursor:grab;z-index:10;transition:filter .2s}
 #pw:active{cursor:grabbing}
-#pw.happy{filter:drop-shadow(0 0 18px rgba(180,150,255,.65))}
-#pw.thinking{filter:drop-shadow(0 0 14px rgba(130,190,255,.6))}
+#pw.happy{filter:drop-shadow(0 0 20px rgba(180,150,255,.7))}
+#pw.thinking{filter:drop-shadow(0 0 16px rgba(130,190,255,.65))}
 #pw.jumping{animation:pet-jump .58s cubic-bezier(.3,1.5,.5,1)}
 @keyframes pet-jump{
   0%  {transform:translateY(0) scale(1,1)}
@@ -126,45 +126,25 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   78% {transform:translateY(0) scale(1.12,.88)}
   100%{transform:translateY(0) scale(1,1)}
 }
-#pw.blinking .eye{animation:pet-blink-click .4s ease-in-out}
+#pw.blinking #pet-eye-l,#pw.blinking #pet-eye-r{animation:pet-blink-click .4s ease-in-out}
 @keyframes pet-blink-click{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.05)}}
-.pet{position:relative;width:100%;height:100%}
-.ear{position:absolute;width:28px;height:28px;background:var(--pet-ear);border-radius:50%;top:4px}
-.ear.l{left:8px;transform:rotate(-15deg)}.ear.r{right:8px;transform:rotate(15deg)}
-.ear::after{content:'';position:absolute;width:14px;height:14px;background:#d8caff;
-  border-radius:50%;top:50%;left:50%;transform:translate(-50%,-50%)}
-.body{position:absolute;bottom:0;left:50%;transform:translateX(-50%);
-  width:90px;height:95px;background:var(--pet-body);border-radius:50% 50% 48% 48%;
-  box-shadow:0 8px 24px var(--pet-shadow),inset 0 -4px 10px rgba(0,0,0,.06);
-  animation:breathe 3.5s ease-in-out infinite}
-@keyframes breathe{0%,100%{transform:translateX(-50%) scaleY(1)}50%{transform:translateX(-50%) scaleY(1.035) scaleX(.98)}}
-.belly{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
-  width:50px;height:42px;background:var(--pet-belly);border-radius:50%;opacity:.85}
-.head{position:absolute;top:20px;left:50%;transform:translateX(-50%);
-  width:72px;height:66px;background:var(--pet-body);border-radius:50%;
-  box-shadow:0 4px 14px rgba(160,130,220,.2);animation:breathe 3.5s ease-in-out infinite}
-.eyes{position:absolute;top:26px;left:50%;transform:translateX(-50%);display:flex;gap:14px}
-.eye{width:11px;height:13px;background:#5a4072;border-radius:50%;position:relative;
-  animation:blink 5s ease-in-out infinite;transform-origin:center}
-.eye::after{content:'';position:absolute;width:4px;height:4px;background:#fff;
-  border-radius:50%;top:2px;left:2px}
-@keyframes blink{0%,44%,56%,100%{transform:scaleY(1)}50%{transform:scaleY(.07)}}
-.cheek{position:absolute;top:34px;width:16px;height:9px;
-  background:rgba(255,182,193,.55);border-radius:50%}
-.cheek.l{left:4px}.cheek.r{right:4px}
-.mouth{position:absolute;top:42px;left:50%;transform:translateX(-50%);
-  width:18px;height:9px;border:3px solid #7a5a9a;border-top:none;
-  border-radius:0 0 12px 12px;transition:all .3s}
-#pw.happy .mouth{width:22px;height:11px}
-#pw.thinking .mouth{width:12px;height:5px;border-color:#88c0ff}
-.paw{position:absolute;bottom:10px;width:20px;height:18px;background:var(--pet-body);
-  border-radius:50%;box-shadow:inset 0 -2px 4px rgba(0,0,0,.08);
-  animation:widl 3.5s ease-in-out infinite}
-.paw.l{left:2px;transform-origin:top right}
-.paw.r{right:2px;transform-origin:top left;animation-delay:.4s}
-@keyframes widl{0%,100%{transform:rotate(0)}50%{transform:rotate(8deg)}}
-#pw.happy .paw.r{animation:whappy .4s ease-in-out 3}
-@keyframes whappy{0%,100%{transform:rotate(0)}50%{transform:rotate(-30deg)}}
+
+/* breathe on SVG group */
+#pet-body-grp{animation:breathe-svg 3.6s ease-in-out infinite;transform-origin:60px 120px}
+@keyframes breathe-svg{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.03) scaleX(.98)}}
+
+/* eye blink */
+#pet-eye-l,#pet-eye-r{animation:blink-svg 5s ease-in-out infinite;transform-origin:center}
+#pet-eye-l{transform-box:fill-box}
+#pet-eye-r{transform-box:fill-box}
+@keyframes blink-svg{0%,44%,56%,100%{transform:scaleY(1)}50%{transform:scaleY(.07)}}
+
+/* paw wave */
+#pet-paw-r{animation:paw-wave 3.5s ease-in-out infinite;transform-origin:42px 118px;transform-box:fill-box}
+#pet-paw-l{animation:paw-wave 3.5s ease-in-out infinite .4s;transform-origin:78px 118px;transform-box:fill-box}
+@keyframes paw-wave{0%,100%{transform:rotate(0)}50%{transform:rotate(7deg)}}
+#pw.happy #pet-paw-r{animation:paw-happy .4s ease-in-out 3;transform-origin:42px 118px;transform-box:fill-box}
+@keyframes paw-happy{0%,100%{transform:rotate(0)}50%{transform:rotate(-28deg)}}
 
 /* ═══ HEARTS ═══ */
 .heart{position:fixed;font-size:22px;pointer-events:none;z-index:30;
@@ -444,18 +424,125 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 <!-- Pet -->
 <div id="pw">
-  <div class="pet">
-    <div class="ear l"></div><div class="ear r"></div>
-    <div class="body">
-      <div class="belly"></div>
-      <div class="paw l"></div><div class="paw r"></div>
-    </div>
-    <div class="head">
-      <div class="cheek l"></div><div class="cheek r"></div>
-      <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
-      <div class="mouth"></div>
-    </div>
-  </div>
+<svg id="pet-svg" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg" width="120" height="140">
+  <defs>
+    <!-- main fur gradient -->
+    <radialGradient id="furMain" cx="48%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ddd0f8"/>
+      <stop offset="100%" stop-color="#b89ee8"/>
+    </radialGradient>
+    <!-- belly gradient -->
+    <radialGradient id="furBelly" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#f0eaff"/>
+      <stop offset="100%" stop-color="#ddd0f8"/>
+    </radialGradient>
+    <!-- ear inner -->
+    <radialGradient id="earInner" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e8d8ff"/>
+      <stop offset="100%" stop-color="#d0b8f5"/>
+    </radialGradient>
+    <!-- shadow under body -->
+    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(140,100,220,.18)"/>
+      <stop offset="100%" stop-color="rgba(140,100,220,0)"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+  </defs>
+
+  <!-- ground shadow -->
+  <ellipse cx="60" cy="137" rx="32" ry="5" fill="url(#shadow)"/>
+
+  <g id="pet-body-grp">
+
+    <!-- ── EARS ── -->
+    <!-- left ear (fluffy round) -->
+    <ellipse cx="30" cy="24" rx="16" ry="17" fill="url(#furMain)"/>
+    <!-- ear fur tufts left -->
+    <ellipse cx="24" cy="16" rx="7" ry="8" fill="#c9b4f0"/>
+    <ellipse cx="32" cy="13" rx="6" ry="7" fill="#cdb8f2"/>
+    <ellipse cx="38" cy="18" rx="5" ry="7" fill="#c9b4f0"/>
+    <!-- ear inner left -->
+    <ellipse cx="30" cy="24" rx="9" ry="10" fill="url(#earInner)" opacity=".9"/>
+
+    <!-- right ear -->
+    <ellipse cx="90" cy="24" rx="16" ry="17" fill="url(#furMain)"/>
+    <!-- ear fur tufts right -->
+    <ellipse cx="96" cy="16" rx="7" ry="8" fill="#c9b4f0"/>
+    <ellipse cx="88" cy="13" rx="6" ry="7" fill="#cdb8f2"/>
+    <ellipse cx="82" cy="18" rx="5" ry="7" fill="#c9b4f0"/>
+    <!-- ear inner right -->
+    <ellipse cx="90" cy="24" rx="9" ry="10" fill="url(#earInner)" opacity=".9"/>
+
+    <!-- ── BODY ── -->
+    <ellipse cx="60" cy="105" rx="44" ry="38" fill="url(#furMain)"/>
+    <!-- body fur texture — subtle bumps around edge -->
+    <ellipse cx="20" cy="98" rx="7" ry="9" fill="#c4aef0" opacity=".55" filter="url(#soft)"/>
+    <ellipse cx="16" cy="110" rx="6" ry="8" fill="#c4aef0" opacity=".45" filter="url(#soft)"/>
+    <ellipse cx="100" cy="98" rx="7" ry="9" fill="#c4aef0" opacity=".55" filter="url(#soft)"/>
+    <ellipse cx="104" cy="110" rx="6" ry="8" fill="#c4aef0" opacity=".45" filter="url(#soft)"/>
+    <ellipse cx="60" cy="138" rx="12" ry="7" fill="#bda8e8" opacity=".4" filter="url(#soft)"/>
+    <!-- belly -->
+    <ellipse cx="60" cy="108" rx="26" ry="22" fill="url(#furBelly)" opacity=".9"/>
+    <!-- belly fur texture -->
+    <ellipse cx="52" cy="100" rx="5" ry="6" fill="#ede6ff" opacity=".5" filter="url(#soft)"/>
+    <ellipse cx="68" cy="100" rx="5" ry="6" fill="#ede6ff" opacity=".5" filter="url(#soft)"/>
+    <ellipse cx="60" cy="96" rx="5" ry="5" fill="#ede6ff" opacity=".45" filter="url(#soft)"/>
+
+    <!-- ── PAWS ── -->
+    <!-- left paw -->
+    <g id="pet-paw-l">
+      <ellipse cx="26" cy="122" rx="13" ry="10" fill="#c8b4f2"/>
+      <!-- toe bumps -->
+      <ellipse cx="19" cy="116" rx="5" ry="4" fill="#d0bef5"/>
+      <ellipse cx="26" cy="114" rx="5" ry="4" fill="#d0bef5"/>
+      <ellipse cx="33" cy="116" rx="5" ry="4" fill="#d0bef5"/>
+    </g>
+    <!-- right paw -->
+    <g id="pet-paw-r">
+      <ellipse cx="94" cy="122" rx="13" ry="10" fill="#c8b4f2"/>
+      <ellipse cx="87" cy="116" rx="5" ry="4" fill="#d0bef5"/>
+      <ellipse cx="94" cy="114" rx="5" ry="4" fill="#d0bef5"/>
+      <ellipse cx="101" cy="116" rx="5" ry="4" fill="#d0bef5"/>
+    </g>
+
+    <!-- ── HEAD ── -->
+    <ellipse cx="60" cy="58" rx="36" ry="34" fill="url(#furMain)"/>
+    <!-- head fur tufts top -->
+    <ellipse cx="44" cy="30" rx="9" ry="10" fill="#cbb6f3" opacity=".7" filter="url(#soft)"/>
+    <ellipse cx="60" cy="26" rx="10" ry="9" fill="#cbb6f3" opacity=".65" filter="url(#soft)"/>
+    <ellipse cx="76" cy="30" rx="9" ry="10" fill="#cbb6f3" opacity=".7" filter="url(#soft)"/>
+    <!-- head side tufts -->
+    <ellipse cx="26" cy="52" rx="7" ry="9" fill="#c4aef0" opacity=".5" filter="url(#soft)"/>
+    <ellipse cx="94" cy="52" rx="7" ry="9" fill="#c4aef0" opacity=".5" filter="url(#soft)"/>
+
+    <!-- ── FACE ── -->
+    <!-- cheeks -->
+    <ellipse cx="38" cy="66" rx="10" ry="6" fill="rgba(255,182,200,.5)"/>
+    <ellipse cx="82" cy="66" rx="10" ry="6" fill="rgba(255,182,200,.5)"/>
+
+    <!-- eyes -->
+    <g id="pet-eye-l" style="transform-origin:46px 57px">
+      <ellipse cx="46" cy="57" rx="7" ry="8" fill="#3d2a5c"/>
+      <!-- shine -->
+      <ellipse cx="43" cy="53" rx="2.5" ry="2.5" fill="white" opacity=".9"/>
+      <ellipse cx="49" cy="56" rx="1.2" ry="1.2" fill="white" opacity=".6"/>
+    </g>
+    <g id="pet-eye-r" style="transform-origin:74px 57px">
+      <ellipse cx="74" cy="57" rx="7" ry="8" fill="#3d2a5c"/>
+      <ellipse cx="71" cy="53" rx="2.5" ry="2.5" fill="white" opacity=".9"/>
+      <ellipse cx="77" cy="56" rx="1.2" ry="1.2" fill="white" opacity=".6"/>
+    </g>
+
+    <!-- nose -->
+    <ellipse cx="60" cy="67" rx="3.5" ry="2.5" fill="#7a5a9a"/>
+
+    <!-- mouth (default) -->
+    <path id="pet-mouth" d="M53 72 Q60 78 67 72" stroke="#7a5a9a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+
+  </g><!-- end body-grp -->
+</svg>
 </div>
 
 <!-- Chat Dialog -->
@@ -990,7 +1077,20 @@ function petReact(){
   setTimeout(()=>pw.classList.remove('blinking'),450);
 }
 
-/* ════════ QUICK PHRASES ════════ */
+/* ════════ PET MOOD (SVG mouth) ════════ */
+const petMouth=document.getElementById('pet-mouth');
+function setMouthNormal(){if(petMouth)petMouth.setAttribute('d','M53 72 Q60 78 67 72');}
+function setMouthHappy(){if(petMouth)petMouth.setAttribute('d','M50 71 Q60 80 70 71');}
+function setMouthThinking(){if(petMouth)petMouth.setAttribute('d','M55 74 Q60 74 65 74');}
+
+const _origAddHappy=pw.classList.add.bind(pw.classList);
+// Watch class changes to sync mouth
+const _moodObs=new MutationObserver(()=>{
+  if(pw.classList.contains('thinking')) setMouthThinking();
+  else if(pw.classList.contains('happy')) setMouthHappy();
+  else setMouthNormal();
+});
+_moodObs.observe(pw,{attributes:true,attributeFilter:['class']});
 const PHRASES=[
   {label:'😵 我走神了',text:'我刚才走神了，帮我重新专注一下'},
   {label:'😓 好累',text:'感觉好累，不想动'},
