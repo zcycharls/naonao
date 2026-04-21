@@ -959,12 +959,12 @@ setInterval(()=>{
   if(!busy) appendMsg('pet',checkinMsg());
 },CHECK_INTERVAL);
 
-// Idle fallback (random encouragement, less frequent)
+// Idle fallback (random encouragement, 3-6 分钟一条)
 function scheduleIdle(){
   setTimeout(()=>{
     if(!busy) appendMsg('pet',rand(FALLBACK));
     scheduleIdle();
-  },20000+Math.random()*25000);
+  },3*60*1000+Math.random()*3*60*1000);
 }
 scheduleIdle();
 
