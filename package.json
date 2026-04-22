@@ -29,7 +29,8 @@
         }
       ]
     },
-    "electronVersion": "28.3.3"
+    "electronVersion": "28.3.3",
+    "asar": false
   },
   "devDependencies": {
     "electron": "^28.0.0",
