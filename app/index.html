@@ -38,6 +38,26 @@ body.pet-mode::before{display:none}
 body.pet-mode .sp{display:none}
 body.pet-mode #settings-btn{display:none}
 body.pet-mode #chat-dialog{display:none}
+
+/* mini bubble in pet mode */
+#mini-bubble{
+  position:fixed;left:50%;bottom:250px;
+  transform:translateX(-50%);
+  background:#fff;border:2px solid #e2d8ff;
+  border-radius:16px 16px 16px 4px;
+  padding:8px 12px;font-size:12px;font-weight:700;
+  color:#6b52a0;white-space:pre-wrap;word-break:break-word;
+  max-width:160px;line-height:1.5;
+  box-shadow:0 4px 16px rgba(160,130,220,.18);
+  pointer-events:none;z-index:50;
+  opacity:0;transition:opacity .3s ease;text-align:center}
+#mini-bubble.show{opacity:1}
+#mini-bubble::after{content:'';position:absolute;
+  bottom:-8px;left:16px;
+  width:12px;height:12px;background:#fff;
+  border-right:2px solid #e2d8ff;border-bottom:2px solid #e2d8ff;
+  transform:rotate(45deg);border-radius:0 0 3px 0}
+body:not(.pet-mode) #mini-bubble{display:none}
 body.pet-mode #chat-bar{display:none}
 body.pet-mode #hint{display:none}
 
@@ -66,7 +86,7 @@ body.pet-mode.expanded #chat-bar{display:flex}
 body.pet-mode.expanded #settings-btn{display:flex}
 
 /* drag region on pet body */
-#pw{-webkit-app-region:drag}
+#pw{-webkit-app-region:no-drag}
 #chat-bar,#chat-dialog,#pet-tray,.tray-btn,
 #chat-input,#send-btn,#settings-btn,
 #task-input,#dlg-clear,#pomo-toggle,
