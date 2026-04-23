@@ -29,8 +29,16 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 
   ipcMain.on('move-window', (_, { dx, dy }) => {
+    const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize
     const [x, y] = win.getPosition()
-    win.setPosition(x + Math.round(dx), y + Math.round(dy))
+    const [w, h] = win.getSize()
+    const nx = Math.max(0, Math.min(sw - w, x + Math.round(dx)))
+    const ny = Math.max(0, Math.min(sh - h, y + Math.round(dy)))
+    win.setPosition(nx, ny)
+  })
+
+  ipcMain.on('set-ignore-mouse', (_, ignore) => {
+    win.setIgnoreMouseEvents(ignore, { forward: true })
   })
 
   ipcMain.on('expand', () => {

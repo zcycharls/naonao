@@ -1327,6 +1327,82 @@ if(IS_ELECTRON){
   });
 
   // In pet mode, clicking pet does NOT expand — handled by mouseup above
+
+  /* ── Mini bubble ── */
+  const miniBubble = document.getElementById('mini-bubble');
+  let miniTimer = null;
+  function showMini(msg){
+    if(miniTimer) clearTimeout(miniTimer);
+    miniBubble.textContent = msg;
+    miniBubble.classList.add('show');
+    miniTimer = setTimeout(()=>miniBubble.classList.remove('show'), 4000);
+  }
+
+  /* ── Pixel-perfect click-through ── */
+  const petImg = document.getElementById('pet-img');
+  const alphaCanvas = document.createElement('canvas');
+  const alphaCtx = alphaCanvas.getContext('2d');
+  function setupAlpha(){
+    alphaCanvas.width = petImg.naturalWidth;
+    alphaCanvas.height = petImg.naturalHeight;
+    alphaCtx.drawImage(petImg, 0, 0);
+  }
+  if(petImg.complete && petImg.naturalWidth) setupAlpha();
+  else petImg.addEventListener('load', setupAlpha);
+
+  function isOverKoala(cx, cy){
+    const rect = petImg.getBoundingClientRect();
+    if(cx<rect.left||cx>rect.right||cy<rect.top||cy>rect.bottom) return false;
+    const sx = Math.round((cx-rect.left)/rect.width*alphaCanvas.width);
+    const sy = Math.round((cy-rect.top)/rect.height*alphaCanvas.height);
+    try{ return alphaCtx.getImageData(sx,sy,1,1).data[3] > 30; }
+    catch(e){ return true; }
+  }
+
+  /* ── Drag + click ── */
+  let dragging=false, lastX=0, lastY=0, dragMoved=false;
+
+  window.addEventListener('mousemove', e=>{
+    if(dragging){
+      const dx=e.screenX-lastX, dy=e.screenY-lastY;
+      if(Math.abs(dx)>1||Math.abs(dy)>1) dragMoved=true;
+      window.petBridge.moveWindow(dx,dy);
+      lastX=e.screenX; lastY=e.screenY;
+      return;
+    }
+    window.petBridge.setIgnoreMouse(!isOverKoala(e.clientX,e.clientY));
+  });
+
+  window.addEventListener('mousedown', e=>{
+    if(!isOverKoala(e.clientX,e.clientY)) return;
+    if(e.target.closest('.tray-btn')) return;
+    window.petBridge.setIgnoreMouse(false);
+    dragging=true; dragMoved=false;
+    lastX=e.screenX; lastY=e.screenY;
+    e.preventDefault();
+  });
+
+  window.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging=false;
+    window.petBridge.setIgnoreMouse(false);
+    if(!dragMoved){
+      petReact();
+      setHappy(true);
+      spawnHeart(60,80);
+      const msg = Math.random()<0.35 ? rand(ADHD_TIPS) : rand(FALLBACK);
+      showMini(msg);
+    }
+  });
+
+  /* ── Patch appendMsg: show mini bubble when collapsed ── */
+  const _origAppendMsg = appendMsg;
+  appendMsg = function(role, text){
+    _origAppendMsg(role, text);
+    if(role==='pet' && !petExpanded){
+      showMini(text.length>55 ? text.slice(0,53)+'…' : text);
+    }
+  };
 }
 
 })();

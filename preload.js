@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('petBridge', {
   expand:     ()       => ipcRenderer.send('expand'),
   collapse:   ()       => ipcRenderer.send('collapse'),
   closeApp:   ()       => ipcRenderer.send('close-app'),
-  hideApp:    ()       => ipcRenderer.send('hide-app'),
+  hideApp:          ()       => ipcRenderer.send('hide-app'),
+  setIgnoreMouse:   (v)      => ipcRenderer.send('set-ignore-mouse', v),
 })
