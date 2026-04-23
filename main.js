@@ -25,6 +25,7 @@ function createWindow() {
     resizable: false,
     hasShadow: false,
     backgroundColor: '#00000000',
+    type: 'toolbar',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
