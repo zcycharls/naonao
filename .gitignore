@@ -1,2 +1,4 @@
 node_modules/
 dist/
+build/koala-*.png
+build/koala-original.png
