@@ -2158,8 +2158,12 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
   addLog('开始下载本地 AI 模型…');
   
   try {
-    const ok = await window.petBridge.localModelDownload();
-    if (ok) {
+    const result = await window.petBridge.localModelDownload();
+    if (result && result.success) {
+      // 直接设置前端状态，不依赖 IPC 回查避免时序问题
+      localModelReady = true;
+      localModelHasFiles = true;
+      localModelLoading = false;
       addLog('本地 AI 模型下载并加载完成 ✅');
       if (downloadProgress) downloadProgress.style.display = 'none';
       updateStatus();
