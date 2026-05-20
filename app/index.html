@@ -1307,6 +1307,7 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
       </div>
     </div>
     <button id="local-model-btn" style="margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">📥 下载并加载模型</button>
+    <button id="local-model-delete-btn" style="display:none;margin-top:6px;width:100%;padding:8px 12px;border-radius:10px;border:1.5px solid #e8c4c4;background:transparent;font-family:var(--font-body);font-size:12px;font-weight:700;color:#c44;cursor:pointer;transition:all .15s;">🗑 删除本地模型</button>
     <span class="hint" style="margin-top:6px;display:block">模型约 460MB，首次使用需下载。下载后完全离线使用，无需 API Key。</span>
 
     <button id="save-btn">保存并连接 ✦</button>
@@ -2103,6 +2104,11 @@ async function updateStatus(){
       if (downloadProgress) downloadProgress.style.display = 'none';
     }
   }
+  // 删除按钮：只在模型已下载或已就绪时显示
+  const deleteBtn = document.getElementById('local-model-delete-btn');
+  if (deleteBtn) {
+    deleteBtn.style.display = (localModelHasFiles || localModelReady) ? 'block' : 'none';
+  }
 }
 
 /* 本地模型加载/下载按钮 */
@@ -2170,6 +2176,25 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
     if (status) status.textContent = '🤖 本地模型：下载异常';
     if (downloadProgress) downloadProgress.style.display = 'none';
     addLog('❌ 模型下载异常: ' + (e?.message || e));
+  }
+});
+// 删除本地模型按钮
+document.getElementById('local-model-delete-btn')?.addEventListener('click', async () => {
+  if (!confirm('确定要删除本地模型吗？\n\n删除后需要重新下载（约 460MB）才能使用离线 AI。')) return;
+  const btn = document.getElementById('local-model-delete-btn');
+  const status = document.getElementById('local-model-status');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 删除中…'; }
+  const result = await window.petBridge.localModelDelete();
+  if (result.success) {
+    localModelReady = false;
+    localModelHasFiles = false;
+    localModelLoading = false;
+    addLog('🗑 本地模型已删除');
+    updateStatus();
+    if (status) status.textContent = '🤖 本地模型：已删除';
+  } else {
+    addLog('❌ 删除模型失败: ' + (result.error || '未知错误'));
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 删除本地模型'; }
   }
 });
 segBtns.forEach(b=>b.addEventListener('click',()=>{if(!b.dataset.p)return;curP=b.dataset.p;syncSeg();}));

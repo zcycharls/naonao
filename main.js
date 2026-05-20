@@ -378,3 +378,26 @@ ipcMain.handle('local-model:download', async (event) => {
     return { success: false, error: result.error }
   }
 })
+
+// 删除已下载的本地模型文件
+ipcMain.handle('local-model:delete', async () => {
+  if (localModelLoading) {
+    return { success: false, error: '模型正在使用中，请稍候' }
+  }
+  // 释放已加载的 pipeline
+  localModelPipeline = null
+  localModelReady = false
+  localModelLoading = false
+  // 删除 userData/models/ 下的模型文件
+  const modelsRoot = path.join(app.getPath('userData'), 'models')
+  try {
+    if (fs.existsSync(modelsRoot)) {
+      fs.rmSync(modelsRoot, { recursive: true, force: true })
+      console.log('[孬孬] ✅ 已删除本地模型文件:', modelsRoot)
+    }
+    return { success: true }
+  } catch (e) {
+    console.error('[孬孬] 删除模型文件失败:', e)
+    return { success: false, error: e.message }
+  }
+})

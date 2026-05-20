@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('petBridge', {
   // Local AI model (on-demand download)
   localModelStatus: () => ipcRenderer.invoke('local-model:status'),
   localModelDownload: () => ipcRenderer.invoke('local-model:download'),
+  localModelDelete:  () => ipcRenderer.invoke('local-model:delete'),
   localModelLoad:   () => ipcRenderer.invoke('local-model:load'),
   localModelInference: (text) => ipcRenderer.invoke('local-model:inference', text),
   // 主进程日志转发到前端
