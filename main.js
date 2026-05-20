@@ -85,8 +85,9 @@ async function downloadLocalModel(progressCallback) {
     // @xenova/transformers v2+ 是 ESM，需要用动态 import() 加载
     const transformers = await import('@xenova/transformers')
     const { pipeline, env } = transformers
-    // 设置本地模型根目录
+    // 设置本地模型根目录 + 缓存目录（统一放到 userData 下，删除时才能清干净）
     env.localModelPath = modelsRoot
+    env.cacheDir = path.join(modelsRoot, '.cache')
     env.allowRemoteModels = true  // 允许从 HuggingFace 下载
     env.allowLocalModels = true
     // 使用国内镜像加速（HuggingFace 在国内常被墙）
@@ -397,12 +398,18 @@ ipcMain.handle('local-model:delete', async () => {
   localModelPipeline = null
   localModelReady = false
   localModelLoading = false
-  // 删除 userData/models/ 下的模型文件
+  // 删除 userData/models/ 下的模型文件和缓存
   const modelsRoot = path.join(app.getPath('userData'), 'models')
+  // 同时清掉 @xenova/transformers 默认缓存（旧版本残留）
+  const legacyCache = path.join(__dirname, 'node_modules', '@xenova', 'transformers', '.cache')
   try {
     if (fs.existsSync(modelsRoot)) {
       fs.rmSync(modelsRoot, { recursive: true, force: true })
       console.log('[孬孬] ✅ 已删除本地模型文件:', modelsRoot)
+    }
+    if (fs.existsSync(legacyCache)) {
+      fs.rmSync(legacyCache, { recursive: true, force: true })
+      console.log('[孬孬] ✅ 已清掉旧缓存:', legacyCache)
     }
     return { success: true }
   } catch (e) {
