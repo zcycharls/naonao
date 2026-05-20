@@ -89,16 +89,26 @@ async function downloadLocalModel(progressCallback) {
     env.localModelPath = modelsRoot
     env.allowRemoteModels = true  // 允许从 HuggingFace 下载
     env.allowLocalModels = true
+    // 使用国内镜像加速（HuggingFace 在国内常被墙）
+    env.remoteHost = 'https://hf-mirror.com'
+    env.remotePathTemplate = '{model}/resolve/{revision}/{file}'
 
-    console.log('[孬孬] 开始下载模型:', MODEL_NAME)
+    console.log('[孬孬] 开始下载模型:', MODEL_NAME, '(镜像: hf-mirror.com)')
     // 下载并加载模型（会触发自动下载）
     const p = await pipeline('text-generation', MODEL_NAME, {
-      progress_callback: (progress) => {
-        if (progressCallback) {
-          progressCallback(progress)
+      progress_callback: (info) => {
+        if (progressCallback && info) {
+          // @xenova/transformers progress: { status, name, file, loaded, total, progress }
+          const pct = info.progress !== undefined ? Math.round(info.progress) : 0
+          const msg = info.status === 'progress'
+            ? `下载中 ${pct}% · ${info.name || ''}`
+            : info.status || '准备中…'
+          progressCallback({ pct, msg, loaded: info.loaded, total: info.total })
         }
       }
     })
+    console.log('[孬孬] ✅ 模型下载并完成加载')
+    return { success: true, pipeline: p }
     console.log('[孬孬] ✅ 模型下载并完成加载')
     return { success: true, pipeline: p }
   } catch (e) {
