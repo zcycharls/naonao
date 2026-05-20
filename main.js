@@ -35,10 +35,10 @@ function getModelsRootDir() {
   return null
 }
 
-// 检查用户是否已下载模型
+// 检查用户是否已下载模型（只看 userData，不等同于 getModelDir 的 dev 回退）
 function hasDownloadedModel() {
-  const dir = getModelDir()
-  return dir !== null && fs.existsSync(path.join(dir, 'onnx', 'decoder_model_merged_quantized.onnx'))
+  const userDataDir = path.join(app.getPath('userData'), 'models', 'Xenova', 'Qwen1.5-0.5B-Chat')
+  return fs.existsSync(path.join(userDataDir, 'onnx', 'decoder_model_merged_quantized.onnx'))
 }
 
 async function loadLocalModel() {
