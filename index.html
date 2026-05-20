@@ -380,6 +380,118 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.03em;
   opacity:.65;pointer-events:none;z-index:5;transition:opacity .4s}
 #hint.hidden{opacity:0}
+
+/* ═══ ONBOARDING OVERLAY ═══ */
+#onboard-overlay{
+  position:fixed;inset:0;z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;
+  opacity:0;pointer-events:none;
+  transition:opacity .4s ease;
+  font-family:'Nunito',sans-serif}
+#onboard-overlay.show{opacity:1;pointer-events:auto}
+
+#onboard-card{
+  background:#fffafd;
+  border:1.5px solid rgba(220,200,255,.7);
+  border-radius:22px;
+  padding:32px 24px 24px;
+  width:320px;max-width:88vw;max-height:85vh;
+  overflow-y:auto;
+  box-shadow:0 20px 50px rgba(60,30,110,.25),
+             inset 0 1px 0 rgba(255,255,255,.9);
+  text-align:center;
+  transform:translateY(16px) scale(.95);
+  transition:transform .4s cubic-bezier(.34,1.4,.64,1),opacity .3s ease}
+#onboard-overlay.show #onboard-card{
+  transform:translateY(0) scale(1)}
+
+/* washi tape ribbon on top of card */
+#onboard-card::before{
+  content:'';position:absolute;top:-8px;left:50%;
+  transform:translateX(-50%) rotate(-1.4deg);
+  width:110px;height:18px;
+  background:linear-gradient(180deg,#ede2ff 0%,#dccaff 100%);
+  border-radius:3px;
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset,
+             0 2px 6px rgba(120,90,180,.22)}
+#onboard-card{position:relative}
+
+.onboard-step{display:none;animation:ob-step-in .35s cubic-bezier(.34,1.4,.64,1)}
+.onboard-step.active{display:block}
+@keyframes ob-step-in{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}}
+
+.onboard-step-num{
+  font-size:10.5px;font-weight:800;color:var(--accent);
+  letter-spacing:.12em;text-transform:uppercase;
+  margin-bottom:10px;opacity:.75}
+
+.onboard-koala{
+  font-size:52px;margin-bottom:6px;line-height:1;
+  animation:ob-bounce 2.4s ease-in-out infinite}
+@keyframes ob-bounce{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-8px)}}
+
+.onboard-speech{
+  font-size:14px;font-weight:600;
+  color:var(--text-main);line-height:1.65;
+  margin-bottom:20px;white-space:pre-line}
+
+.onboard-btns{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+.onboard-btn{
+  padding:10px 22px;border-radius:14px;
+  font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;
+  cursor:pointer;border:none;
+  transition:transform .14s,box-shadow .2s,background .15s;
+  touch-action:manipulation}
+.onboard-btn:active{transform:scale(.95)}
+
+.onboard-btn.primary{
+  background:linear-gradient(135deg,#b39ddb,#7c5cbf);
+  color:#fff;
+  box-shadow:0 4px 16px rgba(124,92,191,.3)}
+.onboard-btn.ghost{
+  background:transparent;color:var(--text-dim);
+  border:1.5px solid rgba(200,185,245,.55)}
+.onboard-btn.ghost:hover{background:#f4eeff;border-color:#bca8e5}
+
+.onboard-input{
+  width:100%;padding:11px 14px;
+  border:1.5px solid #e3d9ff;border-radius:12px;
+  font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;
+  color:var(--text-main);background:#faf8ff;outline:none;
+  margin-bottom:16px;
+  -webkit-appearance:none;
+  transition:border-color .2s,box-shadow .2s;
+  -webkit-user-select:text;user-select:text;touch-action:manipulation}
+.onboard-input:focus{
+  border-color:var(--focus);box-shadow:0 0 0 3px rgba(124,92,191,.11)}
+.onboard-input::placeholder{color:#c8bce0;font-weight:600}
+
+/* onboarding provider segment */
+.onboard-seg-lbl{
+  font-size:10.5px;font-weight:800;color:var(--text-dim);
+  letter-spacing:.07em;text-transform:uppercase;
+  margin-bottom:6px;text-align:left}
+.onboard-seg{
+  display:flex;gap:5px;background:#f2eeff;border-radius:12px;padding:3px;
+  margin-bottom:12px}
+.onboard-seg-b{
+  flex:1;padding:7px 4px;border:none;border-radius:10px;cursor:pointer;
+  font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;
+  color:var(--text-dim);background:transparent;
+  transition:background .15s,color .15s,box-shadow .15s}
+.onboard-seg-b.on{
+  background:#fff;color:var(--focus);
+  box-shadow:0 2px 8px rgba(124,92,191,.15)}
+
+.ob-row{margin-bottom:0}
+.ob-row .onboard-input{margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -493,6 +605,55 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <div id="chat-row">
     <textarea id="chat-input" rows="1" placeholder="和孬孬说说话…" maxlength="400"></textarea>
     <button id="send-btn" aria-label="发送">➤</button>
+  </div>
+</div>
+
+<!-- Onboarding Overlay -->
+<div id="onboard-overlay">
+  <div id="onboard-card">
+    <!-- Step 1: Greeting -->
+    <div class="onboard-step active" data-step="1">
+      <div class="onboard-step-num">第 1 步 · 共 3 步</div>
+      <div class="onboard-koala">🐨</div>
+      <div class="onboard-speech">嗨！我是孬孬，你的专注小伙伴 🐨
+要不要一起设置一下，让我更好地陪你？</div>
+      <div class="onboard-btns">
+        <button class="onboard-btn ghost" data-action="skip">下次再说</button>
+        <button class="onboard-btn primary" data-action="next">好呀！</button>
+      </div>
+    </div>
+
+    <!-- Step 2: API Key -->
+    <div class="onboard-step" data-step="2">
+      <div class="onboard-step-num">第 2 步 · 共 3 步</div>
+      <div class="onboard-koala">💡</div>
+      <div class="onboard-speech">连接 AI 会让我更聪明 💡</div>
+      <div class="onboard-seg-lbl">API 提供商</div>
+      <div class="onboard-seg" role="group" id="ob-seg">
+        <button class="onboard-seg-b on" data-p="anthropic">Anthropic</button>
+        <button class="onboard-seg-b" data-p="openai">OpenAI 兼容</button>
+      </div>
+      <input class="onboard-input" type="password" id="onboard-apikey" placeholder="粘贴 API Key…" autocomplete="off" spellcheck="false">
+      <div class="ob-row" id="ob-base-row" style="display:none">
+        <input class="onboard-input" type="url" id="onboard-base" placeholder="Base URL，如 https://api.openai.com/v1" autocomplete="off" spellcheck="false">
+      </div>
+      <input class="onboard-input" type="text" id="onboard-model" placeholder="模型名（留空用默认）" autocomplete="off" spellcheck="false">
+      <div class="onboard-btns">
+        <button class="onboard-btn ghost" data-action="skip">跳过</button>
+        <button class="onboard-btn primary" data-action="save">保存</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Task -->
+    <div class="onboard-step" data-step="3">
+      <div class="onboard-step-num">第 3 步 · 共 3 步</div>
+      <div class="onboard-koala">🎯</div>
+      <div class="onboard-speech">现在在做什么？设一个任务锚，走神的时候我帮你拉回来 🎯</div>
+      <input class="onboard-input" type="text" id="onboard-task" placeholder="比如：写周报、复习数学…" maxlength="60" autocomplete="off" spellcheck="false">
+      <div class="onboard-btns">
+        <button class="onboard-btn primary" data-action="done">开始专注 ❤️</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1075,9 +1236,12 @@ function checkinMsg(){
 }
 
 // Periodic check-in (respects freq setting)
-setInterval(()=>{
-  if(!busy && (cfg.freq||'mid')!=='off') appendMsg('pet',checkinMsg());
-},CHECK_INTERVAL);
+let _checkinTimer=null;
+function startCheckin(){
+  _checkinTimer=setInterval(()=>{
+    if(!busy && (cfg.freq||'mid')!=='off') appendMsg('pet',checkinMsg());
+  },CHECK_INTERVAL);
+}
 
 // Idle: frequency driven by cfg.freq
 const FREQ_MS={off:null, low:4*60*1000, mid:2.5*60*1000, high:90*1000};
@@ -1093,7 +1257,12 @@ function scheduleIdle(){
     scheduleIdle();
   },base+Math.random()*FREQ_JITTER[cfg.freq||'mid']);
 }
-scheduleIdle();
+
+function startGreetings(){
+  if(!_checkinTimer) startCheckin();
+  scheduleIdle();
+}
+
 
 
 
@@ -1212,6 +1381,128 @@ pw.style.opacity='0';
 pw.style.transition='opacity .6s ease';
 requestAnimationFrame(()=>requestAnimationFrame(()=>{pw.style.opacity='1';}));
 setTimeout(()=>{pw.style.transition='filter .2s';},700);
+
+/* ════════ ONBOARDING ════════ */
+(function(){
+  if(localStorage.getItem('naonao_onboarding_done')==='true') {
+    startGreetings();
+    return;
+  }
+
+  const overlay=document.getElementById('onboard-overlay');
+  const steps=overlay.querySelectorAll('.onboard-step');
+  let currentStep=0;
+
+  function showStep(n){
+    steps.forEach(s=>s.classList.remove('active'));
+    if(steps[n]) steps[n].classList.add('active');
+    currentStep=n;
+  }
+
+  function finish(){
+    localStorage.setItem('naonao_onboarding_done','true');
+    overlay.classList.remove('show');
+    setTimeout(()=>{overlay.style.display='none';},400);
+    // happy reaction from koala after onboarding
+    setHappy(true);spawnHeart(px+55,py+40);
+    // Start greetings now that onboarding is done
+    startGreetings();
+  }
+
+  // Provider segment toggle in onboarding
+  const obSegBtns=document.querySelectorAll('#ob-seg .onboard-seg-b');
+  const obBaseRow=document.getElementById('ob-base-row');
+  let obProvider='anthropic';
+  obSegBtns.forEach(b=>b.addEventListener('click',()=>{
+    obSegBtns.forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    obProvider=b.dataset.p;
+    obBaseRow.style.display=obProvider==='openai'?'block':'none';
+  }));
+
+  // Delegate click events
+  overlay.addEventListener('click',function(e){
+    const action=e.target.dataset.action;
+    if(!action) return;
+
+    if(action==='skip'){
+      if(currentStep===1){
+        // skip API key, go directly to task setup
+        showStep(2);
+        setTimeout(()=>{const el=document.getElementById('onboard-task');if(el)el.focus();},400);
+      } else {
+        // skip entire onboarding
+        finish();
+      }
+    }else if(action==='next'){
+      showStep(1);
+    }else if(action==='save'){
+      const key=document.getElementById('onboard-apikey').value.trim();
+      const base=document.getElementById('onboard-base').value.trim().replace(/\/+$/,'');
+      const model=document.getElementById('onboard-model').value.trim();
+      cfg.p=obProvider;
+      if(key) cfg.k=key;
+      if(base) cfg.b=base;
+      if(model) cfg.m=model;
+      save();
+      if(typeof updateStatus==='function') updateStatus();
+      showStep(2);
+      // focus the task input after transition
+      setTimeout(()=>{const el=document.getElementById('onboard-task');if(el)el.focus();},400);
+    }else if(action==='done'){
+      const task=document.getElementById('onboard-task').value.trim();
+      if(task){
+        taskInput.value=task;
+        currentTask=task;
+        taskClearBtn.style.display='block';
+        taskInput.dispatchEvent(new Event('input',{bubbles:true}));
+      }
+      finish();
+    }
+  });
+
+  // Enter key support for inputs
+  const apiKeyInput=document.getElementById('onboard-apikey');
+  const taskInputOb=document.getElementById('onboard-task');
+  const obModel=document.getElementById('onboard-model');
+  const obBase=document.getElementById('onboard-base');
+  if(apiKeyInput){
+    apiKeyInput.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){
+        e.preventDefault();
+        const key=this.value.trim();
+        const base=(obBase?obBase.value:'').trim().replace(/\/+$/,'');
+        const model=obModel?obModel.value.trim():'';
+        cfg.p=obProvider;
+        if(key) cfg.k=key;
+        if(base) cfg.b=base;
+        if(model) cfg.m=model;
+        save();
+        if(typeof updateStatus==='function') updateStatus();
+        showStep(2);
+        setTimeout(()=>{if(taskInputOb)taskInputOb.focus();},400);
+      }
+    });
+  }
+  if(taskInputOb){
+    taskInputOb.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){
+        e.preventDefault();
+        const task=this.value.trim();
+        if(task){
+          taskInput.value=task;
+          currentTask=task;
+          taskClearBtn.style.display='block';
+          taskInput.dispatchEvent(new Event('input',{bubbles:true}));
+        }
+        finish();
+      }
+    });
+  }
+
+  // Show overlay with a gentle delay for the koala entrance to finish
+  setTimeout(()=>{overlay.classList.add('show');},900);
+})();
 
 })();
 </script>
