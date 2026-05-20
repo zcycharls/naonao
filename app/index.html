@@ -1078,9 +1078,10 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
   background:#fffafd;
   border:1.5px solid rgba(220,200,255,.7);
   border-radius:22px;
-  padding:32px 24px 24px;
+  padding:32px 24px 24px;box-sizing:border-box;
   width:320px;max-width:88vw;max-height:85vh;
   overflow:hidden auto;
+  clip-path:inset(0 round 22px);
   box-shadow:0 20px 50px rgba(60,30,110,.25),
              inset 0 1px 0 rgba(255,255,255,.9);
   text-align:center;
@@ -1101,7 +1102,7 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
 #onboard-card{position:relative}
 
 .onboard-step{display:none;animation:ob-step-in .35s cubic-bezier(.34,1.4,.64,1)}
-.onboard-step.active{display:block}
+.onboard-step.active{display:block;overflow:hidden}
 @keyframes ob-step-in{
   from{opacity:0;transform:translateY(8px)}
   to{opacity:1;transform:translateY(0)}}
@@ -1144,7 +1145,7 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
 .onboard-btn.ghost:hover{background:#f4eeff;border-color:#bca8e5}
 
 .onboard-input{
-  width:100%;padding:11px 14px;
+  width:100%;padding:11px 14px;box-sizing:border-box;
   border:1.5px solid #e3d9ff;border-radius:12px;
   font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;
   color:var(--text-main);background:#faf8ff;outline:none;
@@ -1166,6 +1167,7 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
   margin-bottom:12px}
 .onboard-seg-b{
   flex:1;padding:7px 4px;border:none;border-radius:10px;cursor:pointer;
+  box-sizing:border-box;
   font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;
   color:var(--text-dim);background:transparent;
   transition:background .15s,color .15s,box-shadow .15s}
@@ -3565,10 +3567,8 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   // IS_PET_WIN is defined earlier: IS_ELECTRON && !_urlMode
   const isPetWin = !IS_ELECTRON || (typeof IS_PET_WIN !== 'undefined' && IS_PET_WIN);
   if(!isPetWin) return;
-  if(localStorage.getItem('naonao_onboarding_done')==='true') {
-    if(typeof startGreetings==='function') startGreetings();
-    return;
-  }
+  // 开发调试：每次启动都显示引导
+  localStorage.removeItem('naonao_onboarding_done');
 
   const overlay=document.getElementById('onboard-overlay');
   const steps=overlay.querySelectorAll('.onboard-step');
