@@ -3567,8 +3567,10 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   // IS_PET_WIN is defined earlier: IS_ELECTRON && !_urlMode
   const isPetWin = !IS_ELECTRON || (typeof IS_PET_WIN !== 'undefined' && IS_PET_WIN);
   if(!isPetWin) return;
-  // 开发调试：每次启动都显示引导
-  localStorage.removeItem('naonao_onboarding_done');
+  if(localStorage.getItem('naonao_onboarding_done')==='true') {
+    if(typeof startGreetings==='function') startGreetings();
+    return;
+  }
 
   const overlay=document.getElementById('onboard-overlay');
   const steps=overlay.querySelectorAll('.onboard-step');
