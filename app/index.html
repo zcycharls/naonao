@@ -1315,6 +1315,10 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
       <button id="log-copy" style="flex:1;padding:8px 12px;border-radius:8px;border:none;background:rgba(240,235,255,.8);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;color:#9b8cc0;cursor:pointer;">复制日志</button>
       <button id="log-clear" style="flex:1;padding:8px 12px;border-radius:8px;border:none;background:rgba(240,235,255,.8);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;color:#9b8cc0;cursor:pointer;">清除日志</button>
     </div>
+
+    <div class="seg-lbl" style="margin-top:22px">🔄 重新引导</div>
+    <button id="reset-onboarding-btn" style="margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">重新引导（重新显示首次欢迎）</button>
+    <span class="hint" style="margin-top:6px;display:block">清除引导标记，下次启动时会重新显示引导。</span>
   </div>
 </div>
 
@@ -2185,6 +2189,12 @@ document.getElementById('dlg-minimize').addEventListener('click',()=>{
   }
 });
 overlay.addEventListener('click',closeSettings);
+// Reset onboarding button
+document.getElementById('reset-onboarding-btn')?.addEventListener('click',()=>{
+  localStorage.removeItem('naonao_onboarding_done');
+  appendMsg('pet','好的，已清除引导标记。正在重新加载…');
+  setTimeout(()=>{location.reload();},1200);
+});
 let _logs = [];
 function addLog(msg){
   const now = new Date();
@@ -3579,6 +3589,8 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
     if(typeof spawnHeart==='function') spawnHeart(px+55,py+40);
     // Start greetings now that onboarding is done
     if(typeof startGreetings==='function') startGreetings();
+    // 引导完成后显示问候气泡
+    setTimeout(()=>{if(typeof showMini==='function') showMini('你好呀，我是孬孬');},800);
   }
 
   // Provider segment toggle in onboarding
@@ -3791,6 +3803,8 @@ if(IS_CHAT_WIN){
   let miniTimer = null;
   function showMini(msg){
     if(!miniBubble){console.warn('mini-bubble element missing');return;}
+    // 引导完成前不显示气泡，避免遮挡 Onboarding
+    if(localStorage.getItem('naonao_onboarding_done')!=='true') return;
     if(miniTimer) clearTimeout(miniTimer);
     miniBubble.textContent = msg;
     miniBubble.classList.add('show');

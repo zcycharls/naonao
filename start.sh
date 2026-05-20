@@ -3,4 +3,4 @@
 # 这个变量会导致 Electron 以 Node.js 模式运行，而不是主进程模式
 
 unset ELECTRON_RUN_AS_NODE 2>/dev/null
-electron .
+npx electron .
