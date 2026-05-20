@@ -2180,7 +2180,8 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
 });
 // 删除本地模型按钮
 document.getElementById('local-model-delete-btn')?.addEventListener('click', async () => {
-  if (!confirm('确定要删除本地模型吗？\n\n删除后需要重新下载（约 460MB）才能使用离线 AI。')) return;
+  const ok = await petDialog.confirm('确定要删除本地模型吗？\n\n删除后需要重新下载（约 460MB）才能使用离线 AI。', { title:'删除确认' });
+  if (!ok) return;
   const btn = document.getElementById('local-model-delete-btn');
   const status = document.getElementById('local-model-status');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 删除中…'; }
