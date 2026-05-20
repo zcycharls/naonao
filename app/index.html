@@ -2192,6 +2192,8 @@ document.getElementById('local-model-delete-btn')?.addEventListener('click', asy
     addLog('🗑 本地模型已删除');
     updateStatus();
     if (status) status.textContent = '🤖 本地模型：已删除';
+    // 恢复删除按钮
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 删除本地模型'; }
   } else {
     addLog('❌ 删除模型失败: ' + (result.error || '未知错误'));
     if (btn) { btn.disabled = false; btn.textContent = '🗑 删除本地模型'; }
