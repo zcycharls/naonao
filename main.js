@@ -91,7 +91,6 @@ async function downloadLocalModel(progressCallback) {
     env.allowLocalModels = true
     // 使用国内镜像加速（HuggingFace 在国内常被墙）
     env.remoteHost = 'https://hf-mirror.com'
-    env.remotePathTemplate = '{model}/resolve/{revision}/{file}'
 
     console.log('[孬孬] 开始下载模型:', MODEL_NAME, '(镜像: hf-mirror.com)')
     // 下载并加载模型（会触发自动下载）
