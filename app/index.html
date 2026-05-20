@@ -1426,8 +1426,8 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
         <button class="onboard-seg-b" data-p="openai">OpenAI 兼容</button>
       </div>
       <input class="onboard-input" type="password" id="onboard-apikey" placeholder="粘贴 API Key…" autocomplete="off" spellcheck="false">
-      <div class="ob-row" id="ob-base-row" style="display:none">
-        <input class="onboard-input" type="url" id="onboard-base" placeholder="Base URL，如 https://api.openai.com/v1" autocomplete="off" spellcheck="false">
+      <div class="ob-row" id="ob-base-row">
+        <input class="onboard-input" type="url" id="onboard-base" placeholder="Base URL（引用地址），如 https://api.openai.com/v1" autocomplete="off" spellcheck="false">
       </div>
       <input class="onboard-input" type="text" id="onboard-model" placeholder="模型名（留空用默认）" autocomplete="off" spellcheck="false">
       <div class="onboard-btns">
@@ -3585,12 +3585,11 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   const obSegBtns=document.querySelectorAll('#ob-seg .onboard-seg-b');
   const obBaseRow=document.getElementById('ob-base-row');
   let obProvider='anthropic';
-  obSegBtns.forEach(b=>b.addEventListener('click',()=>{
-    obSegBtns.forEach(x=>x.classList.remove('on'));
-    b.classList.add('on');
-    obProvider=b.dataset.p;
-    obBaseRow.style.display=obProvider==='openai'?'block':'none';
-  }));
+    obSegBtns.forEach(b=>b.addEventListener('click',()=>{
+      obSegBtns.forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      obProvider=b.dataset.p;
+    }));
 
   // Delegate click events
   overlay.addEventListener('click',function(e){
