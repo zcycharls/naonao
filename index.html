@@ -481,7 +481,7 @@
 
   .win-body {
     padding: 22px 24px 26px;
-    min-height: 380px;
+    min-height: 480px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -553,6 +553,116 @@
   .pomo .ring span { position: relative; z-index: 1; }
   .pomo-text { font-size: 13px; color: #4a3868; font-weight: 500; }
   .pomo-text small { display: block; color: #8a78a8; font-size: 11px; font-weight: 400; margin-top: 2px; }
+
+  /* Demo: body doubling indicator */
+  .pomo-ext {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: auto;
+    flex-wrap: wrap;
+  }
+  .pomo-ext .pomo { margin-top: 0; flex: 1 1 260px; }
+  .double-tag {
+    flex: 0 0 auto;
+    background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: var(--sc);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(107,78,142,.3);
+  }
+
+  /* Demo: freezer popup toast */
+  .freezer-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #d4f5f0 0%, #b8ece0 100%);
+    border: 1px solid rgba(56,161,145,.3);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #1a574e;
+    box-shadow: 0 3px 12px rgba(56,161,145,.18);
+  }
+  .freezer-toast .idea { flex:1; font-family: var(--sc); }
+  .freezer-toast .action {
+    background: #38a191;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+
+  /* Demo: mini freezer sidebar */
+  .freezer-mini {
+    background: rgba(255,255,255,.85);
+    border: 1px solid rgba(56,161,145,.25);
+    border-radius: 12px;
+    padding: 12px 14px;
+    backdrop-filter: blur(6px);
+  }
+  .freezer-mini .fz-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .5em;
+    color: #38a191;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .freezer-mini .fz-title .count {
+    background: #38a191;
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .freezer-mini .fz-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .freezer-mini .fz-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #2d6b62;
+    font-family: var(--sc);
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: rgba(56,161,145,.08);
+  }
+  .freezer-mini .fz-item .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #38a191;
+    flex-shrink: 0;
+  }
+
+  /* Demo: win header buttons */
+  .win-btns {
+    display: flex;
+    gap: 6px;
+  }
+  .win-btn {
+    width: 24px; height: 20px;
+    border-radius: 4px;
+    background: rgba(107,78,142,.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+  }
 
   /* ============== FEATURES ============== */
   .features {
@@ -830,7 +940,11 @@
         <div class="win-head">
           <div class="win-dots"><span></span><span></span><span></span></div>
           <div class="win-title">孬孬 &middot; CHAT</div>
-          <div style="width:54px"></div>
+          <div class="win-btns">
+            <div class="win-btn" title="番茄钟">🍅</div>
+            <div class="win-btn" title="一起专注">📋</div>
+            <div class="win-btn" title="想法冰箱">🧊</div>
+          </div>
         </div>
         <div class="win-body">
           <div class="msg koala">
@@ -840,14 +954,30 @@
           <div class="msg user">今天有点提不起劲，工作做不下去。</div>
           <div class="msg koala">
             <div class="avatar" data-koala></div>
-            <div class="bubble">那我们先做一个小小的事就好。要不要开个 25 分钟的番茄钟？只做一件事，<br>不用做完，能开始就赢了。</div>
+            <div class="bubble">那我们一起专注吧。先开个番茄钟，只做一件事就好。还有，我已经戴上工作帽啦 <span style="font-size:16px;">🧢</span></div>
           </div>
-          <div class="msg user">好，那就写邮件回复那封吧。</div>
-          <div class="pomo">
-            <div class="ring"><span>16:24</span></div>
-            <div class="pomo-text">
-              专注中 &middot; 写邮件
-              <small>剩 16 分钟 &middot; 走神了直接点我，我把你拽回来</small>
+          <div class="msg user">好，先回复那封邮件。</div>
+
+          <div class="pomo-ext">
+            <div class="pomo">
+              <div class="ring"><span>14:38</span></div>
+              <div class="pomo-text">专注中 &middot; 回复邮件<small>剩 14 分钟 &middot; 走神了点锚，我拽你回来</small></div>
+            </div>
+            <div class="double-tag">🧢 一起专注 ON</div>
+          </div>
+
+          <div class="freezer-toast">
+            <span>💡</span>
+            <span class="idea">突然想起：明天要预约牙医</span>
+            <span class="action">🧊 已冷冻</span>
+          </div>
+
+          <div class="freezer-mini">
+            <div class="fz-title">🧊 想法冰箱 <span class="count">3</span></div>
+            <div class="fz-items">
+              <div class="fz-item"><span class="dot"></span>预约牙医</div>
+              <div class="fz-item"><span class="dot"></span>买猫粮</div>
+              <div class="fz-item"><span class="dot"></span>周末整理笔记</div>
             </div>
           </div>
         </div>
@@ -861,7 +991,7 @@
         <div class="section-label">CHAPTER II</div>
         <h2 class="section-title">
           What It Does
-          <span class="cn">&mdash; 六件小事 &mdash;</span>
+          <span class="cn">&mdash; 八件小事 &mdash;</span>
         </h2>
       </div>
 
