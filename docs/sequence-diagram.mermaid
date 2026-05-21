@@ -1,0 +1,41 @@
+sequenceDiagram
+    participant User
+    participant StatsBtn as #stats-btn
+    participant Drawer as StatsDrawer
+    participant Overlay as #stats-overlay
+    participant Store as StatsStore
+    participant Renderer as StatsRenderer
+    participant DOM as #stats-panel
+
+    User->>StatsBtn: 点击 📊 按钮
+    StatsBtn->>Drawer: toggle()
+
+    alt 面板关闭 → 打开
+        Drawer->>Overlay: 显示遮罩层 (class="open")
+        Drawer->>DOM: 滑入面板 (class="open", transform: translateX(0))
+        Drawer->>Store: hasAnyData()
+
+        alt 有数据
+            Store-->>Drawer: true
+            Drawer->>Renderer: renderAll()
+            Renderer->>Store: getPomoTotal() / getPomoToday() / getPomoStreak()
+            Store-->>Renderer: 统计数据
+            Renderer->>DOM: 渲染番茄统计卡片
+            Renderer->>Store: getFridgeFrozen() / getFridgeRetrieved()
+            Store-->>Renderer: 冰箱数据
+            Renderer->>DOM: 渲染冰箱统计卡片
+            Renderer->>Store: getCalendarData(4)
+            Store-->>Renderer: 28天打卡数据
+            Renderer->>DOM: 渲染连续打卡日历
+            Renderer->>Store: getPomoTrend(7) / getPomoTrend(30)
+            Store-->>Renderer: 趋势数据
+            Renderer->>DOM: 渲染 7天/30天 柱状图
+        else 无数据
+            Store-->>Drawer: false
+            Drawer->>Renderer: renderEmptyState()
+            Renderer->>DOM: 渲染引导页（"还没开始专注哦～"）
+        end
+    else 面板打开 → 关闭
+        Drawer->>DOM: 滑出面板 (transform: translateX(100%))
+        Drawer->>Overlay: 隐藏遮罩层 (移除 class="open")
+    end

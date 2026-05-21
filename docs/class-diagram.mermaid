@@ -1,0 +1,47 @@
+classDiagram
+    class StatsStore {
+        +Object data
+        +init() void
+        +recordPomodoro(durationMinutes) void
+        +recordFridge(action, ideaId) void
+        +getPomoTotal() number
+        +getPomoToday() number
+        +getPomoStreak() number
+        +getPomoByDate(date) number
+        +getFridgeFrozen() number
+        +getFridgeRetrieved() number
+        +getFridgeTotal() number
+        +getPomoTrend(days) Array~date,count~
+        +getFridgeTrend(days) Array~date,count~
+        +getCalendarData(weeks) Array~date,hasCheckin~
+        +hasAnyData() boolean
+        -_load() Object
+        -_save() void
+        -_ensureInit() void
+    }
+
+    class StatsRenderer {
+        +renderAll() void
+        +renderPomoCard(data) void
+        +renderFridgeCard(data) void
+        +renderCalendar(data) void
+        +renderPomoChart(data) void
+        +renderFridgeChart(data) void
+        +renderEmptyState() void
+        -_makeCard(title, value, subtitle) HTMLElement
+        -_makeBar(value, max, label) HTMLElement
+        -_makeCalendarCell(date, checked) HTMLElement
+    }
+
+    class StatsDrawer {
+        +open() void
+        +close() void
+        +toggle() void
+        +refresh() void
+        -_bindEvents() void
+        -_bindOverlayClick() void
+    }
+
+    StatsDrawer --> StatsStore : reads
+    StatsDrawer --> StatsRenderer : calls
+    StatsRenderer --> StatsStore : reads

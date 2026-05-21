@@ -1177,6 +1177,43 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
 
 .ob-row{margin-bottom:0}
 .ob-row .onboard-input{margin-bottom:12px}
+
+/* ═══ STATS DRAWER ═══ */
+#stats-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:998;display:none}
+#stats-drawer{position:fixed;right:-400px;width:380px;top:0;bottom:0;background:var(--sheet-bg);z-index:999;transition:right .35s ease;box-shadow:-4px 0 30px rgba(100,70,180,.2);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:env(safe-area-inset-bottom,0)}
+#stats-drawer.open{right:0}
+#stats-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1.5px solid rgba(210,195,255,.5);position:sticky;top:0;background:var(--sheet-bg);z-index:2}
+#stats-head-title{font-size:16px;font-weight:800;color:var(--text-main)}
+#stats-close{width:30px;height:30px;border-radius:50%;border:none;background:#f0ebff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-dim);touch-action:manipulation}
+#stats-close:active{background:#e2d8ff}
+#stats-body{padding:12px 16px 24px;display:flex;flex-direction:column;gap:14px}
+.stat-card{background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 2px 12px rgba(140,110,200,.08);border:1.5px solid rgba(220,210,255,.5)}
+.stat-card-title{font-size:12px;font-weight:800;color:var(--text-dim);letter-spacing:.05em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.stat-empty{text-align:center;padding:16px 8px;color:var(--text-dim);font-size:13px;font-weight:600;line-height:1.8}
+.stat-empty.stat-coming{padding:20px 8px;opacity:.7}
+.stat-numbers{text-align:center;margin-bottom:10px}
+.stat-big{font-size:32px;font-weight:800;color:var(--focus);line-height:1.1}
+.stat-label{font-size:11px;color:var(--text-dim);font-weight:700;margin-top:-2px}
+.stat-row{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--text-dim);font-weight:600;margin:4px 0}
+.stat-row strong{color:var(--text-main)}
+.cal-grid{display:flex;flex-direction:column;gap:4px}
+.cal-row{display:flex;gap:4px}
+.cal-cell{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.cal-hdr{margin-bottom:2px}
+.cal-label{color:var(--text-dim);font-size:9px;font-weight:800;height:auto;padding:2px 0}
+.cal-future{color:#d0c8e8;background:transparent}
+.cal-done{background:#e8f5e9;color:#388e3c}
+.cal-empty{background:#f8f5ff;color:var(--text-dim)}
+.cal-today{box-shadow:0 0 0 2px var(--focus)}
+.trend-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:12px;font-weight:700;color:var(--text-main)}
+.trend-switch{padding:2px 10px;border-radius:12px;border:1.5px solid rgba(210,195,255,.7);background:rgba(240,235,255,.7);font-size:10px;font-weight:700;color:var(--text-dim);cursor:pointer;touch-action:manipulation}
+.trend-switch:active{background:#e2d8ff}
+.trend-bars{display:flex;align-items:flex-end;gap:6px;height:100px}
+.trend-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.trend-bar{width:100%;max-width:32px;background:linear-gradient(180deg,#b39ddb,#7c5cbf);border-radius:6px 6px 2px 2px;min-height:2px;transition:height .3s}
+.trend-label{font-size:9px;color:var(--text-dim);font-weight:700;margin-top:4px}
+#stats-toggle{padding:4px 10px;border-radius:20px;border:1.5px solid rgba(210,195,255,.7);background:rgba(240,235,255,.8);font-size:13px;cursor:pointer;font-weight:700;touch-action:manipulation;transition:background .15s}
+#stats-toggle:active{background:#e2d8ff}
 </style>
 </head>
 <body>
@@ -1347,6 +1384,7 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
       <button id="pomo-toggle" aria-label="番茄钟">🍅 专注</button>
       <button id="dlg-clear" aria-label="清空对话" title="清空对话"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
       <button id="dlg-minimize" aria-label="最小化" title="最小化">−</button>
+      <button id="stats-toggle" aria-label="统计面板" title="数据统计">📊</button>
     </div>
   </div>
 
@@ -1404,6 +1442,31 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
     </button>
     <textarea id="chat-input" rows="1" placeholder="和孬孬说说话…" maxlength="400"></textarea>
     <button id="send-btn" aria-label="发送">➤</button>
+  </div>
+</div>
+
+<!-- Stats Drawer -->
+<div id="stats-overlay"></div>
+<div id="stats-drawer">
+  <div id="stats-head">
+    <span id="stats-head-title">📊 数据统计</span>
+    <button id="stats-close" aria-label="关闭统计">✕</button>
+  </div>
+  <div id="stats-body">
+    <div class="stat-card" id="stats-pomo-card">
+      <div class="stat-card-title">🍅 番茄统计</div>
+    </div>
+    <div class="stat-card" id="stats-cal-card">
+      <div class="stat-card-title">📅 打卡日历</div>
+      <div id="stats-cal"></div>
+    </div>
+    <div class="stat-card" id="stats-fridge-card">
+      <div class="stat-card-title">🧊 想法冰箱</div>
+    </div>
+    <div class="stat-card" id="stats-trend-card">
+      <div class="stat-card-title">📈 专注趋势</div>
+      <div id="stats-trend"></div>
+    </div>
   </div>
 </div>
 
@@ -3158,6 +3221,7 @@ function pomoComplete(){
   if(window.setKoalaFocusing) window.setKoalaFocusing(false);
   if(pomoMode==='work'){
     pomoCount++;
+    StatsStore.recordPomo();
     pomoMode='break';pomoLeft=POMO_BREAK;pomoTotal=POMO_BREAK;
     spawnHeart(px+55,py+35);
     const act=TaskStore.getActive();
@@ -3175,7 +3239,102 @@ function pomoComplete(){
   renderPomo();
 }
 
-// 在对话框里加一条带「完成这步」「跳过」按钮的特殊消息
+/* ════════ STATS STORE ════════ */
+const STATS_KEY='naonao_stats';const STATS_VERSION=1;
+const StatsStore={
+  read(){try{let d=JSON.parse(localStorage.getItem(STATS_KEY));return d&&d.version===STATS_VERSION?d:null}catch(e){return null}},
+  write(data){data.version=STATS_VERSION;localStorage.setItem(STATS_KEY,JSON.stringify(data))},
+  init(){const d=this.read();if(d)return d;const n={version:STATS_VERSION,pomodoro:{records:[]},fridge:{frozen:0,retrieved:0,records:[]}};this.write(n);return n},
+  recordPomo(){const d=this.init();const now=new Date();d.pomodoro.records.push({date:now.toISOString().slice(0,10),duration:1500,completedAt:now.toISOString()});this.write(d)},
+  todayPomos(){const d=this.init();const td=new Date().toISOString().slice(0,10);return d.pomodoro.records.filter(r=>r.date===td).length},
+  weekPomos(){const d=this.init();const now=new Date();const day=now.getDay()||7;now.setHours(0,0,0,0);const mon=new Date(now);mon.setDate(now.getDate()-day+1);const ms=mon.toISOString().slice(0,10);return d.pomodoro.records.filter(r=>r.date>=ms).length},
+  totalFocusMin(){const d=this.init();return Math.round(d.pomodoro.records.reduce((s,r)=>s+r.duration,0)/60)},
+  streakDays(){const d=this.init();if(!d.pomodoro.records.length)return 0;const dates=[...new Set(d.pomodoro.records.map(r=>r.date))].sort().reverse();const today=new Date().toISOString().slice(0,10);let streak=0;let check=new Date(today);while(true){const ds=check.toISOString().slice(0,10);if(dates.includes(ds)){streak++;check.setDate(check.getDate()-1)}else{if(ds===today){check.setDate(check.getDate()-1);continue}break}}return streak},
+  dailyMap(days){const d=this.init();const m={};for(let i=0;i<days;i++){const dt=new Date();dt.setDate(dt.getDate()-i);m[dt.toISOString().slice(0,10)]=0}d.pomodoro.records.forEach(r=>{if(m[r.date]!==undefined)m[r.date]++});return m},
+  calendarWeeks(){const today=new Date();const day=today.getDay()||7;const mon=new Date(today);mon.setDate(today.getDate()-day+1);const start=new Date(mon);start.setDate(start.getDate()-21);const m=this.dailyMap(30);const weeks=[];const cursor=new Date(Math.min(start.getTime(),mon.getTime()-21*86400000));for(let w=0;w<4;w++){const row=[];for(let d=0;d<7;d++){const ds=cursor.toISOString().slice(0,10);row.push({date:ds,count:m[ds]||0,today:ds===today.toISOString().slice(0,10),future:new Date(ds)>today});cursor.setDate(cursor.getDate()+1)}weeks.push(row)}return weeks}
+};
+
+/* ════════ STATS RENDERER ════════ */
+const StatsRenderer={
+  renderAll(){
+    this.renderPomoCard();
+    this.renderCalendar();
+    this.renderFridgeCard();
+    this.renderTrend();
+  },
+  renderPomoCard(){
+    const el=document.getElementById('stats-pomo-card');
+    const today=StatsStore.todayPomos();
+    const week=StatsStore.weekPomos();
+    const total=StatsStore.totalFocusMin();
+    const streak=StatsStore.streakDays();
+    el.innerHTML=today===0 && week===0
+      ?`<div class="stat-empty">🍅<br>还没有番茄记录<br>开一个试试吧～</div>`
+      :`<div class="stat-numbers"><div class="stat-big">🔥 ${streak}</div><div class="stat-label">连续打卡</div></div>
+         <div class="stat-row"><span>今日</span><strong>${today} 🍅</strong><span>本周</span><strong>${week} 🍅</strong></div>
+         <div class="stat-row">累计专注 <strong>${total} 分钟</strong></div>`;
+  },
+  renderCalendar(){
+    const el=document.getElementById('stats-cal');
+    const weeks=StatsStore.calendarWeeks();
+    let h='<div class="cal-grid">';
+    const labels=['一','二','三','四','五','六','日'];
+    h+='<div class="cal-row cal-hdr">'+labels.map(l=>`<div class="cal-cell cal-label">${l}</div>`).join('')+'</div>';
+    weeks.forEach(w=>{
+      h+='<div class="cal-row">'+w.map(d=>{
+        let cls='cal-cell';
+        if(d.future) cls+=' cal-future';
+        else if(d.count>0) cls+=' cal-done';
+        else cls+=' cal-empty';
+        if(d.today) cls+=' cal-today';
+        return `<div class="${cls}" title="${d.date}: ${d.count}🍅">${d.count>0?'🍅':''}</div>`;
+      }).join('')+'</div>';
+    });
+    h+='</div>';
+    el.innerHTML=h;
+  },
+  renderFridgeCard(){
+    const el=document.getElementById('stats-fridge-card');
+    el.innerHTML=`<div class="stat-empty stat-coming">🧊<br>想法冰箱统计<br><small>即将上线</small></div>`;
+  },
+  renderTrend(){
+    const el=document.getElementById('stats-trend');
+    const m=StatsStore.dailyMap(this.trendDays);
+    const days=Object.keys(m).sort();
+    const max=Math.max(...Object.values(m),1);
+    let h=`<div class="trend-header">📈 近${this.trendDays}天趋势 <button class="trend-switch">${this.trendDays===7?'30天':'7天'}</button></div>
+           <div class="trend-bars">`;
+    days.forEach(d=>{
+      const v=m[d];const pct=(v/max*100).toFixed(0);
+      const label=d.slice(5);
+      h+=`<div class="trend-bar-wrap"><div class="trend-bar" style="height:${pct}%" title="${d}: ${v}🍅"></div><span class="trend-label">${label}</span></div>`;
+    });
+    h+='</div>';
+    el.innerHTML=h;
+    setTimeout(()=>{const btn=document.querySelector('#stats-trend .trend-switch');if(btn)btn.addEventListener('click',()=>StatsRenderer.switchTrend(StatsRenderer.trendDays===7?30:7));},0);
+  },
+  trendDays:7,
+  switchTrend(days){this.trendDays=days;this.renderTrend();}
+};
+
+/* ════════ STATS DRAWER EVENTS ════════ */
+document.getElementById('stats-toggle').addEventListener('click',()=>{
+  const d=document.getElementById('stats-drawer');
+  const o=document.getElementById('stats-overlay');
+  const open=d.classList.contains('open');
+  if(open){d.classList.remove('open');o.style.display='none'}
+  else{StatsRenderer.renderAll();d.classList.add('open');o.style.display='block'}
+});
+document.getElementById('stats-overlay').addEventListener('click',()=>{
+  document.getElementById('stats-drawer').classList.remove('open');
+  document.getElementById('stats-overlay').style.display='none';
+});
+document.getElementById('stats-close').addEventListener('click',()=>{
+  document.getElementById('stats-drawer').classList.remove('open');
+  document.getElementById('stats-overlay').style.display='none';
+});
+
+// 原有 pomodoro 事件监听
 function appendPomoNext(head, taskId, subId, subText){
   showDialog();
   const row=document.createElement('div');
