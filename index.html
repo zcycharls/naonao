@@ -536,7 +536,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 #body-double-btn{padding:4px 10px;border-radius:20px;border:1.5px solid rgba(210,195,255,.7);background:rgba(240,235,255,.8);font-size:14px;cursor:pointer;touch-action:manipulation;transition:background .15s}
 #body-double-btn.on{background:#fff0d8;border-color:#f0c070}
 #body-double-btn:active{background:#e2d8ff}
-#pw.bd-active{box-shadow:0 0 0 3px rgba(170,140,220,.5),0 0 18px rgba(170,140,220,.25);border-radius:24px}
+/* Work mode badge */
 .bd-badge{display:none;position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#c4b5e0,#a088d0);color:#fff;padding:3px 12px;border-radius:10px;font-size:10px;font-weight:800;white-space:nowrap;z-index:50;box-shadow:0 2px 8px rgba(140,110,200,.3);pointer-events:none}
 .bd-badge.show{display:block}
 #pw.bd-pomo-lock .pet-img-wrap{animation:none !important}
@@ -1447,14 +1447,13 @@ document.getElementById('stats-close').addEventListener('click',()=>{
 });
 
 /* ════════ BODY DOUBLE ════════ */
-let bdOn=localStorage.getItem('naonao_bd-active')==='1';
+let bdOn=localStorage.getItem('naonao_bodydouble')==='1';
 const bdBtn=document.getElementById('body-double-btn');
 const bdBadge=document.getElementById('bd-badge');
 const updateBD=()=>{
   bdBtn.classList.toggle('on',bdOn);
   bdBadge.style.display=bdOn?'block':'none';
-  pw.classList.toggle('bd-active',bdOn);
-  localStorage.setItem('naonao_bd-active',bdOn?'1':'0');
+  localStorage.setItem('naonao_bodydouble',bdOn?'1':'0');
   if(bdOn&&pomoRunning&&pomoMode==='work'){pw.classList.add('bd-pomo-lock')}
   else if(!bdOn||!pomoRunning){pw.classList.remove('bd-pomo-lock')}
 };
