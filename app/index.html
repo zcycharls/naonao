@@ -1227,7 +1227,8 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
 #pw.bd-pomo-lock #pet-img{animation:none !important}
 
 /* ═══ FREEZER ═══ */
-#freezer-btn{position:absolute;top:8px;right:54px;width:32px;height:28px;border-radius:14px;border:1.5px solid rgba(210,195,255,.5);background:rgba(240,235,255,.8);font-size:14px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;touch-action:manipulation;transition:background .15s}
+#freezer-btn{position:absolute;top:52px;right:12px;width:32px;height:32px;border-radius:16px;border:1.5px solid rgba(56,161,145,.4);background:rgba(240,255,252,.9);font-size:16px;cursor:pointer;z-index:36;display:flex;align-items:center;justify-content:center;touch-action:manipulation;box-shadow:0 2px 8px rgba(56,161,145,.15);transition:transform .15s}
+#freezer-btn:active{transform:scale(.9)}
 #freezer-btn.active{background:#d4f5f0;border-color:#38a191}
 #freezer-btn::after{content:attr(data-count);position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;border-radius:8px;background:#38a191;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px}
 #freezer-btn[data-count="0"]::after{display:none}
@@ -1387,6 +1388,10 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
       <div style="width:100%;height:6px;background:rgba(200,185,245,.25);border-radius:3px;overflow:hidden;">
         <div id="download-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#b39ddb,#7c5cbf);border-radius:3px;transition:width .3s ease;"></div>
       </div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button id="download-pause" style="flex:1;padding:5px 0;border-radius:8px;border:1.5px solid rgba(210,195,255,.6);background:rgba(240,235,255,.7);font-size:11px;font-weight:700;color:var(--text-dim);cursor:pointer;">⏸️ 暂停</button>
+        <button id="download-cancel" style="flex:1;padding:5px 0;border-radius:8px;border:1.5px solid rgba(220,140,140,.5);background:rgba(255,240,240,.7);font-size:11px;font-weight:700;color:#c44;cursor:pointer;">✕ 取消</button>
+      </div>
     </div>
     <button id="local-model-btn" style="margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">📥 下载并加载模型</button>
     <button id="local-model-delete-btn" style="display:none;margin-top:6px;width:100%;padding:8px 12px;border-radius:10px;border:1.5px solid #e8c4c4;background:transparent;font-family:var(--font-body);font-size:12px;font-weight:700;color:#c44;cursor:pointer;transition:all .15s;">🗑 删除本地模型</button>
@@ -1474,7 +1479,7 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
   <div id="dlg-msgs"></div>
 
   <!-- Freezer button -->
-  <button id="freezer-btn" aria-label="想法冰箱" title="想法冰箱">💡</button>
+  <button id="freezer-btn" aria-label="想法冰箱" title="想法冰箱">🧊</button>
 </div>
 
 <div id="hint">轻触孬孬，或在下方输入 ✦</div>
@@ -2242,6 +2247,26 @@ async function updateStatus(){
 }
 
 /* 本地模型加载/下载按钮 */
+let downloadPaused=false;
+let downloadCancelled=false;
+
+// 下载控制按钮
+document.getElementById('download-pause')?.addEventListener('click',()=>{
+  downloadPaused=!downloadPaused;
+  const p=document.getElementById('download-pause');
+  p.textContent=downloadPaused?'▶️ 继续':'⏸️ 暂停';
+});
+document.getElementById('download-cancel')?.addEventListener('click',async ()=>{
+  downloadCancelled=true;
+  downloadPaused=false;
+  await window.petBridge.localModelCancel();
+  const btn=document.getElementById('local-model-btn');
+  const dp=document.getElementById('download-progress');
+  if(btn){btn.disabled=false;btn.textContent='📥 下载并加载模型';btn.style.opacity='1'}
+  if(dp)dp.style.display='none';
+  addLog('⏹ 下载已取消');
+});
+
 document.getElementById('local-model-btn')?.addEventListener('click', async () => {
   const btn = document.getElementById('local-model-btn');
   const status = document.getElementById('local-model-status');
@@ -2277,6 +2302,7 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
   }
   
   // 模型文件不存在，需要下载
+  downloadCancelled=false;downloadPaused=false;
   btn.disabled = true;
   btn.textContent = '⏳ 下载中…';
   if (status) status.textContent = '🤖 本地模型：准备下载…';
@@ -2289,6 +2315,7 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
   
   try {
     const result = await window.petBridge.localModelDownload();
+    if(downloadCancelled) return;
     if (result && result.success) {
       // 直接设置前端状态，不依赖 IPC 回查避免时序问题
       localModelReady = true;
@@ -2398,6 +2425,7 @@ if (window.petBridge && window.petBridge.onMainLog) {
 // 接收模型下载进度
 if (window.petBridge && window.petBridge.onLocalModelProgress) {
   window.petBridge.onLocalModelProgress((data) => {
+    if(downloadCancelled||downloadPaused) return;
     const downloadProgress = document.getElementById('download-progress');
     const downloadStatus = document.getElementById('download-status');
     const downloadPct = document.getElementById('download-pct');

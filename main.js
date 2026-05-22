@@ -13,6 +13,7 @@ function sendLogToRenderer(msg) {
 let localModelPipeline = null
 let localModelLoading = false
 let localModelReady = false
+let localModelCancelFlag = false
 const MODEL_NAME = 'Xenova/Qwen1.5-0.5B-Chat'
 
 // 模型存放目录：优先 userData/models/（按需下载），兼容开发环境
@@ -75,7 +76,7 @@ async function loadLocalModel() {
 }
 
 // 下载模型到 userData 目录（点击下载按钮时调用）
-async function downloadLocalModel(progressCallback) {
+async function downloadLocalModel(progressCallback, isCancelled) {
   const modelsRoot = path.join(app.getPath('userData'), 'models')
   // 确保目录存在
   if (!fs.existsSync(modelsRoot)) {
@@ -97,6 +98,7 @@ async function downloadLocalModel(progressCallback) {
     // 下载并加载模型（会触发自动下载）
     const p = await pipeline('text-generation', MODEL_NAME, {
       progress_callback: (info) => {
+        if (isCancelled && isCancelled()) throw new Error('CANCELLED')
         if (progressCallback && info) {
           // @xenova/transformers progress: { status, name, file, loaded, total, progress }
           const pct = info.progress !== undefined ? Math.round(info.progress) : 0
@@ -109,9 +111,11 @@ async function downloadLocalModel(progressCallback) {
     })
     console.log('[孬孬] ✅ 模型下载并完成加载')
     return { success: true, pipeline: p }
-    console.log('[孬孬] ✅ 模型下载并完成加载')
-    return { success: true, pipeline: p }
   } catch (e) {
+    if (e.message === 'CANCELLED') {
+      console.log('[孬孬] ⏹ 下载已取消')
+      return { success: false, error: '已取消下载', cancelled: true }
+    }
     console.error('[孬孬] 模型下载失败:', e)
     return { success: false, error: e.message }
   }
@@ -372,14 +376,18 @@ ipcMain.handle('local-model:download', async (event) => {
   }
 
   localModelLoading = true
+  localModelCancelFlag = false
   // 发送进度更新到渲染进程
   const sendProgress = (progress) => {
     event.sender.send('local-model:progress', progress)
   }
 
-  const result = await downloadLocalModel(sendProgress)
+  const result = await downloadLocalModel(sendProgress, () => localModelCancelFlag)
   localModelLoading = false
 
+  if (localModelCancelFlag) {
+    return { success: false, error: '已取消下载', cancelled: true }
+  }
   if (result.success) {
     localModelPipeline = result.pipeline
     localModelReady = true
@@ -387,6 +395,13 @@ ipcMain.handle('local-model:download', async (event) => {
   } else {
     return { success: false, error: result.error }
   }
+})
+
+// 取消下载
+ipcMain.handle('local-model:cancel', async () => {
+  localModelCancelFlag = true
+  localModelLoading = false
+  return { success: true }
 })
 
 // 删除已下载的本地模型文件
