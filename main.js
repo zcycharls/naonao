@@ -134,7 +134,7 @@ async function runLocalInference(text) {
       top_p: 0.9,
       do_sample: true,
     })
-    // 提取回复
+    // 提取回复 — 严格只取 assistant 部分，防止提示词泄漏
     let full = ''
     if (Array.isArray(result) && result.length > 0) {
       full = result[0]?.generated_text || result[0]?.text || ''
@@ -146,7 +146,11 @@ async function runLocalInference(text) {
     const marker = '<|im_start|>assistant\n'
     const idx = full.lastIndexOf(marker)
     let response = idx !== -1 ? full.substring(idx + marker.length) : full
-    response = response.replace(/<\|im_end\|>/g, '').replace(/<\|im_start\|>/g, '').trim()
+    // 移除所有 ChatML 控制 token
+    response = response.replace(/<\|im_start\|>(system|user|assistant)/g, '').replace(/<\|im_end\|>/g, '').replace(/<\|im_start\|>/g, '')
+    // 移除残留的提示词内容（以角色名开头的行）
+    response = response.replace(/^(system|user|assistant)\s*[:\n][\s\S]*$/gm, '')
+    response = response.trim()
     return response || null
   } catch (e) {
     console.error('[孬孬] 本地推理失败:', e)
