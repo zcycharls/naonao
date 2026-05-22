@@ -1392,7 +1392,11 @@ const StatsRenderer={
   },
   renderFridgeCard(){
     const el=document.getElementById('stats-fridge-card');
-    el.innerHTML=`<div class="stat-empty stat-coming">🧊<br>想法冰箱统计<br><small>即将上线</small></div>`;
+    const total=freezerItems.length;
+    el.innerHTML=total===0
+      ?`<div class="stat-empty">🧊<br>还没有冷冻的想法<br><small>点击 💡 把闪现的想法冻起来</small></div>`
+      :`<div class="stat-numbers"><div class="stat-big">🧊 ${total}</div><div class="stat-label">已冷冻的想法</div></div>
+         <div class="stat-row">最新：<strong>${(freezerItems[0]?.text||'').slice(0,20)}</strong></div>`;
   },
   renderTrend(){
     const el=document.getElementById('stats-trend');
