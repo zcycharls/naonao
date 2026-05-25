@@ -3451,7 +3451,7 @@ const bdHat=document.getElementById('bd-hat');
 const updateBD=()=>{
   bdBtn.classList.toggle('on',bdOn);
   bdBadge.style.display=bdOn?'block':'none';
-  bdHat.classList.toggle('show',bdOn);
+  if(bdOn)bdHat.classList.add('show');else bdHat.classList.remove('show');
   localStorage.setItem('naonao_bodydouble',bdOn?'1':'0');
   if(bdOn&&pomoRunning&&pomoMode==='work'){pw.classList.add('bd-pomo-lock')}
   else if(!bdOn||!pomoRunning){pw.classList.remove('bd-pomo-lock')}
