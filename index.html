@@ -541,7 +541,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .bd-badge.show{display:block}
 /* Work cap image */
 .bd-hat{display:none;position:absolute;width:84px;height:58px;top:2px;left:50%;transform:translateX(-50%) rotate(-5deg);z-index:7;pointer-events:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.25));object-fit:cover;object-position:bottom}
-.bd-hat.show{display:block}
 .bd-pompom{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:14px;height:14px;background:radial-gradient(circle at 35% 35%,#f0e0ff,#c0a0e0);border-radius:50%;box-shadow:0 0 6px rgba(180,140,220,.4),inset 0 -3px 4px rgba(100,50,140,.2)}
 #pw.bd-pomo-lock .pet-img-wrap{animation:none !important}
 
@@ -944,11 +943,11 @@ let busy=false;
 
 function load(){
   try{const s=JSON.parse(localStorage.getItem('apk')||'{}');
-    return{p:s.p||'anthropic',k:s.k||'',m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid'};}
-  catch{return{p:'anthropic',k:'',m:'',b:'',proxy:false,freq:'mid'};}
+    return{p:s.p||'anthropic',k:s.k||'',m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid'};
+  catch{return{p:'anthropic',k:'',m:'',b:'',proxy:false,freq:'mid'};
 }
-function save(){localStorage.setItem('apk',JSON.stringify(cfg));}
-function hasKey(){return!!cfg.k;}
+function save(){localStorage.setItem('apk',JSON.stringify(cfg));
+function hasKey(){return!!cfg.k;
 
 /* ════════ SETTINGS UI ════════ */
 const overlay=document.getElementById('s-overlay');
@@ -969,7 +968,7 @@ function openSettings(){
   curP=cfg.p;syncSeg();syncFreq();updateStatus();
   overlay.classList.add('open');panel.classList.add('open');
 }
-function closeSettings(){overlay.classList.remove('open');panel.classList.remove('open');}
+function closeSettings(){overlay.classList.remove('open');panel.classList.remove('open');
 function syncFreq(){
   document.querySelectorAll('#freq-seg .seg-b').forEach(b=>{
     b.classList.toggle('on', b.dataset.freq===(cfg.freq||'mid'));
@@ -992,7 +991,7 @@ function updateStatus(){
     <span class="dot"></span>${hasKey()?'API Key 已配置':'未配置，使用内置话术'}
   </span>`;
 }
-segBtns.forEach(b=>b.addEventListener('click',()=>{curP=b.dataset.p;syncSeg();}));
+segBtns.forEach(b=>b.addEventListener('click',()=>{curP=b.dataset.p;syncSeg();));
 document.getElementById('settings-btn').addEventListener('click',openSettings);
 document.getElementById('s-close').addEventListener('click',closeSettings);
 overlay.addEventListener('click',closeSettings);
@@ -1040,7 +1039,7 @@ let thinkingEl=null;
 function appendMsg(role,text){
   showDialog();
   // remove thinking indicator if present
-  if(thinkingEl){thinkingEl.remove();thinkingEl=null;}
+  if(thinkingEl){thinkingEl.remove();thinkingEl=null;
 
   const row=document.createElement('div');
   row.className=`dlg-row ${role}`;
@@ -1080,7 +1079,7 @@ function showThinkingIndicator(){
 }
 
 function removeThinking(){
-  if(thinkingEl){thinkingEl.remove();thinkingEl=null;}
+  if(thinkingEl){thinkingEl.remove();thinkingEl=null;
 }
 
 document.getElementById('dlg-clear').addEventListener('click',()=>{
@@ -1159,7 +1158,7 @@ async function send(){
   const origOnStreamChunk=onStreamChunk;
   // patch: intercept first chunk to create bubble
   const _patch=chunk=>{
-    if(firstChunk){firstChunk=false;startStreamBubble();}
+    if(firstChunk){firstChunk=false;startStreamBubble();
     origOnStreamChunk(chunk);
   };
   // temporarily override
@@ -1177,7 +1176,7 @@ async function send(){
     appendErrorMsg(txt);
     if(history.at(-1)?.role==='user') history.pop();
     console.error('[孬孬]',e);
-  }finally{busy=false;sendBtn.disabled=false;window._streamPatch=null;}
+  }finally{busy=false;sendBtn.disabled=false;window._streamPatch=null;
 }
 
 /* Patched wrapper that uses _streamPatch for first-chunk detection */
@@ -1201,9 +1200,9 @@ async function streamAPIPatched(msg){
     :JSON.stringify({model,messages:[{role:'system',content:SYS},...history],max_tokens:200,stream:true});
 
   let r;
-  try{r=await fetch(url,{method:'POST',headers,body});}
-  catch(e){throw new Error(`网络连接失败，请在 ⚙️ 设置中勾选"通过 CORS 代理"后重试。`);}
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${r.status}`);}
+  try{r=await fetch(url,{method:'POST',headers,body});
+  catch(e){throw new Error(`网络连接失败，请在 ⚙️ 设置中勾选"通过 CORS 代理"后重试。`);
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${r.status}`);
 
   const extractChunk=isAnthropic
     ?(d=>d?.delta?.type==='text_delta'?d.delta.text:null)
@@ -1249,8 +1248,8 @@ function appendErrorMsg(txt){
 }
 
 sendBtn.addEventListener('click',send);
-chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
-chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,110)+'px';});
+chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();});
+chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,110)+'px';);
 chatInput.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
 chatInput.addEventListener('mousedown',e=>e.stopPropagation());
 
@@ -1428,10 +1427,10 @@ const StatsRenderer={
     const me={3:'😊',2:'😐',1:'😣'};
     h+='<div class="mood-row">'+days.map(d=>`<span class="mood-dot">${mm[d]?me[mm[d]]:''}</span>`).join('')+'</div>';
     el.innerHTML=h;
-    setTimeout(()=>{const btn=document.querySelector('#stats-trend .trend-switch');if(btn)btn.addEventListener('click',()=>StatsRenderer.switchTrend(StatsRenderer.trendDays===7?30:7));},0);
+    setTimeout(()=>{const btn=document.querySelector('#stats-trend .trend-switch');if(btn)btn.addEventListener('click',()=>StatsRenderer.switchTrend(StatsRenderer.trendDays===7?30:7));,0);
   },
   trendDays:7,
-  switchTrend(days){this.trendDays=days;this.renderTrend();}
+  switchTrend(days){this.trendDays=days;this.renderTrend();
 };
 
 /* ════════ STATS DRAWER EVENTS ════════ */
@@ -1459,7 +1458,7 @@ const bdHat=document.getElementById('bd-hat');
 const updateBD=()=>{
   bdBtn.classList.toggle('on',bdOn);
   bdBadge.style.display=bdOn?'block':'none';
-  if(bdHat){if(bdOn)bdHat.classList.add('show');else bdHat.classList.remove('show')}
+  if(bdHat)bdHat.style.display=bdOn?'block':'none';
   localStorage.setItem('naonao_bodydouble',bdOn?'1':'0');
   if(bdOn&&pomoRunning&&pomoMode==='work'){pw.classList.add('bd-pomo-lock')}
   else if(!bdOn||!pomoRunning){pw.classList.remove('bd-pomo-lock')}
@@ -1551,7 +1550,7 @@ const FREQ_MS={off:null, low:4*60*1000, mid:2.5*60*1000, high:90*1000};
 const FREQ_JITTER={off:0, low:2*60*1000, mid:60*1000, high:60*1000};
 function scheduleIdle(){
   const base=FREQ_MS[cfg.freq||'mid'];
-  if(base===null){setTimeout(scheduleIdle,30*1000);return;} // off: re-check every 30s
+  if(base===null){setTimeout(scheduleIdle,30*1000);return; // off: re-check every 30s
   setTimeout(()=>{
     if(!busy && (cfg.freq||'mid')!=='off'){
       const msg=Math.random()<0.4?rand(ADHD_TIPS):rand(FALLBACK);
@@ -1570,7 +1569,7 @@ function startGreetings(){
 
 
 /* ════════ HELPERS ════════ */
-function rand(a){return a[Math.floor(Math.random()*a.length)];}
+function rand(a){return a[Math.floor(Math.random()*a.length)];
 function spawnHeart(cx,cy){
   const pool=['💜','✨','🌸','⭐','🫧'];
   const el=document.createElement('div');el.className='heart';
@@ -1581,7 +1580,7 @@ function spawnHeart(cx,cy){
 let happyT=null;
 function setHappy(on){
   pw.classList.toggle('happy',on);
-  if(on){if(happyT)clearTimeout(happyT);happyT=setTimeout(()=>pw.classList.remove('happy'),1200);}
+  if(on){if(happyT)clearTimeout(happyT);happyT=setTimeout(()=>pw.classList.remove('happy'),1200);
 }
 function petReact(){
   pw.classList.remove('jumping','blinking');
@@ -1593,9 +1592,9 @@ function petReact(){
 
 /* ════════ PET MOOD (SVG mouth) ════════ */
 const petMouth=document.getElementById('pet-mouth'); // null for photo pet
-function setMouthNormal(){if(petMouth)petMouth.setAttribute('d','M71 94 Q80 100 89 94');}
-function setMouthHappy(){if(petMouth)petMouth.setAttribute('d','M68 93 Q80 102 92 93');}
-function setMouthThinking(){if(petMouth)petMouth.setAttribute('d','M73 96 Q80 96 87 96');}
+function setMouthNormal(){if(petMouth)petMouth.setAttribute('d','M71 94 Q80 100 89 94');
+function setMouthHappy(){if(petMouth)petMouth.setAttribute('d','M68 93 Q80 102 92 93');
+function setMouthThinking(){if(petMouth)petMouth.setAttribute('d','M73 96 Q80 96 87 96');
 
 const _origAddHappy=pw.classList.add.bind(pw.classList);
 // Watch class changes to sync mouth
@@ -1634,11 +1633,11 @@ PHRASES.forEach(({label,text})=>{
 const BAR_H_PET=110;
 let px=Math.max(20,Math.round(window.innerWidth*0.28));
 let py=Math.min(window.innerHeight/2-80,window.innerHeight-BAR_H_PET-160);
-function applyPos(){pw.style.left=px+'px';pw.style.top=py+'px';}
+function applyPos(){pw.style.left=px+'px';pw.style.top=py+'px';
 applyPos();
 
 let drag=false,sx,sy,spx,spy,moved=false;
-function ptr(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};}
+function ptr(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};
 function onStart(e){
   if(e.target.closest('#settings-btn,#chat-bar,#chat-dialog,#s-overlay,#s-panel')) return;
   drag=true;moved=false;
@@ -1682,8 +1681,8 @@ window.addEventListener('resize',()=>{
 /* ════════ ENTRANCE ════════ */
 pw.style.opacity='0';
 pw.style.transition='opacity .6s ease';
-requestAnimationFrame(()=>requestAnimationFrame(()=>{pw.style.opacity='1';}));
-setTimeout(()=>{pw.style.transition='filter .2s';},700);
+requestAnimationFrame(()=>requestAnimationFrame(()=>{pw.style.opacity='1';));
+setTimeout(()=>{pw.style.transition='filter .2s';,700);
 
 /* ════════ ONBOARDING ════════ */
 (function(){
@@ -1705,7 +1704,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   function finish(){
     localStorage.setItem('naonao_onboarding_done','true');
     overlay.classList.remove('show');
-    setTimeout(()=>{overlay.style.display='none';},400);
+    setTimeout(()=>{overlay.style.display='none';,400);
     // happy reaction from koala after onboarding
     setHappy(true);spawnHeart(px+55,py+40);
     // Start greetings now that onboarding is done
@@ -1732,7 +1731,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
       if(currentStep===1){
         // skip API key, go directly to task setup
         showStep(2);
-        setTimeout(()=>{const el=document.getElementById('onboard-task');if(el)el.focus();},400);
+        setTimeout(()=>{const el=document.getElementById('onboard-task');if(el)el.focus();,400);
       } else {
         // skip entire onboarding
         finish();
@@ -1751,7 +1750,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
       if(typeof updateStatus==='function') updateStatus();
       showStep(2);
       // focus the task input after transition
-      setTimeout(()=>{const el=document.getElementById('onboard-task');if(el)el.focus();},400);
+      setTimeout(()=>{const el=document.getElementById('onboard-task');if(el)el.focus();,400);
     }else if(action==='done'){
       const task=document.getElementById('onboard-task').value.trim();
       if(task){
@@ -1783,7 +1782,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
         save();
         if(typeof updateStatus==='function') updateStatus();
         showStep(2);
-        setTimeout(()=>{if(taskInputOb)taskInputOb.focus();},400);
+        setTimeout(()=>{if(taskInputOb)taskInputOb.focus();,400);
       }
     });
   }
@@ -1804,7 +1803,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   }
 
   // Show overlay with a gentle delay for the koala entrance to finish
-  setTimeout(()=>{overlay.classList.add('show');},900);
+  setTimeout(()=>{overlay.classList.add('show');,900);
 })();
 
 })();
