@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, screen, safeStorage } = require('electron/main')
+const { app, BrowserWindow, shell, ipcMain, screen, safeStorage } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
@@ -127,7 +127,12 @@ async function runLocalInference(text) {
     if (!ok) return null
   }
   try {
-    const prompt = `<|im_start|>system\n你是一只叫"孬孬"的数字陪伴宠物，专门陪伴有ADHD的用户。风格：每次回复极简短（最多2-3句话），温柔、接纳、非评判；帮用户聚焦当下；偶尔用1-2个emoji；用中文回复。\n<|im_end|>\n<|im_start|>user\n${text}\n<|im_end|>\n<|im_start|>assistant\n`
+    // 过滤用户输入中的 ChatML 控制字符，防止 prompt 注入
+    const safeText = String(text)
+      .replace(/<\|?im_(start|end)\|?>/gi, '')  // 移除 <|im_start|> 等
+      .replace(/[\r\n]/g, ' ')                  // 换行转为空格，防止伪造新消息
+      .slice(0, 500)                         // 硬限长度
+    const prompt = `<|im_start|>system\n你是一只叫"孬孬"的数字陪伴宠物，专门陪伴有ADHD的用户。风格：每次回复极简短（最多2-3句话），温柔、接纳、非评判；帮用户聚焦当下；偶尔用1-2个emoji；用中文回复。\n<|im_end|>\n<|im_start|>user\n${safeText}\n<|im_end|>\n<|im_start|>assistant\n`
     const result = await localModelPipeline(prompt, {
       max_new_tokens: 80,
       temperature: 0.7,
@@ -304,7 +309,16 @@ function createWindow() {
   })
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    try {
+      const u = new URL(url)
+      if (u.protocol === 'https:' || u.protocol === 'http:') {
+        shell.openExternal(url)
+      } else {
+        console.warn('[孬孬] 拒绝打开非 HTTP 链接:', url)
+      }
+    } catch {
+      console.warn('[孬孬] 无效 URL:', url)
+    }
     return { action: 'deny' }
   })
 }
@@ -367,6 +381,9 @@ ipcMain.handle('local-model:load', async () => {
 })
 
 ipcMain.handle('local-model:inference', async (_event, text) => {
+  if (typeof text !== 'string' || text.length === 0 || text.length > 2000) {
+    return null
+  }
   return await runLocalInference(text)
 })
 
