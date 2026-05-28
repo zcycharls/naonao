@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>孬孬 — 陪你专注的小可爱</title>
-<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHP 朋友轻轻把注意力拽回来。Windows 桌面版，开源 MIT。" />
+<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHD 朋友轻轻把注意力拽回来。支持番茄钟、一起专注、想法冰箱、数据统计和可选本地 AI。Windows 桌面版，开源 MIT。" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -855,7 +855,7 @@
   </div>
 
   <div class="theme-cell">
-    <span class="top">v1.521.1545</span>
+    <span class="top">v1.521.1912</span>
     <div class="lamp" aria-hidden="true"></div>
   </div>
 </header>
@@ -887,11 +887,11 @@
             <span class="sc">下载安装包</span>
           </div>
           <div class="step-body">
-            <a class="dl-btn" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
-              <span class="file">&#9660; 孬孬-Setup-1.521.1545.exe</span>
+            <a class="dl-btn" href="https://github.com/zcycharls/naonao/releases/download/v1.521.1912/-Setup-1.521.1912.exe" target="_blank" rel="noopener">
+              <span class="file">&#9660; 孬孬 Windows 安装包 · v1.521.1912</span>
               <span class="arrow">&#8595;</span>
             </a>
-            <span class="meta">~ 100 MB &middot; WIN10 / WIN11</span>
+            <span class="meta">~ 135 MB &middot; WIN10 / WIN11</span>
           </div>
         </div>
 
@@ -918,7 +918,7 @@
         </div>
       </div>
 
-      <div class="req">REQUIRES WINDOWS 10 / 11 &middot; X64 ONLY &middot; NO TELEMETRY</div>
+      <div class="req">REQUIRES WINDOWS 10 / 11 &middot; X64 ONLY &middot; NO ACCOUNTS &middot; NO TELEMETRY</div>
     </div>
   </section>
 
@@ -991,7 +991,7 @@
         <div class="section-label">CHAPTER II</div>
         <h2 class="section-title">
           What It Does
-          <span class="cn">&mdash; 八件小事 &mdash;</span>
+          <span class="cn">&mdash; 九件小事 &mdash;</span>
         </h2>
       </div>
 
@@ -1000,7 +1000,7 @@
           <div class="num">I &middot;</div>
           <h3>AI 对话</h3>
           <div class="en">Conversation</div>
-          <p>Anthropic / OpenAI compatible. <span class="sc">情绪低气压时也能说几句人话。</span></p>
+          <p>Cloud or local model. <span class="sc">可填 API Key，也可按需下载本地模型离线陪聊。</span></p>
         </div>
         <div class="feat">
           <div class="num">II &middot;</div>
@@ -1044,6 +1044,12 @@
           <div class="en">Thought Freezer</div>
           <p>Freeze ideas, stay focused. <span class="sc">突如其来的想法？冻进冰箱，不打断当前任务，稍后再取。</span></p>
         </div>
+        <div class="feat">
+          <div class="num">IX &middot;</div>
+          <h3>数据统计</h3>
+          <div class="en">Focus Stats</div>
+          <p>See your streaks. <span class="sc">番茄完成数、累计时长和近期开工趋势，一眼看见自己已经走了多远。</span></p>
+        </div>
       </div>
     </div>
   </section>
@@ -1053,9 +1059,9 @@
       Take it home.
       <span class="cn">把它接回家</span>
     </h2>
-    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key encrypted on your machine.</p>
+    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key encrypted on your machine, local model optional.</p>
     <div class="actions">
-      <a class="primary" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
+      <a class="primary" href="https://github.com/zcycharls/naonao/releases/download/v1.521.1912/-Setup-1.521.1912.exe" target="_blank" rel="noopener">
         <span>DOWNLOAD .EXE</span>
       </a>
       <a href="https://github.com/zcycharls/naonao" target="_blank" rel="noopener">
@@ -1089,6 +1095,17 @@
     </h2>
 
     <div style="border-left:2px solid var(--ink-line);padding-left:24px;">
+      <div style="margin-bottom:32px;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-05-28 &nbsp; <span style="color:var(--gold);">v1.521.1912</span></div>
+        <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">数据统计面板 + 安全回归</h3>
+        <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
+          <li><strong>数据统计</strong>：新增番茄完成数、累计专注时长和近期开工趋势</li>
+          <li><strong>本地模型</strong>：改为按需下载，不塞进安装包，离线模式更清晰</li>
+          <li><strong>一起专注</strong>：点击专注按钮时，考拉会戴上工作帽</li>
+          <li><strong>安全与回归</strong>：收紧桌面端安全边界，并补上自动化烟测</li>
+        </ul>
+      </div>
+
       <div style="margin-bottom:32px;">
         <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-05-21 &nbsp; <span style="color:var(--gold);">v1.521.1545</span></div>
         <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">Body Doubling + 想法冰箱上线</h3>
