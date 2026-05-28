@@ -1,6 +1,7 @@
 const { app, BrowserWindow, shell, ipcMain, screen, safeStorage } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { pathToFileURL } = require('url')
 
 // ═══ 日志转发到前端 ═══
 function sendLogToRenderer(msg) {
@@ -15,31 +16,41 @@ let localModelLoading = false
 let localModelReady = false
 let localModelCancelFlag = false
 const MODEL_NAME = 'Xenova/Qwen1.5-0.5B-Chat'
+const MODEL_RELATIVE_DIR = path.join('Xenova', 'Qwen1.5-0.5B-Chat')
+const MODEL_CONFIG_FILE = path.join(MODEL_RELATIVE_DIR, 'config.json')
+const MODEL_ONNX_FILE = path.join(MODEL_RELATIVE_DIR, 'onnx', 'decoder_model_merged_quantized.onnx')
+
+function getModelRootCandidates(includeDev = true) {
+  const userDataRoot = path.join(app.getPath('userData'), 'models')
+  const roots = [userDataRoot, path.join(userDataRoot, '.cache')]
+  if (includeDev) {
+    const devRoot = path.join(__dirname, 'app', 'models')
+    roots.push(devRoot, path.join(devRoot, '.cache'))
+  }
+  return roots
+}
 
 // 模型存放目录：优先 userData/models/（按需下载），兼容开发环境
 function getModelDir() {
-  // 生产/运行时：userData/models/（点击下载后存放的位置）
-  const userDataDir = path.join(app.getPath('userData'), 'models', 'Xenova', 'Qwen1.5-0.5B-Chat')
-  if (fs.existsSync(path.join(userDataDir, 'config.json'))) return userDataDir
-  // 开发环境：直接从项目目录加载（方便调试）
-  const devDir = path.join(__dirname, 'app', 'models', 'Xenova', 'Qwen1.5-0.5B-Chat')
-  if (fs.existsSync(path.join(devDir, 'config.json'))) return devDir
+  for (const root of getModelRootCandidates()) {
+    if (fs.existsSync(path.join(root, MODEL_CONFIG_FILE))) {
+      return path.join(root, MODEL_RELATIVE_DIR)
+    }
+  }
   return null
 }
 
 function getModelsRootDir() {
   // 返回模型所在的父目录（供 transformers.js env.localModelPath 使用）
-  const userDataRoot = path.join(app.getPath('userData'), 'models')
-  if (fs.existsSync(path.join(userDataRoot, 'Xenova', 'Qwen1.5-0.5B-Chat', 'config.json'))) return userDataRoot
-  const devDir = path.join(__dirname, 'app', 'models')
-  if (fs.existsSync(path.join(devDir, 'Xenova', 'Qwen1.5-0.5B-Chat', 'config.json'))) return devDir
+  for (const root of getModelRootCandidates()) {
+    if (fs.existsSync(path.join(root, MODEL_CONFIG_FILE))) return root
+  }
   return null
 }
 
 // 检查用户是否已下载模型（只看 userData，不等同于 getModelDir 的 dev 回退）
 function hasDownloadedModel() {
-  const userDataDir = path.join(app.getPath('userData'), 'models', 'Xenova', 'Qwen1.5-0.5B-Chat')
-  return fs.existsSync(path.join(userDataDir, 'onnx', 'decoder_model_merged_quantized.onnx'))
+  return getModelRootCandidates(false).some(root => fs.existsSync(path.join(root, MODEL_ONNX_FILE)))
 }
 
 async function loadLocalModel() {
@@ -58,7 +69,9 @@ async function loadLocalModel() {
     const { pipeline, env } = transformers
     // 设置本地模型根目录，让 transformers.js 能正确找到本地模型
     env.localModelPath = modelsRoot
+    env.cacheDir = path.join(app.getPath('userData'), 'models', '.cache')
     env.allowRemoteModels = false
+    env.allowLocalModels = true
     console.log('[孬孬] 开始加载模型: ' + MODEL_NAME)
     localModelPipeline = await pipeline('text-generation', MODEL_NAME, {
       local_files_only: true,
@@ -138,6 +151,7 @@ async function runLocalInference(text) {
       temperature: 0.7,
       top_p: 0.9,
       do_sample: true,
+      return_full_text: false,
     })
     // 提取回复 — 严格只取 assistant 部分，防止提示词泄漏
     let full = ''
@@ -172,8 +186,41 @@ let win
 const PRELOAD = path.join(__dirname, 'preload.js')
 const APP_HTML = path.join(__dirname, 'app', 'index.html')
 
+function canOpenExternal(url) {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function isAllowedAppNavigation(url) {
+  return url.startsWith(pathToFileURL(APP_HTML).href)
+}
+
+function hardenWindow(browserWindow) {
+  browserWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (canOpenExternal(url)) {
+      shell.openExternal(url)
+    } else {
+      console.warn('[孬孬] 拒绝打开外部链接:', url)
+    }
+    return { action: 'deny' }
+  })
+  browserWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedAppNavigation(url)) {
+      event.preventDefault()
+      if (canOpenExternal(url)) shell.openExternal(url)
+    }
+  })
+  browserWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false)
+  })
+}
+
 function makeWindow(opts) {
-  return new BrowserWindow({
+  const browserWindow = new BrowserWindow({
     frame: false,
     alwaysOnTop: true,
     ...opts,
@@ -186,6 +233,8 @@ function makeWindow(opts) {
       ...(opts.webPreferences || {}),
     },
   })
+  hardenWindow(browserWindow)
+  return browserWindow
 }
 
 function createWindow() {
@@ -216,12 +265,15 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   win.setAlwaysOnTop(true, 'screen-saver')
 
-  ipcMain.on('move-window', (event, { dx, dy }) => {
+  ipcMain.on('move-window', (event, payload) => {
+    const dx = Number(payload && payload.dx)
+    const dy = Number(payload && payload.dy)
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
     const sender = BrowserWindow.fromWebContents(event.sender) || win
     const [x, y] = sender.getPosition()
     const [w, h] = sender.getSize()
-    const nx = Math.max(0, Math.min(sw - w, x + Math.round(dx)))
-    const ny = Math.max(0, Math.min(sh - h, y + Math.round(dy)))
+    const nx = Math.max(0, Math.min(sw - w, x + Math.round(Math.max(-2000, Math.min(2000, dx)))))
+    const ny = Math.max(0, Math.min(sh - h, y + Math.round(Math.max(-2000, Math.min(2000, dy)))))
     sender.setPosition(nx, ny)
   })
 
@@ -250,6 +302,7 @@ function createWindow() {
       hasShadow: false,
       resizable: false,
     })
+    chatWin.setAlwaysOnTop(true, 'screen-saver')
     chatWin.loadFile(APP_HTML, { query: { mode: 'chat' } })
     chatWin.on('closed', () => { chatWin = null })
   })
@@ -259,7 +312,7 @@ function createWindow() {
   })
 
   ipcMain.on('set-ignore-mouse', (_, ignore) => {
-    win.setIgnoreMouseEvents(ignore, { forward: true })
+    win.setIgnoreMouseEvents(!!ignore, { forward: true })
   })
 
   let settingsWin = null
@@ -281,6 +334,7 @@ function createWindow() {
       hasShadow: false,
       resizable: false,
     })
+    settingsWin.setAlwaysOnTop(true, 'screen-saver')
     settingsWin.loadFile(APP_HTML, { query: { mode: 'settings' } })
     settingsWin.on('closed', () => { settingsWin = null })
   })
@@ -307,20 +361,6 @@ function createWindow() {
       win.setFocusable(false)
     })
   })
-
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const u = new URL(url)
-      if (u.protocol === 'https:' || u.protocol === 'http:') {
-        shell.openExternal(url)
-      } else {
-        console.warn('[孬孬] 拒绝打开非 HTTP 链接:', url)
-      }
-    } catch {
-      console.warn('[孬孬] 无效 URL:', url)
-    }
-    return { action: 'deny' }
-  })
 }
 
 // ── Encrypted storage for the API key (DPAPI on Windows / Keychain on macOS) ──
@@ -332,22 +372,25 @@ ipcMain.handle('secret:get', () => {
     if (!fs.existsSync(f)) return ''
     if (!safeStorage.isEncryptionAvailable()) return ''
     return safeStorage.decryptString(fs.readFileSync(f))
-  } catch {
+  } catch (e) {
+    console.error('[孬孬] 读取加密密钥失败:', e.message)
     return ''
   }
 })
 
 ipcMain.handle('secret:set', (_evt, value) => {
   try {
+    if (typeof value !== 'string' || value.length > 4096) return false
     const f = SECRET_FILE()
     if (!value) {
-      try { fs.unlinkSync(f) } catch {}
+      try { fs.unlinkSync(f) } catch (e) { console.error('[孬孬] 删除旧密钥文件失败:', e.message) }
       return true
     }
     if (!safeStorage.isEncryptionAvailable()) return false
     fs.writeFileSync(f, safeStorage.encryptString(String(value)), { mode: 0o600 })
     return true
-  } catch {
+  } catch (e) {
+    console.error('[孬孬] 保存加密密钥失败:', e.message)
     return false
   }
 })
@@ -365,14 +408,10 @@ app.on('window-all-closed', () => {
 
 // ═══ 本地模型 IPC 接口 ═══
 ipcMain.handle('local-model:status', () => {
-  const dir = getModelDir()
-  const root = getModelsRootDir()
   return {
     hasModel: hasDownloadedModel(),
     ready: localModelReady,
     loading: localModelLoading,
-    modelDir: dir,
-    modelsRoot: root,
   }
 })
 
@@ -421,7 +460,6 @@ ipcMain.handle('local-model:download', async (event) => {
 // 取消下载
 ipcMain.handle('local-model:cancel', async () => {
   localModelCancelFlag = true
-  localModelLoading = false
   return { success: true }
 })
 

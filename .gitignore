@@ -20,6 +20,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Agent-local learning notes
+.learnings/
+
 # Download script (not needed in repo)
 download-model.py
 

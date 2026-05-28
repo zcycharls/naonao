@@ -140,11 +140,11 @@ git push origin main
 
 ## 📝 版本号规则
 
-版本号格式：`主版本.月月日日.次版本`
+版本号格式：`主版本.月日.时分`
 
-例如：`1.0518.010` = 2026年5月18日第10次构建
+例如：`1.518.907` = 5月18日 09:07 构建。版本号必须是合法 SemVer，数字段不保留前导零。
 
-打包时会自动根据 `package.json` 的 `version` 字段生成安装包文件名。
+运行 `npm run version:bump` 会同步更新 `package.json` 和 `package-lock.json`。打包时会自动根据 `package.json` 的 `version` 字段生成安装包文件名。
 
 ---
 
