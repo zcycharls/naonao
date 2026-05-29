@@ -58,7 +58,7 @@ function load(){
     return{
       p:s.p||'anthropic',k:s.k||'',m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid',
       feishuEnabled:!!s.feishuEnabled,
-      feishuInterval:Math.min(240,Math.max(5,Number(s.feishuInterval)||30)),
+      feishuInterval:normalizeFeishuInterval(s.feishuInterval),
       feishuAppEnabled:!!s.feishuAppEnabled,
       feishuAppId:s.feishuAppId||'',
       feishuAppChatId:s.feishuAppChatId||'',
@@ -72,6 +72,7 @@ function save(){
     const {k, ...rest}=cfg;
     localStorage.setItem('nono_config',JSON.stringify(rest));
     window.petBridge.setSecret(k||'').catch(e=>console.error('setSecret failed:',e));
+    window.petBridge.notifyConfigChanged?.();
   } else {
     localStorage.setItem('nono_config',JSON.stringify(cfg));
   }
@@ -138,10 +139,25 @@ function isValidFeishuAppId(value){
   return /^cli_[A-Za-z0-9]+$/.test(String(value||'').trim());
 }
 
+function normalizeFeishuInterval(value){
+  return Math.min(240,Math.max(1,Math.round(Number(value)||30)));
+}
+
+function updateFeishuSupervisorStatus(pending=false){
+  if(!feishuStatusEl) return;
+  const minutes=normalizeFeishuInterval(feishuIntervalEl?.value||cfg.feishuInterval);
+  const enabled=feishuEnabledEl ? !!feishuEnabledEl.checked : !!cfg.feishuEnabled;
+  if(enabled){
+    feishuStatusEl.textContent=`飞书监督已开启：每 ${minutes} 分钟自动提醒一次${pending?'（保存后生效）':''}`;
+  }else{
+    feishuStatusEl.textContent=`未开启飞书监督；开启后每 ${minutes} 分钟提醒一次`;
+  }
+}
+
 async function syncFeishuSettingsFields(){
   if(feishuEnabledEl) feishuEnabledEl.checked=!!cfg.feishuEnabled;
   if(feishuIntervalEl) feishuIntervalEl.value=String(cfg.feishuInterval||30);
-  if(feishuStatusEl) feishuStatusEl.textContent=cfg.feishuEnabled?'飞书监督已开启':'未开启飞书监督';
+  updateFeishuSupervisorStatus(false);
   if(feishuAppEnabledEl) feishuAppEnabledEl.checked=!!cfg.feishuAppEnabled;
   if(feishuAppIdEl) feishuAppIdEl.value=cfg.feishuAppId||'';
   if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId||'';
@@ -155,6 +171,38 @@ async function syncFeishuSettingsFields(){
     catch(e){console.error('getFeishuAppSecret failed:',e);feishuAppSecretEl.value='';}
   }
 }
+
+feishuIntervalEl?.addEventListener('input',()=>{
+  if(feishuIntervalEl) feishuIntervalEl.value=String(normalizeFeishuInterval(feishuIntervalEl.value));
+  updateFeishuSupervisorStatus(true);
+});
+feishuEnabledEl?.addEventListener('change',()=>updateFeishuSupervisorStatus(true));
+
+async function applyExternalConfigUpdate(){
+  const apiKey=cfg.k;
+  cfg=load();
+  cfg.k=apiKey;
+  if(IS_ELECTRON) cfg.proxy=false;
+  curP=cfg.p;
+  syncSeg();
+  syncFreq();
+  syncPetMode();
+  if(IS_SET_WIN||overlay.classList.contains('open')){
+    fKey.value=cfg.k;
+    fModel.value=cfg.m;
+    fBase.value=cfg.b;
+    fProxy.checked=!!cfg.proxy;
+    await syncFeishuSettingsFields();
+  }
+  restartFeishuAppConnection();
+  restartFeishuSupervisor();
+  updateStatus();
+}
+
+window.petBridge?.onConfigChanged?.(()=>applyExternalConfigUpdate());
+window.addEventListener('storage',e=>{
+  if(e.key==='nono_config') applyExternalConfigUpdate();
+});
 
 async function openSettings(){
   fKey.value=cfg.k;fModel.value=cfg.m;fBase.value=cfg.b;
@@ -557,7 +605,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   cfg={p:curP,k:fKey.value.trim(),m:fModel.value.trim(),
     b:fBase.value.trim().replace(/\/+$/,''),proxy:IS_ELECTRON?false:fProxy.checked,freq:cfg.freq||'mid',
     feishuEnabled,
-    feishuInterval:Math.min(240,Math.max(5,Number(feishuIntervalEl?.value)||30)),
+    feishuInterval:normalizeFeishuInterval(feishuIntervalEl?.value),
     feishuAppEnabled,
     feishuAppId,
     feishuAppChatId};
@@ -1855,10 +1903,11 @@ function restartFeishuSupervisor(){
     feishuSupervisorTimer=null;
   }
   if(!_isPetWin||!cfg.feishuEnabled) return;
-  const minutes=Math.min(240,Math.max(5,Number(cfg.feishuInterval)||30));
+  const minutes=normalizeFeishuInterval(cfg.feishuInterval);
+  addLog(`飞书监督计时器已启动：每 ${minutes} 分钟提醒一次`);
   const schedule=()=>{
     feishuSupervisorTimer=setTimeout(async ()=>{
-      if(cfg.feishuEnabled&&!busy) await sendFeishuSupervisorCheckin(false);
+      if(cfg.feishuEnabled) await sendFeishuSupervisorCheckin(false);
       schedule();
     }, minutes*60*1000);
   };

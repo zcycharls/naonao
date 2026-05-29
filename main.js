@@ -361,6 +361,14 @@ function createWindow() {
       win.setFocusable(false)
     })
   })
+
+  ipcMain.on('config:changed', (event) => {
+    BrowserWindow.getAllWindows().forEach(w => {
+      if (!w.isDestroyed() && w.webContents !== event.sender) {
+        w.webContents.send('config:changed')
+      }
+    })
+  })
 }
 
 // ── Encrypted storage for the API key (DPAPI on Windows / Keychain on macOS) ──

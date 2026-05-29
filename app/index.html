@@ -120,18 +120,18 @@
       <div class="frow">
         <label class="chk-row">
           <input type="checkbox" id="feishu-enabled">
-          <span>开启飞书定时汇报提醒</span>
+          <span>开启飞书自动监督</span>
         </label>
-        <span class="hint">使用飞书群自定义机器人的 Webhook；孬孬只会发送提醒，不会读取飞书消息。</span>
+        <span class="hint">启用后，孬孬会按下面的间隔自动发送消息；已连接应用机器人时优先发到最近会话，否则使用 Webhook。</span>
       </div>
       <div class="frow">
         <label for="feishu-webhook">Webhook</label>
         <input type="password" id="feishu-webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." autocomplete="off" spellcheck="false">
       </div>
       <div class="frow">
-        <label for="feishu-interval">提醒间隔（分钟）</label>
-        <input type="number" id="feishu-interval" min="5" max="240" step="5" value="30" inputmode="numeric">
-        <span class="hint">建议 25-45 分钟；太频繁会变成新的干扰源。</span>
+        <label for="feishu-interval">每隔多少分钟提醒一次</label>
+        <input type="number" id="feishu-interval" min="1" max="240" step="1" value="30" inputmode="numeric">
+        <span class="hint">可设 1-240 分钟；测试可用 1 分钟，日常建议 25-45 分钟。</span>
       </div>
       <button id="feishu-test-btn" style="margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">发送测试提醒</button>
       <span id="feishu-status" class="hint" style="margin-top:6px;display:block"></span>

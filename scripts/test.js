@@ -67,8 +67,11 @@ assertScriptOrder('index.html', [
 ])
 assertCSP('app/index.html')
 assertCSP('index.html')
-assertContains('app/index.html', ['id="feishu-enabled"', 'id="feishu-webhook"', 'id="feishu-interval"', 'id="feishu-app-id"', 'id="feishu-app-secret"'])
-assertContains('index.html', ['id="feishu-enabled"', 'id="feishu-webhook"', 'id="feishu-interval"', 'id="feishu-app-id"', 'id="feishu-app-secret"'])
+assertContains('app/index.html', ['id="feishu-enabled"', 'id="feishu-webhook"', 'id="feishu-interval"', 'min="1"', '每隔多少分钟提醒一次', 'id="feishu-app-id"', 'id="feishu-app-secret"'])
+assertContains('index.html', ['id="feishu-enabled"', 'id="feishu-webhook"', 'id="feishu-interval"', 'min="1"', '每隔多少分钟提醒一次', 'id="feishu-app-id"', 'id="feishu-app-secret"'])
+assertContains('preload.js', ['notifyConfigChanged', 'onConfigChanged', 'config:changed'])
+assertContains('main.js', ['config:changed'])
+assertContains('app/app.js', ['applyExternalConfigUpdate', '飞书监督计时器已启动', 'if(cfg.feishuEnabled) await sendFeishuSupervisorCheckin(false)'])
 
 for (const file of [
   'main.js',

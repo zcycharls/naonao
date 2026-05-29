@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('petBridge', {
   openSettings:   ()   => ipcRenderer.send('open-settings'),
   closeSelf:      ()   => ipcRenderer.send('close-self'),
   minimizeSelf:   ()   => ipcRenderer.send('minimize-self'),
+  notifyConfigChanged: () => ipcRenderer.send('config:changed'),
   // Encrypted API key storage (DPAPI / Keychain via Electron safeStorage)
   getSecret: () => ipcRenderer.invoke('secret:get'),
   setSecret: (v) => ipcRenderer.invoke('secret:set', String(v || '')),
@@ -50,5 +51,9 @@ contextBridge.exposeInMainWorld('petBridge', {
   onFeishuStatus: (callback) => {
     const cb = safeCallback(callback)
     ipcRenderer.on('feishu:status', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
+  },
+  onConfigChanged: (callback) => {
+    const cb = safeCallback(callback)
+    ipcRenderer.on('config:changed', () => cb())
   },
 })
