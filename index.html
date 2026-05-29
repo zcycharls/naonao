@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>孬孬 — 陪你专注的小可爱</title>
-<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHD 朋友轻轻把注意力拽回来。支持番茄钟、一起专注、想法冰箱、数据统计和可选本地 AI。Windows 桌面版，开源 MIT。" />
+<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHD 朋友轻轻把注意力拽回来。支持番茄钟、一起专注、想法冰箱、数据统计、飞书监督和可选本地 AI。Windows 桌面版，开源 MIT。" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -855,7 +855,7 @@
   </div>
 
   <div class="theme-cell">
-    <span class="top">v1.521.1912</span>
+    <span class="top">v1.529.1028</span>
     <div class="lamp" aria-hidden="true"></div>
   </div>
 </header>
@@ -887,8 +887,8 @@
             <span class="sc">下载安装包</span>
           </div>
           <div class="step-body">
-            <a class="dl-btn" href="https://github.com/zcycharls/naonao/releases/download/v1.521.1912/-Setup-1.521.1912.exe" target="_blank" rel="noopener">
-              <span class="file">&#9660; 孬孬 Windows 安装包 · v1.521.1912</span>
+            <a class="dl-btn" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
+              <span class="file">&#9660; 孬孬 Windows 安装包 · v1.529.1028</span>
               <span class="arrow">&#8595;</span>
             </a>
             <span class="meta">~ 135 MB &middot; WIN10 / WIN11</span>
@@ -991,7 +991,7 @@
         <div class="section-label">CHAPTER II</div>
         <h2 class="section-title">
           What It Does
-          <span class="cn">&mdash; 九件小事 &mdash;</span>
+          <span class="cn">&mdash; 十件小事 &mdash;</span>
         </h2>
       </div>
 
@@ -1050,6 +1050,12 @@
           <div class="en">Focus Stats</div>
           <p>See your streaks. <span class="sc">番茄完成数、累计时长和近期开工趋势，一眼看见自己已经走了多远。</span></p>
         </div>
+        <div class="feat">
+          <div class="num">X &middot;</div>
+          <h3>飞书监督</h3>
+          <div class="en">Feishu Coach</div>
+          <p>Check-ins in Feishu. <span class="sc">定时把你叫回现场，也能读取你发给机器人的汇报。</span></p>
+        </div>
       </div>
     </div>
   </section>
@@ -1059,9 +1065,9 @@
       Take it home.
       <span class="cn">把它接回家</span>
     </h2>
-    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key encrypted on your machine, local model optional.</p>
+    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key encrypted on your machine, Feishu supervision and local model optional.</p>
     <div class="actions">
-      <a class="primary" href="https://github.com/zcycharls/naonao/releases/download/v1.521.1912/-Setup-1.521.1912.exe" target="_blank" rel="noopener">
+      <a class="primary" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
         <span>DOWNLOAD .EXE</span>
       </a>
       <a href="https://github.com/zcycharls/naonao" target="_blank" rel="noopener">
@@ -1095,6 +1101,17 @@
     </h2>
 
     <div style="border-left:2px solid var(--ink-line);padding-left:24px;">
+      <div style="margin-bottom:32px;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-05-29 &nbsp; <span style="color:var(--gold);">v1.529.1028</span></div>
+        <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">飞书监督 + 长连接回报</h3>
+        <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
+          <li><strong>飞书监督</strong>：支持按间隔把专注提醒发送到飞书</li>
+          <li><strong>回复读取</strong>：飞书应用机器人可通过长连接接收汇报，并同步回孬孬对话</li>
+          <li><strong>本机加密</strong>：飞书 Webhook 和 App Secret 使用系统能力加密保存</li>
+          <li><strong>回归验证</strong>：版本号、自动化测试、安全审计和安装包构建同步通过</li>
+        </ul>
+      </div>
+
       <div style="margin-bottom:32px;">
         <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-05-28 &nbsp; <span style="color:var(--gold);">v1.521.1912</span></div>
         <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">数据统计面板 + 安全回归</h3>
