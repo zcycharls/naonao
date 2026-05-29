@@ -39,6 +39,13 @@ function assertCSP(file) {
   assert.ok(!/script-src[^;]*https:/.test(csp[1]), `${file} script-src must not allow remote scripts`)
 }
 
+function assertContains(file, expected) {
+  const text = fs.readFileSync(path.join(root, file), 'utf8')
+  for (const item of expected) {
+    assert.ok(text.includes(item), `${file} must contain ${item}`)
+  }
+}
+
 const pkg = readJSON('package.json')
 const lock = readJSON('package-lock.json')
 
@@ -60,6 +67,8 @@ assertScriptOrder('index.html', [
 ])
 assertCSP('app/index.html')
 assertCSP('index.html')
+assertContains('app/index.html', ['id="feishu-enabled"', 'id="feishu-webhook"', 'id="feishu-interval"', 'id="feishu-app-id"', 'id="feishu-app-secret"'])
+assertContains('index.html', ['id="feishu-enabled"', 'id="feishu-webhook"', 'id="feishu-interval"', 'id="feishu-app-id"', 'id="feishu-app-secret"'])
 
 for (const file of [
   'main.js',

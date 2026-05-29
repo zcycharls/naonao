@@ -115,6 +115,54 @@
     </div>
     <span class="hint" style="margin-top:6px;display:block">专注时建议选"低"或"关闭"</span>
 
+    <div class="seg-lbl" style="margin-top:22px">飞书监督</div>
+    <div class="fgrp">
+      <div class="frow">
+        <label class="chk-row">
+          <input type="checkbox" id="feishu-enabled">
+          <span>开启飞书定时汇报提醒</span>
+        </label>
+        <span class="hint">使用飞书群自定义机器人的 Webhook；孬孬只会发送提醒，不会读取飞书消息。</span>
+      </div>
+      <div class="frow">
+        <label for="feishu-webhook">Webhook</label>
+        <input type="password" id="feishu-webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="frow">
+        <label for="feishu-interval">提醒间隔（分钟）</label>
+        <input type="number" id="feishu-interval" min="5" max="240" step="5" value="30" inputmode="numeric">
+        <span class="hint">建议 25-45 分钟；太频繁会变成新的干扰源。</span>
+      </div>
+      <button id="feishu-test-btn" style="margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">发送测试提醒</button>
+      <span id="feishu-status" class="hint" style="margin-top:6px;display:block"></span>
+    </div>
+
+    <div class="seg-lbl" style="margin-top:22px">飞书应用机器人（可读取回复）</div>
+    <div class="fgrp">
+      <div class="frow">
+        <label class="chk-row">
+          <input type="checkbox" id="feishu-app-enabled">
+          <span>启用飞书应用长连接</span>
+        </label>
+        <span class="hint">在飞书开放平台创建自建应用，启用机器人能力，并订阅 im.message.receive_v1。启用后，孬孬能收到你发给机器人的汇报。</span>
+      </div>
+      <div class="frow">
+        <label for="feishu-app-id">App ID</label>
+        <input type="text" id="feishu-app-id" placeholder="cli_xxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="frow">
+        <label for="feishu-app-secret">App Secret</label>
+        <input type="password" id="feishu-app-secret" placeholder="飞书开放平台 App Secret" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="frow">
+        <label for="feishu-chat-id">最近会话</label>
+        <input type="text" id="feishu-chat-id" placeholder="给机器人发一句话后自动填入" autocomplete="off" spellcheck="false">
+        <span class="hint">定时监督会发到这个会话。你可以先在飞书里给机器人发送“我开始了”。</span>
+      </div>
+      <button id="feishu-connect-btn" style="margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">连接飞书应用</button>
+      <span id="feishu-app-status" class="hint" style="margin-top:6px;display:block"></span>
+    </div>
+
     <div class="seg-lbl" style="margin-top:22px">宠物模式</div>
     <div class="seg" role="group" id="pet-mode-seg">
       <button class="seg-b on" data-pet="lively">活泼模式</button>

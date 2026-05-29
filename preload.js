@@ -17,6 +17,15 @@ contextBridge.exposeInMainWorld('petBridge', {
   // Encrypted API key storage (DPAPI / Keychain via Electron safeStorage)
   getSecret: () => ipcRenderer.invoke('secret:get'),
   setSecret: (v) => ipcRenderer.invoke('secret:set', String(v || '')),
+  getFeishuWebhook: () => ipcRenderer.invoke('feishu:webhook:get'),
+  setFeishuWebhook: (v) => ipcRenderer.invoke('feishu:webhook:set', String(v || '')),
+  sendFeishu: (text) => ipcRenderer.invoke('feishu:send', String(text || '').slice(0, 1800)),
+  getFeishuAppSecret: () => ipcRenderer.invoke('feishu:app-secret:get'),
+  setFeishuAppSecret: (v) => ipcRenderer.invoke('feishu:app-secret:set', String(v || '')),
+  startFeishuApp: (config) => ipcRenderer.invoke('feishu:app-start', config && typeof config === 'object' ? config : {}),
+  stopFeishuApp: () => ipcRenderer.invoke('feishu:app-stop'),
+  feishuAppStatus: () => ipcRenderer.invoke('feishu:app-status'),
+  sendFeishuApp: (chatId, text) => ipcRenderer.invoke('feishu:app-send', String(chatId || ''), String(text || '').slice(0, 1800)),
   // Local AI model (on-demand download)
   localModelStatus: () => ipcRenderer.invoke('local-model:status'),
   localModelDownload: () => ipcRenderer.invoke('local-model:download'),
@@ -33,5 +42,13 @@ contextBridge.exposeInMainWorld('petBridge', {
   onLocalModelProgress: (callback) => {
     const cb = safeCallback(callback)
     ipcRenderer.on('local-model:progress', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
+  },
+  onFeishuMessage: (callback) => {
+    const cb = safeCallback(callback)
+    ipcRenderer.on('feishu:message', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
+  },
+  onFeishuStatus: (callback) => {
+    const cb = safeCallback(callback)
+    ipcRenderer.on('feishu:status', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
   },
 })

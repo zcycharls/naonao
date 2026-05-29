@@ -365,6 +365,13 @@ function createWindow() {
 
 // ── Encrypted storage for the API key (DPAPI on Windows / Keychain on macOS) ──
 const SECRET_FILE = () => path.join(app.getPath('userData'), 'apk.bin')
+const FEISHU_WEBHOOK_FILE = () => path.join(app.getPath('userData'), 'feishu-webhook.bin')
+const FEISHU_APP_SECRET_FILE = () => path.join(app.getPath('userData'), 'feishu-app-secret.bin')
+let feishuClient = null
+let feishuWsClient = null
+let feishuWsConnected = false
+let feishuAppId = ''
+const feishuSeenMessages = new Set()
 
 ipcMain.handle('secret:get', () => {
   try {
@@ -412,6 +419,233 @@ ipcMain.handle('local-model:status', () => {
     hasModel: hasDownloadedModel(),
     ready: localModelReady,
     loading: localModelLoading,
+  }
+})
+
+function readEncryptedString(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return ''
+    if (!safeStorage.isEncryptionAvailable()) return ''
+    return safeStorage.decryptString(fs.readFileSync(filePath))
+  } catch (e) {
+    console.error('[孬孬] 读取加密配置失败:', e.message)
+    return ''
+  }
+}
+
+function writeEncryptedString(filePath, value, maxLength) {
+  try {
+    if (typeof value !== 'string' || value.length > maxLength) return false
+    if (!value) {
+      try { fs.unlinkSync(filePath) } catch {}
+      return true
+    }
+    if (!safeStorage.isEncryptionAvailable()) return false
+    fs.writeFileSync(filePath, safeStorage.encryptString(value), { mode: 0o600 })
+    return true
+  } catch (e) {
+    console.error('[孬孬] 保存加密配置失败:', e.message)
+    return false
+  }
+}
+
+function isAllowedFeishuWebhook(value) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' &&
+      (url.hostname === 'open.feishu.cn' || url.hostname === 'open.larksuite.com') &&
+      /^\/open-apis\/bot\/v2\/hook\/[A-Za-z0-9_-]+$/.test(url.pathname)
+  } catch {
+    return false
+  }
+}
+
+function isValidFeishuAppId(value) {
+  return /^cli_[A-Za-z0-9]+$/.test(String(value || '').trim())
+}
+
+function broadcastFeishuStatus(payload) {
+  BrowserWindow.getAllWindows().forEach(w => {
+    if (!w.isDestroyed()) w.webContents.send('feishu:status', payload)
+  })
+}
+
+function broadcastFeishuMessage(payload) {
+  BrowserWindow.getAllWindows().forEach(w => {
+    if (!w.isDestroyed()) w.webContents.send('feishu:message', payload)
+  })
+}
+
+function parseFeishuText(content) {
+  try {
+    const parsed = JSON.parse(content || '{}')
+    return String(parsed.text || parsed.title || '').trim()
+  } catch {
+    return String(content || '').trim()
+  }
+}
+
+function normalizeFeishuEvent(data) {
+  const event = data && data.event ? data.event : data
+  const message = event && event.message ? event.message : {}
+  const sender = event && event.sender ? event.sender : {}
+  const senderId = sender.sender_id || {}
+  return {
+    chatId: message.chat_id || '',
+    messageId: message.message_id || '',
+    text: parseFeishuText(message.content),
+    createTime: message.create_time || '',
+    senderId: senderId.open_id || senderId.user_id || '',
+    senderType: sender.sender_type || '',
+  }
+}
+
+function stopFeishuWs() {
+  if (feishuWsClient) {
+    try { feishuWsClient.close && feishuWsClient.close() } catch (e) {
+      console.error('[孬孬] 关闭飞书长连接失败:', e.message)
+    }
+  }
+  feishuClient = null
+  feishuWsClient = null
+  feishuWsConnected = false
+  broadcastFeishuStatus({ connected: false })
+}
+
+ipcMain.handle('feishu:webhook:get', () => {
+  return readEncryptedString(FEISHU_WEBHOOK_FILE())
+})
+
+ipcMain.handle('feishu:webhook:set', (_evt, value) => {
+  const webhook = String(value || '').trim()
+  if (webhook && !isAllowedFeishuWebhook(webhook)) return false
+  return writeEncryptedString(FEISHU_WEBHOOK_FILE(), webhook, 2048)
+})
+
+ipcMain.handle('feishu:send', async (_evt, text) => {
+  const webhook = readEncryptedString(FEISHU_WEBHOOK_FILE())
+  const message = String(text || '').trim().slice(0, 1800)
+  if (!webhook || !isAllowedFeishuWebhook(webhook)) {
+    return { success: false, error: '飞书 Webhook 未配置或格式不正确' }
+  }
+  if (!message) {
+    return { success: false, error: '消息为空' }
+  }
+
+  try {
+    const response = await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        msg_type: 'text',
+        content: { text: message },
+      }),
+    })
+    const bodyText = await response.text()
+    let body = null
+    try { body = JSON.parse(bodyText) } catch {}
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}` }
+    }
+    if (body && typeof body.code === 'number' && body.code !== 0) {
+      return { success: false, error: body.msg || body.StatusMessage || `飞书返回 code ${body.code}` }
+    }
+    if (body && typeof body.StatusCode === 'number' && body.StatusCode !== 0) {
+      return { success: false, error: body.StatusMessage || `飞书返回 StatusCode ${body.StatusCode}` }
+    }
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: e.message || '发送失败' }
+  }
+})
+
+ipcMain.handle('feishu:app-secret:get', () => {
+  return readEncryptedString(FEISHU_APP_SECRET_FILE())
+})
+
+ipcMain.handle('feishu:app-secret:set', (_evt, value) => {
+  return writeEncryptedString(FEISHU_APP_SECRET_FILE(), String(value || '').trim(), 2048)
+})
+
+ipcMain.handle('feishu:app-start', async (_evt, config) => {
+  const appId = String(config?.appId || '').trim()
+  const appSecret = readEncryptedString(FEISHU_APP_SECRET_FILE())
+  if (!isValidFeishuAppId(appId)) {
+    return { success: false, error: 'App ID 格式不正确' }
+  }
+  if (!appSecret) {
+    return { success: false, error: 'App Secret 未配置' }
+  }
+
+  try {
+    stopFeishuWs()
+    const Lark = require('@larksuiteoapi/node-sdk')
+    const baseConfig = {
+      appId,
+      appSecret,
+      domain: Lark.Domain.Feishu,
+      loggerLevel: Lark.LoggerLevel.warn,
+    }
+    feishuClient = new Lark.Client(baseConfig)
+    feishuWsClient = new Lark.WSClient({ ...baseConfig, autoReconnect: true })
+    feishuAppId = appId
+    const dispatcher = new Lark.EventDispatcher({}).register({
+      'im.message.receive_v1': async (data) => {
+        const msg = normalizeFeishuEvent(data)
+        if (!msg.chatId || !msg.text || msg.senderType === 'app') return
+        if (msg.messageId && feishuSeenMessages.has(msg.messageId)) return
+        if (msg.messageId) {
+          feishuSeenMessages.add(msg.messageId)
+          if (feishuSeenMessages.size > 500) {
+            const first = feishuSeenMessages.values().next().value
+            feishuSeenMessages.delete(first)
+          }
+        }
+        broadcastFeishuMessage(msg)
+      },
+    })
+    feishuWsClient.start({ eventDispatcher: dispatcher })
+    feishuWsConnected = true
+    broadcastFeishuStatus({ connected: true, appId: feishuAppId })
+    return { success: true }
+  } catch (e) {
+    stopFeishuWs()
+    return { success: false, error: e.message || '连接失败' }
+  }
+})
+
+ipcMain.handle('feishu:app-stop', async () => {
+  stopFeishuWs()
+  return { success: true }
+})
+
+ipcMain.handle('feishu:app-status', () => {
+  return { connected: feishuWsConnected, appId: feishuAppId }
+})
+
+ipcMain.handle('feishu:app-send', async (_evt, chatId, text) => {
+  const message = String(text || '').trim().slice(0, 1800)
+  const targetChatId = String(chatId || '').trim()
+  if (!feishuClient || !feishuWsConnected) {
+    return { success: false, error: '飞书应用机器人未连接' }
+  }
+  if (!targetChatId || !message) {
+    return { success: false, error: '缺少会话或消息内容' }
+  }
+  try {
+    const messageApi = feishuClient.im?.v1?.message || feishuClient.im?.message
+    if (!messageApi?.create) return { success: false, error: '飞书 SDK 消息 API 不可用' }
+    await messageApi.create({
+      params: { receive_id_type: 'chat_id' },
+      data: {
+        receive_id: targetChatId,
+        msg_type: 'text',
+        content: JSON.stringify({ text: message }),
+      },
+    })
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: e.message || '发送失败' }
   }
 })
 

@@ -129,6 +129,9 @@ async function main() {
         hasPetDialog: !!window.petDialog,
         fallbackWorks: typeof smartFallback === 'function' && !!smartFallback('你好'),
         localModelApi: typeof refreshLocalModelStatus === 'function' && typeof loadLocalModel === 'function' && typeof localInference === 'function',
+        feishuApi: !!window.petBridge && typeof window.petBridge.getFeishuWebhook === 'function' && typeof window.petBridge.setFeishuWebhook === 'function' && typeof window.petBridge.sendFeishu === 'function',
+        feishuAppApi: !!window.petBridge && typeof window.petBridge.startFeishuApp === 'function' && typeof window.petBridge.sendFeishuApp === 'function' && typeof window.petBridge.onFeishuMessage === 'function',
+        feishuSettings: !!document.getElementById('feishu-enabled') && !!document.getElementById('feishu-webhook') && !!document.getElementById('feishu-interval') && !!document.getElementById('feishu-app-id') && !!document.getElementById('feishu-app-secret'),
         localStatusLeaksPath: 'modelDir' in localStatus || 'modelsRoot' in localStatus,
         bodyDoubleShowsHat,
         taskRows: !!document.getElementById('task-rows')
@@ -153,6 +156,9 @@ async function main() {
   assert.strictEqual(smoke.hasPetDialog, true)
   assert.strictEqual(smoke.fallbackWorks, true)
   assert.strictEqual(smoke.localModelApi, true)
+  assert.strictEqual(smoke.feishuApi, true)
+  assert.strictEqual(smoke.feishuAppApi, true)
+  assert.strictEqual(smoke.feishuSettings, true)
   assert.strictEqual(smoke.localStatusLeaksPath, false)
   assert.strictEqual(smoke.bodyDoubleShowsHat, true)
   assert.strictEqual(smoke.taskRows, true)

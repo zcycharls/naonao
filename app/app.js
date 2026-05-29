@@ -55,8 +55,15 @@ let busy=false;
 
 function load(){
   try{const s=JSON.parse(localStorage.getItem('nono_config')||'{}');
-    return{p:s.p||'anthropic',k:s.k||'',m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid'};}
-  catch{return{p:'anthropic',k:'',m:'',b:'',proxy:false,freq:'mid'};}
+    return{
+      p:s.p||'anthropic',k:s.k||'',m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid',
+      feishuEnabled:!!s.feishuEnabled,
+      feishuInterval:Math.min(240,Math.max(5,Number(s.feishuInterval)||30)),
+      feishuAppEnabled:!!s.feishuAppEnabled,
+      feishuAppId:s.feishuAppId||'',
+      feishuAppChatId:s.feishuAppChatId||'',
+    };}
+  catch{return{p:'anthropic',k:'',m:'',b:'',proxy:false,freq:'mid',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:''};}
 }
 function save(){
   // On desktop the API key lives in OS-encrypted storage (DPAPI / Keychain); never persist it
@@ -106,9 +113,50 @@ const frBase=document.getElementById('fr-base');
 const stRow=document.getElementById('st-row');
 const mHint=document.getElementById('model-hint');
 const segBtns=document.querySelectorAll('.seg-b[data-p]');
+const feishuEnabledEl=document.getElementById('feishu-enabled');
+const feishuWebhookEl=document.getElementById('feishu-webhook');
+const feishuIntervalEl=document.getElementById('feishu-interval');
+const feishuStatusEl=document.getElementById('feishu-status');
+const feishuAppEnabledEl=document.getElementById('feishu-app-enabled');
+const feishuAppIdEl=document.getElementById('feishu-app-id');
+const feishuAppSecretEl=document.getElementById('feishu-app-secret');
+const feishuChatIdEl=document.getElementById('feishu-chat-id');
+const feishuConnectBtn=document.getElementById('feishu-connect-btn');
+const feishuAppStatusEl=document.getElementById('feishu-app-status');
 let curP=cfg.p;
 
-function openSettings(){
+function isValidFeishuWebhook(value){
+  try{
+    const url=new URL(String(value||'').trim());
+    return url.protocol==='https:' &&
+      (url.hostname==='open.feishu.cn'||url.hostname==='open.larksuite.com') &&
+      /^\/open-apis\/bot\/v2\/hook\/[A-Za-z0-9_-]+$/.test(url.pathname);
+  }catch{return false;}
+}
+
+function isValidFeishuAppId(value){
+  return /^cli_[A-Za-z0-9]+$/.test(String(value||'').trim());
+}
+
+async function syncFeishuSettingsFields(){
+  if(feishuEnabledEl) feishuEnabledEl.checked=!!cfg.feishuEnabled;
+  if(feishuIntervalEl) feishuIntervalEl.value=String(cfg.feishuInterval||30);
+  if(feishuStatusEl) feishuStatusEl.textContent=cfg.feishuEnabled?'飞书监督已开启':'未开启飞书监督';
+  if(feishuAppEnabledEl) feishuAppEnabledEl.checked=!!cfg.feishuAppEnabled;
+  if(feishuAppIdEl) feishuAppIdEl.value=cfg.feishuAppId||'';
+  if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId||'';
+  if(feishuAppStatusEl) feishuAppStatusEl.textContent=cfg.feishuAppEnabled?'飞书应用长连接已启用':'未启用飞书应用长连接';
+  if(feishuWebhookEl && window.petBridge?.getFeishuWebhook){
+    try{feishuWebhookEl.value=await window.petBridge.getFeishuWebhook();}
+    catch(e){console.error('getFeishuWebhook failed:',e);feishuWebhookEl.value='';}
+  }
+  if(feishuAppSecretEl && window.petBridge?.getFeishuAppSecret){
+    try{feishuAppSecretEl.value=await window.petBridge.getFeishuAppSecret();}
+    catch(e){console.error('getFeishuAppSecret failed:',e);feishuAppSecretEl.value='';}
+  }
+}
+
+async function openSettings(){
   fKey.value=cfg.k;fModel.value=cfg.m;fBase.value=cfg.b;
   fProxy.checked=!!cfg.proxy;
   // Desktop: hide CORS proxy row entirely — Electron doesn't need it and routing keys
@@ -118,6 +166,7 @@ function openSettings(){
     if(fr) fr.style.display='none';
     fProxy.checked=false;
   }
+  await syncFeishuSettingsFields();
   curP=cfg.p;syncSeg();syncFreq();syncPetMode();updateStatus();
   overlay.classList.add('open');panel.classList.add('open');
 }
@@ -383,15 +432,143 @@ if (window.petBridge && window.petBridge.onLocalModelProgress) {
   });
 }
 
-document.getElementById('save-btn').addEventListener('click',()=>{
+function summarizeFeishuReport(text){
+  const clean=String(text||'').replace(/\s+/g,' ').trim().slice(0,120);
+  return clean ? `收到，你刚才汇报的是：${clean}\n我记下来了。下一步只要说清楚“接下来 5 分钟做什么”就行。` : '收到。我记下来了，下一步先用一句话说清楚要做什么。';
+}
+
+async function restartFeishuAppConnection(){
+  if(!IS_ELECTRON||!window.petBridge?.startFeishuApp) return;
+  if(!cfg.feishuAppEnabled){
+    await window.petBridge.stopFeishuApp?.();
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent='未启用飞书应用长连接';
+    return;
+  }
+  if(!isValidFeishuAppId(cfg.feishuAppId)){
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent='App ID 格式不正确';
+    return;
+  }
+  if(feishuAppStatusEl) feishuAppStatusEl.textContent='正在连接飞书应用…';
+  const result=await window.petBridge.startFeishuApp({appId:cfg.feishuAppId});
+  if(feishuAppStatusEl) feishuAppStatusEl.textContent=result?.success?'飞书应用已连接，给机器人发消息即可同步到孬孬':'连接失败：'+(result?.error||'未知错误');
+}
+
+feishuConnectBtn?.addEventListener('click',async ()=>{
+  const appId=feishuAppIdEl?.value.trim()||'';
+  const secret=feishuAppSecretEl?.value.trim()||'';
+  if(!isValidFeishuAppId(appId)){
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent='App ID 格式不正确';
+    return;
+  }
+  if(!secret){
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent='请填写 App Secret';
+    return;
+  }
+  if(window.petBridge?.setFeishuAppSecret){
+    const saved=await window.petBridge.setFeishuAppSecret(secret);
+    if(!saved){
+      if(feishuAppStatusEl) feishuAppStatusEl.textContent='App Secret 保存失败';
+      return;
+    }
+  }
+  cfg.feishuAppId=appId;
+  cfg.feishuAppEnabled=true;
+  if(feishuAppEnabledEl) feishuAppEnabledEl.checked=true;
+  save();
+  await restartFeishuAppConnection();
+});
+
+if(window.petBridge?.onFeishuMessage){
+  window.petBridge.onFeishuMessage(async msg=>{
+    if(!msg?.text) return;
+    cfg.feishuAppChatId=msg.chatId||cfg.feishuAppChatId||'';
+    save();
+    if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId;
+    appendMsg('user',`飞书汇报：${msg.text}`);
+    const reply=summarizeFeishuReport(msg.text);
+    appendMsg('pet',reply);
+    if(msg.chatId&&window.petBridge?.sendFeishuApp){
+      await window.petBridge.sendFeishuApp(msg.chatId, reply);
+    }
+  });
+}
+
+if(window.petBridge?.onFeishuStatus){
+  window.petBridge.onFeishuStatus(status=>{
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent=status.connected?'飞书应用已连接':'飞书应用未连接';
+  });
+}
+
+document.getElementById('feishu-test-btn')?.addEventListener('click',async ()=>{
+  const webhook=feishuWebhookEl?.value.trim()||'';
+  if(feishuAppEnabledEl?.checked&&feishuChatIdEl?.value.trim()&&window.petBridge?.sendFeishuApp){
+    const result=await window.petBridge.sendFeishuApp(feishuChatIdEl.value.trim(), buildFeishuCheckinText(true));
+    if(feishuStatusEl) feishuStatusEl.textContent=result?.success?'应用机器人测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
+    return;
+  }
+  if(!window.petBridge?.setFeishuWebhook||!window.petBridge?.sendFeishu){
+    if(feishuStatusEl) feishuStatusEl.textContent='当前环境不支持飞书发送';
+    return;
+  }
+  if(!isValidFeishuWebhook(webhook)){
+    if(feishuStatusEl) feishuStatusEl.textContent='Webhook 格式不正确';
+    return;
+  }
+  if(feishuStatusEl) feishuStatusEl.textContent='正在发送测试提醒…';
+  const saved=await window.petBridge.setFeishuWebhook(webhook);
+  if(!saved){
+    if(feishuStatusEl) feishuStatusEl.textContent='Webhook 保存失败';
+    return;
+  }
+  const result=await window.petBridge.sendFeishu(buildFeishuCheckinText(true));
+  if(feishuStatusEl) feishuStatusEl.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
+});
+
+document.getElementById('save-btn').addEventListener('click',async ()=>{
   addLog('保存配置');
+  const feishuWebhook=feishuWebhookEl?.value.trim()||'';
+  const feishuEnabled=!!feishuEnabledEl?.checked;
+  const feishuAppEnabled=!!feishuAppEnabledEl?.checked;
+  const feishuAppId=feishuAppIdEl?.value.trim()||'';
+  const feishuAppSecret=feishuAppSecretEl?.value.trim()||'';
+  const feishuAppChatId=feishuChatIdEl?.value.trim()||'';
+  if(feishuEnabled&&!feishuAppEnabled&&!isValidFeishuWebhook(feishuWebhook)){
+    if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
+    return;
+  }
+  if(feishuAppEnabled&&(!isValidFeishuAppId(feishuAppId)||!feishuAppSecret)){
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent='启用飞书应用前，请填写 App ID 和 App Secret';
+    return;
+  }
+  if(window.petBridge?.setFeishuWebhook){
+    const saved=await window.petBridge.setFeishuWebhook(feishuWebhook);
+    if(!saved){
+      if(feishuStatusEl) feishuStatusEl.textContent='飞书 Webhook 保存失败';
+      return;
+    }
+  }
+  if(window.petBridge?.setFeishuAppSecret){
+    const saved=await window.petBridge.setFeishuAppSecret(feishuAppSecret);
+    if(!saved){
+      if(feishuAppStatusEl) feishuAppStatusEl.textContent='飞书 App Secret 保存失败';
+      return;
+    }
+  }
   cfg={p:curP,k:fKey.value.trim(),m:fModel.value.trim(),
-    b:fBase.value.trim().replace(/\/+$/,''),proxy:IS_ELECTRON?false:fProxy.checked,freq:cfg.freq||'mid'};
+    b:fBase.value.trim().replace(/\/+$/,''),proxy:IS_ELECTRON?false:fProxy.checked,freq:cfg.freq||'mid',
+    feishuEnabled,
+    feishuInterval:Math.min(240,Math.max(5,Number(feishuIntervalEl?.value)||30)),
+    feishuAppEnabled,
+    feishuAppId,
+    feishuAppChatId};
   save();history=[];closeSettings();
   appendMsg('pet',hasKey()?'设置好了 ✦\n快来跟我聊天吧！':'好的，我在这里呢~ 🌸');
+  restartFeishuAppConnection();
+  restartFeishuSupervisor();
   updateStatus();
 });
 syncSeg();updateStatus();
+restartFeishuAppConnection();
 
 /* ════════ CHAT DIALOG ════════ */
 const dlg=document.getElementById('chat-dialog');
@@ -1631,6 +1808,63 @@ function checkinMsg(){
   }
 }
 
+let feishuSupervisorTimer=null;
+let feishuSending=false;
+
+function buildFeishuCheckinText(isTest=false){
+  const now=new Date();
+  const hm=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const act=TaskStore.getActive();
+  const lines=[
+    isTest ? '【孬孬测试提醒】' : '【孬孬监督签到】',
+    `${hm} 现在在做什么？`,
+  ];
+  if(act){
+    const next=TaskStore.nextUnchecked(act.id);
+    lines.push(`当前任务：${act.title}`);
+    if(next) lines.push(`下一步：${next.text}`);
+  }
+  lines.push('请用一句话回复/记录：我刚才在做什么，下一步做什么。');
+  return lines.join('\n');
+}
+
+async function sendFeishuSupervisorCheckin(isTest=false){
+  if(!IS_ELECTRON||feishuSending) return {success:false,error:'飞书发送不可用'};
+  feishuSending=true;
+  try{
+    const text=buildFeishuCheckinText(isTest);
+    const result=(cfg.feishuAppEnabled&&cfg.feishuAppChatId&&window.petBridge?.sendFeishuApp)
+      ? await window.petBridge.sendFeishuApp(cfg.feishuAppChatId, text)
+      : window.petBridge?.sendFeishu
+        ? await window.petBridge.sendFeishu(text)
+        : {success:false,error:'飞书发送不可用'};
+    if(result?.success){
+      addLog(isTest?'飞书测试提醒已发送':'飞书监督提醒已发送');
+    }else{
+      addLog('飞书提醒发送失败：'+(result?.error||'未知错误'));
+    }
+    return result;
+  }finally{
+    feishuSending=false;
+  }
+}
+
+function restartFeishuSupervisor(){
+  if(feishuSupervisorTimer){
+    clearTimeout(feishuSupervisorTimer);
+    feishuSupervisorTimer=null;
+  }
+  if(!_isPetWin||!cfg.feishuEnabled) return;
+  const minutes=Math.min(240,Math.max(5,Number(cfg.feishuInterval)||30));
+  const schedule=()=>{
+    feishuSupervisorTimer=setTimeout(async ()=>{
+      if(cfg.feishuEnabled&&!busy) await sendFeishuSupervisorCheckin(false);
+      schedule();
+    }, minutes*60*1000);
+  };
+  schedule();
+}
+
 // 自动提醒 — 只在宠物窗口触发，且只走头顶气泡（不进聊天对话框、不污染 AI 上下文）
 // Web (non-Electron) 也走宠物视图，所以兼容判断
 const _isPetWin = !IS_ELECTRON || IS_PET_WIN;
@@ -1668,6 +1902,7 @@ if(_isPetWin){
     scheduleIdle(true);
   }
 }
+restartFeishuSupervisor();
 
 
 
