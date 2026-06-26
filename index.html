@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>孬孬 — 陪你专注的小可爱</title>
-<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHD 朋友轻轻把注意力拽回来。支持番茄钟、一起专注、想法冰箱、数据统计、飞书监督和可选本地 AI。Windows 桌面版，开源 MIT。" />
+<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHD 朋友轻轻把注意力拽回来。支持番茄钟、一起专注、想法冰箱、数据统计、飞书监督、长远任务监督、Hermes Agent 和可选本地 AI。Windows 桌面版，开源 MIT。" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -991,7 +991,7 @@
         <div class="section-label">CHAPTER II</div>
         <h2 class="section-title">
           What It Does
-          <span class="cn">&mdash; 十件小事 &mdash;</span>
+          <span class="cn">&mdash; 十一件小事 &mdash;</span>
         </h2>
       </div>
 
@@ -1000,7 +1000,7 @@
           <div class="num">I &middot;</div>
           <h3>AI 对话</h3>
           <div class="en">Conversation</div>
-          <p>Cloud or local model. <span class="sc">可填 API Key，也可按需下载本地模型离线陪聊。</span></p>
+          <p>Cloud, local, or Hermes. <span class="sc">可填 API Key、连接 Hermes Agent，也可按需下载本地模型离线陪聊。</span></p>
         </div>
         <div class="feat">
           <div class="num">II &middot;</div>
@@ -1056,6 +1056,12 @@
           <div class="en">Feishu Coach</div>
           <p>Check-ins in Feishu. <span class="sc">定时把你叫回现场，也能读取你发给机器人的汇报。</span></p>
         </div>
+        <div class="feat">
+          <div class="num">XI &middot;</div>
+          <h3>长远任务</h3>
+          <div class="en">Long Goals</div>
+          <p>Separate goals, separate bots. <span class="sc">每个长期目标可绑定独立飞书机器人和汇报间隔，分别追踪进度。</span></p>
+        </div>
       </div>
     </div>
   </section>
@@ -1065,7 +1071,7 @@
       Take it home.
       <span class="cn">把它接回家</span>
     </h2>
-    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key encrypted on your machine, Feishu supervision and local model optional.</p>
+    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key and Feishu webhooks encrypted on your machine. Feishu supervision, long-term goal check-ins, Hermes Agent and local model are optional.</p>
     <div class="actions">
       <a class="primary" href="https://github.com/zcycharls/naonao/releases/download/v1.529.1626/-Setup-1.529.1626.exe" target="_blank" rel="noopener">
         <span>DOWNLOAD .EXE</span>
@@ -1101,6 +1107,18 @@
     </h2>
 
     <div style="border-left:2px solid var(--ink-line);padding-left:24px;">
+      <div style="margin-bottom:32px;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-06-26 &nbsp; <span style="color:var(--gold);">v1.529.1626</span></div>
+        <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">长远任务监督 + Hermes Agent + 宠物缩放</h3>
+        <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
+          <li><strong>长远任务监督</strong>：支持配置多个长期目标，每个目标都有独立飞书机器人 Webhook 和汇报间隔</li>
+          <li><strong>飞书安全</strong>：每个任务的 Webhook 加密保存在本机，已启用任务必须配置独立 Webhook</li>
+          <li><strong>Hermes Agent</strong>：设置页可连接官方 sidecar，并保留本地记忆 fallback</li>
+          <li><strong>桌面宠物</strong>：单个缩放手柄调整大小，保留点击反馈和透明无边界体验</li>
+          <li><strong>回归验证</strong>：自动化测试与 Electron smoke 测试通过</li>
+        </ul>
+      </div>
+
       <div style="margin-bottom:32px;">
         <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-05-29 &nbsp; <span style="color:var(--gold);">v1.529.1626</span></div>
         <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">飞书自动监督定时修复</h3>
