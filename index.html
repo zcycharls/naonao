@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src https: blob:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:* blob:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>孬孬 · v10</title>
 <link rel="stylesheet" href="app/styles.css">
@@ -54,6 +54,7 @@
   <button class="tray-btn" id="tray-hide" title="最小化">➖</button>
   <button class="tray-btn" id="tray-close" title="退出">✕</button>
 </div>
+<button id="pet-size-handle" class="pet-size-handle" title="拖动调整大小，点击切换大小" aria-label="调整宠物大小">↘</button>
 
 <!-- 头顶迷你气泡（仅 pet-mode 显示） -->
 <div id="mini-bubble"></div>
@@ -163,12 +164,63 @@
       <span id="feishu-app-status" class="hint" style="margin-top:6px;display:block"></span>
     </div>
 
+    <div class="seg-lbl" style="margin-top:22px">长远任务监督</div>
+    <div class="fgrp long-task-panel">
+      <div class="long-task-head">
+        <span class="hint">每个长远任务绑定一个飞书自定义机器人 Webhook，可设置不同提醒间隔。</span>
+        <button id="long-task-add-btn" class="mini-action" type="button">+ 添加</button>
+      </div>
+      <div id="long-task-list"></div>
+      <span id="long-task-status" class="hint" style="margin-top:6px;display:block"></span>
+    </div>
+
     <div class="seg-lbl" style="margin-top:22px">宠物模式</div>
     <div class="seg" role="group" id="pet-mode-seg">
       <button class="seg-b on" data-pet="lively">活泼模式</button>
       <button class="seg-b" data-pet="quiet">安静模式</button>
     </div>
     <span class="hint" style="margin-top:6px;display:block">安静模式关掉所有空闲动画，只保留点击反馈；适合容易被余光晃动分心的人，也适合需要长时间专注的时候。</span>
+
+    <div class="seg-lbl" style="margin-top:22px">Hermes Agent（官方 sidecar）</div>
+    <div class="fgrp">
+      <div class="frow">
+        <label class="chk-row">
+          <input type="checkbox" id="hermes-agent-enabled">
+          <span>连接官方 Hermes Agent API Server</span>
+        </label>
+        <span class="hint">需要你先在本机运行官方 Hermes Agent，并开启 API Server。启用后，孬孬聊天和飞书汇报回复会优先交给 Hermes Agent。</span>
+      </div>
+      <div class="frow">
+        <label for="hermes-agent-base">API Base URL</label>
+        <input type="url" id="hermes-agent-base" placeholder="http://127.0.0.1:8642/v1" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="frow">
+        <label for="hermes-agent-key">API Key</label>
+        <input type="password" id="hermes-agent-key" placeholder="API_SERVER_KEY" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="frow">
+        <label for="hermes-agent-model">模型名</label>
+        <input type="text" id="hermes-agent-model" placeholder="留空使用 hermes-agent" autocomplete="off" spellcheck="false">
+      </div>
+      <button id="hermes-agent-test-btn" style="margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">测试 Hermes 连接</button>
+      <span id="hermes-agent-status" class="hint" style="margin-top:6px;display:block"></span>
+    </div>
+
+    <div class="seg-lbl" style="margin-top:22px">本地记忆 fallback</div>
+    <div class="fgrp">
+      <div class="frow">
+        <label class="chk-row">
+          <input type="checkbox" id="hermes-enabled">
+          <span>启用本地长期记忆和自我学习</span>
+        </label>
+        <span class="hint">孬孬会从聊天和飞书汇报里学习你的偏好、工作模式和复盘结论，并在之后的对话中带入；敏感字段不会写入记忆。</span>
+      </div>
+      <span id="hermes-status" class="hint" style="display:block"></span>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="hermes-review-btn" style="flex:1;padding:8px 12px;border-radius:8px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;">查看记忆摘要</button>
+        <button id="hermes-clear-btn" style="flex:1;padding:8px 12px;border-radius:8px;border:1.5px solid #e8c4c4;background:transparent;font-family:var(--font-body);font-size:12px;font-weight:700;color:#c44;cursor:pointer;">清空记忆</button>
+      </div>
+    </div>
 
     <div class="seg-lbl" style="margin-top:22px">🤖 本地 AI 模型（免费离线）</div>
     <div id="local-model-status" class="hint" style="margin-top:4px;display:block">检测中…</div>

@@ -108,9 +108,13 @@ body.chat-only-mode #dlg-header{cursor:grab;user-select:none}
 body.chat-only-mode #dlg-header.dragging{cursor:grabbing}
 
 /* ══ DESKTOP PET MODE ══ */
+html.pet-mode-html,
+html.pet-mode-html body{
+  background:transparent !important;
+  background-image:none !important;
+}
 body.pet-mode{background:transparent !important;}
 body.pet-mode *{outline:none !important;-webkit-tap-highlight-color:transparent}
-body.pet-mode html,body.pet-mode body{background:transparent !important}
 html.pet-mode-html{background:transparent !important}
 body.pet-mode::before{display:none}
 body.pet-mode .sp{display:none}
@@ -120,7 +124,10 @@ body.pet-mode #chat-dialog{display:none}
 
 /* mini bubble in pet mode */
 #mini-bubble{
-  position:fixed;right:8px;top:6px;
+  position:absolute;
+  left:var(--pet-bubble-left, calc((150px * var(--pet-size-scale, 1)) + 24px));
+  right:auto;
+  top:var(--pet-bubble-top, calc(6px * var(--pet-size-scale, 1)));
   background:#fff;border:2px solid #e2d8ff;
   border-radius:16px 16px 16px 4px;
   padding:8px 12px;font-size:12px;font-weight:700;
@@ -135,16 +142,42 @@ body.pet-mode #chat-dialog{display:none}
   width:12px;height:12px;background:#fff;
   border-left:2px solid #e2d8ff;border-bottom:2px solid #e2d8ff;
   transform:rotate(-45deg);border-radius:0 0 0 3px}
+#mini-bubble.left-side::after{
+  left:auto;right:16px;
+  border-left:none;border-right:2px solid #e2d8ff;border-bottom:2px solid #e2d8ff;
+  transform:rotate(45deg);
+}
 body:not(.pet-mode) #mini-bubble{display:none}
 body.pet-mode #chat-bar{display:none}
 body.pet-mode #hint{display:none}
 
 /* compact pet: just the pet + tray buttons */
 #pet-tray{
-  
-  position:fixed;bottom:10px;right:18px;
+  position:absolute;
+  left:var(--pet-tray-left, calc((240px * var(--pet-size-scale, 1)) + 12px));
+  top:var(--pet-tray-top, 50%);
+  bottom:auto;
+  right:auto;
+  transform:translateY(-50%);
   flex-direction:column;gap:8px;z-index:200}
 body.pet-mode #pet-tray{display:flex}
+
+.pet-size-handle{
+  position:absolute;
+  left:var(--pet-size-left, calc((210px * var(--pet-size-scale, 1)) + 2px));
+  top:var(--pet-size-top, calc((280px * var(--pet-size-scale, 1)) + 2px));
+  width:24px;height:24px;border-radius:8px;border:none;
+  display:none;align-items:center;justify-content:center;
+  font-size:14px;font-weight:900;line-height:1;
+  color:#fff;background:rgba(48,43,60,.92);
+  box-shadow:0 3px 10px rgba(40,30,60,.28), inset 0 1px 0 rgba(255,255,255,.22);
+  cursor:nwse-resize;z-index:210;
+  -webkit-app-region:no-drag;touch-action:none;
+  user-select:none;-webkit-user-select:none}
+body.pet-mode #pet-size-handle{display:flex}
+body:not(.pet-mode) #pet-size-handle{display:none}
+.pet-size-handle:hover{background:rgba(70,61,92,.95)}
+.pet-size-handle:active{transform:scale(.94)}
 
 .tray-btn{
   width:22px;height:22px;border-radius:50%;border:none;
@@ -155,6 +188,11 @@ body.pet-mode #pet-tray{display:flex}
   color:#5a4a7a;transition:background .15s;
   -webkit-app-region:no-drag}
 .tray-btn:hover{background:rgba(180,160,240,.9)}
+.tray-btn:disabled{
+  opacity:.38;
+  cursor:default;
+  background:rgba(200,185,245,.42);
+}
 
 /* chat panel: full window overlay when expanded */
 body.pet-mode.expanded{background:var(--bg) !important}
@@ -165,7 +203,7 @@ body.pet-mode.expanded #settings-btn{display:flex}
 
 /* drag region on pet body */
 #pw{position:fixed;inset:0;overflow:hidden;cursor:grab}
-#chat-bar,#chat-dialog,#pet-tray,.tray-btn,
+#chat-bar,#chat-dialog,#pet-tray,.tray-btn,#pet-size-handle,
 #chat-input,#send-btn,#settings-btn,
 #task-add-input,#task-list,#dlg-clear,#pomo-toggle,
 .qp,#pomo-start,#pomo-reset,
@@ -318,17 +356,43 @@ body.pet-mode::before{display:none}
 .fgrp{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .frow{display:flex;flex-direction:column;gap:5px}
 .frow label{font-size:11px;font-weight:800;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase}
-.frow input{width:100%;padding:11px 14px;border:1.5px solid #e3d9ff;border-radius:12px;
+.frow input,.frow textarea{width:100%;padding:11px 14px;border:1.5px solid #e3d9ff;border-radius:12px;
   font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;color:var(--text-main);
   background:#faf8ff;outline:none;-webkit-appearance:none;
   transition:border-color .2s,box-shadow .2s;
   -webkit-user-select:text;user-select:text;touch-action:manipulation}
+.frow textarea{min-height:72px;resize:vertical;line-height:1.55}
 .frow input[type=checkbox]{width:auto;-webkit-appearance:auto;appearance:auto;accent-color:var(--focus)}
 .chk-row{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;
   color:var(--text-main);cursor:pointer;padding:4px 0}
-.frow input:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(124,92,191,.11)}
-.frow input::placeholder{color:#c8bce0;font-weight:600}
+.frow input:focus,.frow textarea:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(124,92,191,.11)}
+.frow input::placeholder,.frow textarea::placeholder{color:#c8bce0;font-weight:600}
 .frow .hint,.hint{font-size:11px;color:var(--text-dim);line-height:1.5}
+.long-task-panel{gap:10px}
+.long-task-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mini-action,.lt-action{
+  border:1.5px solid var(--btn-bd);background:var(--btn-bg);color:var(--text-main);
+  font-family:var(--font-body);font-size:12px;font-weight:800;border-radius:10px;
+  cursor:pointer;touch-action:manipulation;transition:background .15s,transform .12s;
+  white-space:nowrap}
+.mini-action{padding:7px 11px}
+.lt-action{padding:6px 9px}
+.mini-action:hover,.lt-action:hover{background:var(--btn-bg-hov)}
+.mini-action:active,.lt-action:active{transform:scale(.96)}
+#long-task-list{display:flex;flex-direction:column;gap:10px}
+.long-task-empty{padding:12px;border:1.5px dashed rgba(190,170,235,.55);
+  border-radius:12px;text-align:center;font-size:12px;font-weight:700;color:var(--text-dim)}
+.lt-card{border:1.5px solid rgba(210,195,255,.72);border-radius:12px;
+  background:rgba(252,250,255,.86);padding:12px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:0 2px 10px rgba(124,92,191,.08)}
+.lt-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lt-title-line{display:flex;align-items:center;gap:8px;min-width:0}
+.lt-title-line span{font-size:13px;font-weight:800;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lt-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.lt-action.danger{border-color:#e8c4c4;background:transparent;color:#c44}
+.lt-grid{display:grid;grid-template-columns:1fr 1.45fr;gap:10px}
+.lt-status{font-size:11px;color:var(--text-dim);line-height:1.45}
+@media (max-width:520px){.lt-grid{grid-template-columns:1fr}.long-task-head,.lt-card-head{align-items:flex-start;flex-direction:column}.lt-actions{width:100%}.lt-action{flex:1}}
 #save-btn{
   position:relative;width:100%;padding:14px;border:none;border-radius:14px;
   background:linear-gradient(135deg,#c2a8e8 0%,#9a7cd4 50%,#7c5cbf 100%);
@@ -353,7 +417,13 @@ body.pet-mode::before{display:none}
 #pw.happy{}
 #pw.thinking{}
 
-.pet-img-wrap{position:absolute;left:0;top:0;width:240px;height:100%;display:flex;align-items:center;justify-content:center;isolation:isolate}
+.pet-img-wrap{position:absolute;left:calc(18px * var(--pet-size-scale, 1));top:0;width:calc(240px * var(--pet-size-scale, 1));height:100%;display:flex;align-items:center;justify-content:center;isolation:isolate}
+body.pet-mode #pw .pet-img-wrap{
+  left:var(--pet-left, 60vw) !important;
+  top:var(--pet-top, 50vh) !important;
+  width:calc(240px * var(--pet-size-scale, 1)) !important;
+  height:calc(320px * var(--pet-size-scale, 1)) !important;
+}
 #pet-img-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-select:none;user-select:none;filter:url(#koala-silhouette);z-index:0}
 @keyframes breathe-photo{
   0%,100%{transform:scale(1,1)}
@@ -380,7 +450,7 @@ body.pet-mode::before{display:none}
 }
 
 /* happy wobble */
-#pw.happy .pet-img-wrap{position:absolute;left:0;top:0;width:240px;height:100%;display:flex;align-items:center;justify-content:center}
+#pw.happy .pet-img-wrap{position:absolute;left:calc(18px * var(--pet-size-scale, 1));top:0;width:calc(240px * var(--pet-size-scale, 1));height:100%;display:flex;align-items:center;justify-content:center}
 @keyframes photo-wobble{
   0%,100%{transform:rotate(0)}
   25%{transform:rotate(-4deg)}
@@ -408,11 +478,25 @@ body.pet-mode::before{display:none}
   pointer-events:none;
   /* no animation by default — kicks in only via state classes */
 }
+body.pet-mode #pw:not(.jumping) .pet-img-wrap,
+body.pet-mode #pw .pet-sway-wrap,
+body.pet-mode #pw #pet-img{
+  animation:none !important;
+  transform:none !important;
+  transition:none !important;
+}
+body.pet-mode #pw.jumping .pet-img-wrap{
+  animation:pet-jump .55s cubic-bezier(.3,1.4,.5,1) !important;
+  transform-origin:50% 78%;
+}
+#pet-tray{pointer-events:auto}
 #pet-img{
   transform-origin: 50% 88%;
   will-change: transform;
   transition: filter .6s ease;
 }
+
+#pw.dragging{cursor:grabbing}
 
 /* "Alive" state — mouse moved in this window in the last few seconds */
 #pw.alive:not(.focusing):not(.sleeping) .pet-sway-wrap{

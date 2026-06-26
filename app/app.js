@@ -47,6 +47,47 @@ const IS_PET_WIN  = IS_ELECTRON && !_urlMode;
 const IS_CHAT_WIN = IS_ELECTRON && _urlMode === 'chat';
 const IS_SET_WIN  = IS_ELECTRON && _urlMode === 'settings';
 
+const LONG_TASK_MAX=8;
+const LONG_TASK_TITLE_MAX=60;
+const LONG_TASK_GOAL_MAX=220;
+const LONG_TASK_INTERVAL_MIN=1;
+const LONG_TASK_INTERVAL_MAX=10080;
+
+function makeLongTaskId(){
+  return 'lt_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+}
+
+function normalizeLongTaskInterval(value){
+  return Math.min(LONG_TASK_INTERVAL_MAX,Math.max(LONG_TASK_INTERVAL_MIN,Math.round(Number(value)||1440)));
+}
+
+function normalizeLongTaskId(value){
+  const id=String(value||'').trim();
+  return /^[A-Za-z0-9_-]{3,48}$/.test(id)?id:makeLongTaskId();
+}
+
+function normalizeLongTasks(value){
+  const list=Array.isArray(value)?value:[];
+  const seen=new Set();
+  return list.map(item=>{
+    const id=normalizeLongTaskId(item?.id);
+    if(seen.has(id)) return null;
+    seen.add(id);
+    const title=String(item?.title||'').trim().slice(0,LONG_TASK_TITLE_MAX);
+    const goal=String(item?.goal||'').trim().slice(0,LONG_TASK_GOAL_MAX);
+    if(!title&&!goal) return null;
+    return {
+      id,
+      title:title||'未命名长远任务',
+      goal,
+      interval:normalizeLongTaskInterval(item?.interval),
+      enabled:!!item?.enabled,
+      createdAt:Number(item?.createdAt)||Date.now(),
+      lastSentAt:Number(item?.lastSentAt)||Date.now(),
+    };
+  }).filter(Boolean).slice(0,LONG_TASK_MAX);
+}
+
 let cfg=load();
 // Desktop never uses the third-party CORS proxy
 if(IS_ELECTRON) cfg.proxy=false;
@@ -62,8 +103,13 @@ function load(){
       feishuAppEnabled:!!s.feishuAppEnabled,
       feishuAppId:s.feishuAppId||'',
       feishuAppChatId:s.feishuAppChatId||'',
+      hermesAgentEnabled:!!s.hermesAgentEnabled,
+      hermesAgentBaseUrl:s.hermesAgentBaseUrl||'http://127.0.0.1:8642/v1',
+      hermesAgentModel:s.hermesAgentModel||'',
+      hermesEnabled:s.hermesEnabled!==false,
+      longTasks:normalizeLongTasks(s.longTasks),
     };}
-  catch{return{p:'anthropic',k:'',m:'',b:'',proxy:false,freq:'mid',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:''};}
+  catch{return{p:'anthropic',k:'',m:'',b:'',proxy:false,freq:'mid',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:'',hermesAgentEnabled:false,hermesAgentBaseUrl:'http://127.0.0.1:8642/v1',hermesAgentModel:'',hermesEnabled:true,longTasks:[]};}
 }
 function save(){
   // On desktop the API key lives in OS-encrypted storage (DPAPI / Keychain); never persist it
@@ -124,6 +170,21 @@ const feishuAppSecretEl=document.getElementById('feishu-app-secret');
 const feishuChatIdEl=document.getElementById('feishu-chat-id');
 const feishuConnectBtn=document.getElementById('feishu-connect-btn');
 const feishuAppStatusEl=document.getElementById('feishu-app-status');
+const longTaskListEl=document.getElementById('long-task-list');
+const longTaskAddBtn=document.getElementById('long-task-add-btn');
+const longTaskStatusEl=document.getElementById('long-task-status');
+const hermesAgentEnabledEl=document.getElementById('hermes-agent-enabled');
+const hermesAgentBaseEl=document.getElementById('hermes-agent-base');
+const hermesAgentKeyEl=document.getElementById('hermes-agent-key');
+const hermesAgentModelEl=document.getElementById('hermes-agent-model');
+const hermesAgentTestBtn=document.getElementById('hermes-agent-test-btn');
+const hermesAgentStatusEl=document.getElementById('hermes-agent-status');
+const hermesEnabledEl=document.getElementById('hermes-enabled');
+const hermesStatusEl=document.getElementById('hermes-status');
+const hermesReviewBtn=document.getElementById('hermes-review-btn');
+const hermesClearBtn=document.getElementById('hermes-clear-btn');
+const longTaskWebhookDrafts={};
+const removedLongTaskIds=new Set();
 let curP=cfg.p;
 
 function isValidFeishuWebhook(value){
@@ -139,8 +200,188 @@ function isValidFeishuAppId(value){
   return /^cli_[A-Za-z0-9]+$/.test(String(value||'').trim());
 }
 
+function escapeHTML(value){
+  return String(value||'').replace(/[&<>"']/g,ch=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+}
+
+const HERMES_MEMORY_KEY='nono_hermes_memory_v1';
+const HERMES_MAX_ITEMS=18;
+const HERMES_SENSITIVE_RE=/(api[_ -]?key|token|secret|password|passwd|webhook|open-apis\/bot|Authorization|Bearer|ghp_|github_pat_|sk-[A-Za-z0-9]|xox[baprs]-)/i;
+
 function normalizeFeishuInterval(value){
   return Math.min(240,Math.max(1,Math.round(Number(value)||30)));
+}
+
+function normalizeHermesAgentBaseUrl(value){
+  const raw=String(value||'').trim()||'http://127.0.0.1:8642/v1';
+  const url=new URL(raw);
+  if(url.protocol!=='http:'&&url.protocol!=='https:') throw new Error('Hermes API Base URL 只支持 http/https');
+  url.hash='';
+  url.search='';
+  url.pathname=(url.pathname||'/v1').replace(/\/+$/,'')||'/v1';
+  return url.toString().replace(/\/+$/,'');
+}
+
+function hermesAgentEndpoint(path){
+  return `${normalizeHermesAgentBaseUrl(cfg.hermesAgentBaseUrl).replace(/\/+$/,'')}/${String(path||'').replace(/^\/+/,'')}`;
+}
+
+function hermesAgentHealthUrl(){
+  const url=new URL(normalizeHermesAgentBaseUrl(cfg.hermesAgentBaseUrl));
+  url.pathname=url.pathname.replace(/\/v\d+$/,'').replace(/\/+$/,'')+'/health';
+  return url.toString();
+}
+
+function hermesAgentModelName(){
+  return String(cfg.hermesAgentModel||'').trim()||'hermes-agent';
+}
+
+async function readHermesAgentApiKey(){
+  if(window.petBridge?.getHermesApiKey) return String(await window.petBridge.getHermesApiKey()||'').trim();
+  return hermesAgentKeyEl?.value.trim()||'';
+}
+
+async function hermesAgentHeaders(){
+  const headers={'content-type':'application/json'};
+  const key=await readHermesAgentApiKey();
+  if(key) headers.Authorization=`Bearer ${key}`;
+  return headers;
+}
+
+function updateHermesAgentStatus(text){
+  if(!hermesAgentStatusEl) return;
+  hermesAgentStatusEl.textContent=text||(
+    cfg.hermesAgentEnabled
+      ? `Hermes Agent 已启用：${cfg.hermesAgentBaseUrl||'http://127.0.0.1:8642/v1'}`
+      : '未连接官方 Hermes Agent'
+  );
+}
+
+async function testHermesAgentConnection(){
+  if(!hermesAgentStatusEl) return false;
+  try{
+    cfg.hermesAgentBaseUrl=normalizeHermesAgentBaseUrl(hermesAgentBaseEl?.value||cfg.hermesAgentBaseUrl);
+  }catch(e){
+    updateHermesAgentStatus(e.message||'Hermes API Base URL 不正确');
+    return false;
+  }
+  updateHermesAgentStatus('正在测试 Hermes 连接…');
+  const headers=await hermesAgentHeaders();
+  try{
+    if(window.petBridge?.testHermesAgent){
+      const result=await window.petBridge.testHermesAgent({baseUrl:cfg.hermesAgentBaseUrl});
+      if(!result?.success) throw new Error(result?.error||'连接失败');
+      updateHermesAgentStatus('Hermes Agent 连接正常');
+      return true;
+    }
+    let response=await fetch(hermesAgentHealthUrl(),{headers});
+    if(!response.ok){
+      response=await fetch(hermesAgentEndpoint('models'),{headers});
+    }
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    updateHermesAgentStatus('Hermes Agent 连接正常');
+    return true;
+  }catch(e){
+    updateHermesAgentStatus(`Hermes Agent 连接失败：${e.message||'未知错误'}`);
+    return false;
+  }
+}
+
+function createHermesMemory(){
+  return {version:1,profile:[],workPatterns:[],reflections:[],events:[],updatedAt:new Date().toISOString()};
+}
+
+function readHermesMemory(){
+  try{
+    const data=JSON.parse(localStorage.getItem(HERMES_MEMORY_KEY)||'null');
+    if(data&&data.version===1) return {...createHermesMemory(),...data};
+  }catch(e){console.error('readHermesMemory:',e)}
+  return createHermesMemory();
+}
+
+function writeHermesMemory(memory){
+  memory.updatedAt=new Date().toISOString();
+  localStorage.setItem(HERMES_MEMORY_KEY,JSON.stringify(memory));
+  updateHermesStatus();
+}
+
+function sanitizeHermesText(text){
+  return String(text||'').replace(/\s+/g,' ').trim().slice(0,180);
+}
+
+function isSafeHermesMemory(text){
+  const clean=sanitizeHermesText(text);
+  return clean.length>=6&&!HERMES_SENSITIVE_RE.test(clean);
+}
+
+function hermesBucket(type){
+  if(type==='profile') return 'profile';
+  if(type==='reflection') return 'reflections';
+  if(type==='event') return 'events';
+  return 'workPatterns';
+}
+
+function addHermesMemory(type,text,source='chat',confidence=.6){
+  if(!cfg.hermesEnabled) return false;
+  const clean=sanitizeHermesText(text);
+  if(!isSafeHermesMemory(clean)) return false;
+  const memory=readHermesMemory();
+  const key=hermesBucket(type);
+  const exists=memory[key].some(item=>item.text===clean);
+  if(exists) return false;
+  memory[key].unshift({text:clean,source,confidence,ts:new Date().toISOString()});
+  memory[key]=memory[key].slice(0,HERMES_MAX_ITEMS);
+  writeHermesMemory(memory);
+  addLog(`Hermes 记忆已更新：${clean}`);
+  return true;
+}
+
+function learnHermesFromText(text,source='chat'){
+  if(!cfg.hermesEnabled) return;
+  const clean=sanitizeHermesText(text);
+  if(!isSafeHermesMemory(clean)) return;
+  if(/(请记住|记住|以后|我希望|我喜欢|我不喜欢|我需要|不要|别再|我习惯|我容易|对我来说)/.test(clean)){
+    addHermesMemory('profile',clean,source,.8);
+    return;
+  }
+  if(/(我在做|我刚才|下一步|卡住|分心|拖延|专注|汇报|完成|开始)/.test(clean)){
+    addHermesMemory('workPattern',clean,source,.65);
+  }
+}
+
+function summarizeHermesMemory(memory=readHermesMemory()){
+  const lines=[];
+  const take=(title,items,limit)=>{
+    const selected=items.slice(0,limit);
+    if(selected.length) lines.push(`${title}：${selected.map(x=>x.text).join('；')}`);
+  };
+  take('用户偏好',memory.profile,5);
+  take('工作模式',memory.workPatterns,5);
+  take('复盘记录',memory.reflections,3);
+  return lines.join('\n');
+}
+
+function buildHermesSystemPrompt(){
+  if(!cfg.hermesEnabled) return SYS;
+  const summary=summarizeHermesMemory();
+  if(!summary) return SYS;
+  return `${SYS}\n\nHermes Agent 本地长期记忆（只作为辅助上下文，不要逐字复述）：\n${summary}\n\n使用规则：优先尊重用户当前消息；当记忆与当前消息冲突时，以当前消息为准。`;
+}
+
+function buildHermesLocalPrompt(userText){
+  if(!cfg.hermesEnabled) return userText;
+  const summary=summarizeHermesMemory();
+  if(!summary) return userText;
+  return `长期记忆摘要：${summary}\n\n当前用户消息：${userText}`;
+}
+
+function updateHermesStatus(){
+  if(!hermesStatusEl) return;
+  const memory=readHermesMemory();
+  const count=memory.profile.length+memory.workPatterns.length+memory.reflections.length+memory.events.length;
+  hermesStatusEl.textContent=cfg.hermesEnabled?`Hermes 记忆已开启：当前 ${count} 条本地记忆`:'Hermes 记忆已关闭';
 }
 
 function updateFeishuSupervisorStatus(pending=false){
@@ -154,6 +395,138 @@ function updateFeishuSupervisorStatus(pending=false){
   }
 }
 
+function longTaskStatusText(task){
+  if(!task.enabled) return '未启用';
+  const last=Number(task.lastSentAt)||0;
+  if(!last) return `启用中：每 ${task.interval} 分钟提醒`;
+  const next=last+normalizeLongTaskInterval(task.interval)*60*1000;
+  const remain=Math.max(0,Math.ceil((next-Date.now())/60000));
+  return remain>0?`启用中：约 ${remain} 分钟后提醒`:'启用中：等待下一轮发送';
+}
+
+function createLongTaskDraft(){
+  const now=Date.now();
+  return {
+    id:makeLongTaskId(),
+    title:'新的长远任务',
+    goal:'',
+    interval:1440,
+    enabled:false,
+    createdAt:now,
+    lastSentAt:now,
+  };
+}
+
+async function refreshLongTaskWebhooks(){
+  if(!IS_ELECTRON||!window.petBridge?.getLongTaskWebhook||!longTaskListEl) return;
+  await Promise.all((cfg.longTasks||[]).map(async task=>{
+    try{
+      const value=await window.petBridge.getLongTaskWebhook(task.id);
+      longTaskWebhookDrafts[task.id]=value||'';
+      const input=longTaskListEl.querySelector(`[data-long-task-id="${task.id}"] [data-field="webhook"]`);
+      if(input&&!input.matches(':focus')) input.value=value||'';
+    }catch(e){console.error('getLongTaskWebhook:',e)}
+  }));
+}
+
+function renderLongTaskSettings(){
+  if(!longTaskListEl) return;
+  cfg.longTasks=normalizeLongTasks(cfg.longTasks);
+  if(!cfg.longTasks.length){
+    longTaskListEl.innerHTML='<div class="long-task-empty">还没有长远任务</div>';
+    if(longTaskStatusEl) longTaskStatusEl.textContent='可添加多个目标，每个目标使用一个独立飞书机器人 Webhook。';
+    return;
+  }
+  longTaskListEl.innerHTML=cfg.longTasks.map(task=>`
+    <div class="lt-card" data-long-task-id="${escapeHTML(task.id)}">
+      <div class="lt-card-head">
+        <label class="lt-title-line">
+          <input type="checkbox" data-field="enabled" ${task.enabled?'checked':''}>
+          <span>${escapeHTML(task.title)}</span>
+        </label>
+        <div class="lt-actions">
+          <button class="lt-action" type="button" data-act="test">测试</button>
+          <button class="lt-action danger" type="button" data-act="delete">删除</button>
+        </div>
+      </div>
+      <div class="frow">
+        <label>任务名称</label>
+        <input type="text" data-field="title" maxlength="${LONG_TASK_TITLE_MAX}" value="${escapeHTML(task.title)}" placeholder="比如：毕业论文 / 体能训练 / 独立产品">
+      </div>
+      <div class="frow">
+        <label>目标说明</label>
+        <textarea data-field="goal" maxlength="${LONG_TASK_GOAL_MAX}" placeholder="写清楚长期目标、当前阶段、希望机器人追问的进度">${escapeHTML(task.goal)}</textarea>
+      </div>
+      <div class="lt-grid">
+        <div class="frow">
+          <label>提醒间隔（分钟）</label>
+          <input type="number" data-field="interval" min="${LONG_TASK_INTERVAL_MIN}" max="${LONG_TASK_INTERVAL_MAX}" step="1" value="${task.interval}" inputmode="numeric">
+        </div>
+        <div class="frow">
+          <label>任务机器人 Webhook</label>
+          <input type="password" data-field="webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." autocomplete="off" spellcheck="false" value="${escapeHTML(longTaskWebhookDrafts[task.id]||'')}">
+        </div>
+      </div>
+      <span class="lt-status">${escapeHTML(longTaskStatusText(task))}</span>
+    </div>
+  `).join('');
+  if(longTaskStatusEl) longTaskStatusEl.textContent=`已配置 ${cfg.longTasks.length}/${LONG_TASK_MAX} 个长远任务`;
+  refreshLongTaskWebhooks();
+}
+
+function collectLongTasksFromUI(){
+  if(!longTaskListEl) return normalizeLongTasks(cfg.longTasks);
+  const now=Date.now();
+  const next=[];
+  longTaskListEl.querySelectorAll('.lt-card').forEach(card=>{
+    const id=card.dataset.longTaskId||makeLongTaskId();
+    const prev=(cfg.longTasks||[]).find(task=>task.id===id);
+    const title=card.querySelector('[data-field="title"]')?.value.trim()||'';
+    const goal=card.querySelector('[data-field="goal"]')?.value.trim()||'';
+    if(!title&&!goal) return;
+    const enabled=!!card.querySelector('[data-field="enabled"]')?.checked;
+    const interval=normalizeLongTaskInterval(card.querySelector('[data-field="interval"]')?.value);
+    longTaskWebhookDrafts[id]=card.querySelector('[data-field="webhook"]')?.value.trim()||'';
+    next.push({
+      id,
+      title:title.slice(0,LONG_TASK_TITLE_MAX)||'未命名长远任务',
+      goal:goal.slice(0,LONG_TASK_GOAL_MAX),
+      interval,
+      enabled,
+      createdAt:prev?.createdAt||now,
+      lastSentAt:enabled&&prev?.enabled ? (Number(prev.lastSentAt)||now) : now,
+    });
+  });
+  return normalizeLongTasks(next);
+}
+
+async function saveLongTaskWebhooks(){
+  if(!IS_ELECTRON||!window.petBridge?.setLongTaskWebhook) return true;
+  const ids=new Set((cfg.longTasks||[]).map(task=>task.id));
+  for(const id of removedLongTaskIds){
+    await window.petBridge.setLongTaskWebhook(id,'');
+  }
+  removedLongTaskIds.clear();
+  for(const task of cfg.longTasks||[]){
+    const webhook=String(longTaskWebhookDrafts[task.id]||'').trim();
+    if(task.enabled&&!webhook){
+      if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」启用前需要填写任务机器人 Webhook`;
+      return false;
+    }
+    if(webhook&&!isValidFeishuWebhook(webhook)){
+      if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」的 Webhook 格式不正确`;
+      return false;
+    }
+    const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
+    if(!saved){
+      if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」的 Webhook 保存失败`;
+      return false;
+    }
+    ids.delete(task.id);
+  }
+  return true;
+}
+
 async function syncFeishuSettingsFields(){
   if(feishuEnabledEl) feishuEnabledEl.checked=!!cfg.feishuEnabled;
   if(feishuIntervalEl) feishuIntervalEl.value=String(cfg.feishuInterval||30);
@@ -162,6 +535,13 @@ async function syncFeishuSettingsFields(){
   if(feishuAppIdEl) feishuAppIdEl.value=cfg.feishuAppId||'';
   if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId||'';
   if(feishuAppStatusEl) feishuAppStatusEl.textContent=cfg.feishuAppEnabled?'飞书应用长连接已启用':'未启用飞书应用长连接';
+  if(hermesAgentEnabledEl) hermesAgentEnabledEl.checked=!!cfg.hermesAgentEnabled;
+  if(hermesAgentBaseEl) hermesAgentBaseEl.value=cfg.hermesAgentBaseUrl||'http://127.0.0.1:8642/v1';
+  if(hermesAgentModelEl) hermesAgentModelEl.value=cfg.hermesAgentModel||'';
+  updateHermesAgentStatus();
+  if(hermesEnabledEl) hermesEnabledEl.checked=!!cfg.hermesEnabled;
+  updateHermesStatus();
+  renderLongTaskSettings();
   if(feishuWebhookEl && window.petBridge?.getFeishuWebhook){
     try{feishuWebhookEl.value=await window.petBridge.getFeishuWebhook();}
     catch(e){console.error('getFeishuWebhook failed:',e);feishuWebhookEl.value='';}
@@ -169,6 +549,10 @@ async function syncFeishuSettingsFields(){
   if(feishuAppSecretEl && window.petBridge?.getFeishuAppSecret){
     try{feishuAppSecretEl.value=await window.petBridge.getFeishuAppSecret();}
     catch(e){console.error('getFeishuAppSecret failed:',e);feishuAppSecretEl.value='';}
+  }
+  if(hermesAgentKeyEl && window.petBridge?.getHermesApiKey){
+    try{hermesAgentKeyEl.value=await window.petBridge.getHermesApiKey();}
+    catch(e){console.error('getHermesApiKey failed:',e);hermesAgentKeyEl.value='';}
   }
 }
 
@@ -194,14 +578,112 @@ async function applyExternalConfigUpdate(){
     fProxy.checked=!!cfg.proxy;
     await syncFeishuSettingsFields();
   }
+  updateHermesAgentStatus();
+  updateHermesStatus();
   restartFeishuAppConnection();
   restartFeishuSupervisor();
+  if(typeof restartLongTaskSupervisor==='function') restartLongTaskSupervisor();
   updateStatus();
 }
 
 window.petBridge?.onConfigChanged?.(()=>applyExternalConfigUpdate());
 window.addEventListener('storage',e=>{
   if(e.key==='nono_config') applyExternalConfigUpdate();
+});
+
+hermesEnabledEl?.addEventListener('change',()=>{
+  cfg.hermesEnabled=!!hermesEnabledEl.checked;
+  updateHermesStatus();
+});
+
+hermesReviewBtn?.addEventListener('click',async ()=>{
+  const summary=summarizeHermesMemory();
+  await petDialog.alert(summary||'还没有沉淀出长期记忆。你可以直接对孬孬说“请记住……”。',{title:'Hermes 记忆摘要'});
+});
+
+hermesClearBtn?.addEventListener('click',async ()=>{
+  const ok=await petDialog.confirm('确定要清空 Hermes 本地记忆吗？\n\n这不会删除聊天记录、任务、统计或飞书配置。',{title:'清空 Hermes 记忆'});
+  if(!ok) return;
+  localStorage.removeItem(HERMES_MEMORY_KEY);
+  updateHermesStatus();
+  addLog('Hermes 记忆已清空');
+});
+
+hermesAgentTestBtn?.addEventListener('click',async ()=>{
+  const key=hermesAgentKeyEl?.value.trim()||'';
+  if(window.petBridge?.setHermesApiKey){
+    const saved=await window.petBridge.setHermesApiKey(key);
+    if(!saved){
+      updateHermesAgentStatus('Hermes API Key 保存失败');
+      return;
+    }
+  }
+  await testHermesAgentConnection();
+});
+
+longTaskAddBtn?.addEventListener('click',()=>{
+  cfg.longTasks=normalizeLongTasks([createLongTaskDraft(),...(cfg.longTasks||[])]);
+  renderLongTaskSettings();
+});
+
+longTaskListEl?.addEventListener('input',e=>{
+  const card=e.target.closest('.lt-card');
+  if(!card) return;
+  if(e.target.dataset.field==='webhook'){
+    longTaskWebhookDrafts[card.dataset.longTaskId]=e.target.value.trim();
+  }
+  if(e.target.dataset.field==='title'){
+    const label=card.querySelector('.lt-title-line span');
+    if(label) label.textContent=e.target.value.trim()||'未命名长远任务';
+  }
+});
+
+longTaskListEl?.addEventListener('change',e=>{
+  if(e.target.dataset.field==='interval'){
+    e.target.value=String(normalizeLongTaskInterval(e.target.value));
+  }
+});
+
+longTaskListEl?.addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-act]');
+  if(!btn) return;
+  const card=btn.closest('.lt-card');
+  if(!card) return;
+  const id=card.dataset.longTaskId;
+  if(btn.dataset.act==='delete'){
+    removedLongTaskIds.add(id);
+    cfg.longTasks=normalizeLongTasks(collectLongTasksFromUI().filter(task=>task.id!==id));
+    delete longTaskWebhookDrafts[id];
+    renderLongTaskSettings();
+    return;
+  }
+  if(btn.dataset.act==='test'){
+    const tasks=collectLongTasksFromUI();
+    const task=tasks.find(item=>item.id===id);
+    const status=card.querySelector('.lt-status');
+    const webhook=card.querySelector('[data-field="webhook"]')?.value.trim()||'';
+    longTaskWebhookDrafts[id]=webhook;
+    if(!task){
+      if(status) status.textContent='请先填写任务名称或目标说明';
+      return;
+    }
+    if(!isValidFeishuWebhook(webhook)){
+      if(status) status.textContent='Webhook 格式不正确';
+      return;
+    }
+    if(!window.petBridge?.setLongTaskWebhook||!window.petBridge?.sendLongTaskFeishu){
+      if(status) status.textContent='当前环境不支持长远任务发送';
+      return;
+    }
+    if(status) status.textContent='正在发送测试提醒…';
+    const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
+    if(!saved){
+      if(status) status.textContent='Webhook 保存失败';
+      return;
+    }
+    const result=await window.petBridge.sendLongTaskFeishu(task.id, buildLongTaskCheckinText(task,true));
+    if(status) status.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
+  }
 });
 
 async function openSettings(){
@@ -532,8 +1014,16 @@ if(window.petBridge?.onFeishuMessage){
     cfg.feishuAppChatId=msg.chatId||cfg.feishuAppChatId||'';
     save();
     if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId;
+    learnHermesFromText(msg.text,'feishu');
     appendMsg('user',`飞书汇报：${msg.text}`);
-    const reply=summarizeFeishuReport(msg.text);
+    let reply=summarizeFeishuReport(msg.text);
+    if(cfg.hermesAgentEnabled){
+      try{
+        reply=await requestHermesAgentReply(msg.text,'feishu');
+      }catch(e){
+        addLog(`Hermes Agent 飞书回复失败：${e.message||e}`);
+      }
+    }
     appendMsg('pet',reply);
     if(msg.chatId&&window.petBridge?.sendFeishuApp){
       await window.petBridge.sendFeishuApp(msg.chatId, reply);
@@ -580,6 +1070,12 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   const feishuAppId=feishuAppIdEl?.value.trim()||'';
   const feishuAppSecret=feishuAppSecretEl?.value.trim()||'';
   const feishuAppChatId=feishuChatIdEl?.value.trim()||'';
+  const hermesAgentEnabled=!!hermesAgentEnabledEl?.checked;
+  let hermesAgentBaseUrl=hermesAgentBaseEl?.value.trim()||'http://127.0.0.1:8642/v1';
+  const hermesAgentKey=hermesAgentKeyEl?.value.trim()||'';
+  const hermesAgentModel=hermesAgentModelEl?.value.trim()||'';
+  const hermesEnabled=!!hermesEnabledEl?.checked;
+  const longTasks=normalizeLongTasks(collectLongTasksFromUI());
   if(feishuEnabled&&!feishuAppEnabled&&!isValidFeishuWebhook(feishuWebhook)){
     if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
     return;
@@ -587,6 +1083,14 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   if(feishuAppEnabled&&(!isValidFeishuAppId(feishuAppId)||!feishuAppSecret)){
     if(feishuAppStatusEl) feishuAppStatusEl.textContent='启用飞书应用前，请填写 App ID 和 App Secret';
     return;
+  }
+  if(hermesAgentEnabled){
+    try{
+      hermesAgentBaseUrl=normalizeHermesAgentBaseUrl(hermesAgentBaseUrl);
+    }catch(e){
+      updateHermesAgentStatus(e.message||'Hermes API Base URL 不正确');
+      return;
+    }
   }
   if(window.petBridge?.setFeishuWebhook){
     const saved=await window.petBridge.setFeishuWebhook(feishuWebhook);
@@ -602,17 +1106,32 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
       return;
     }
   }
+  if(window.petBridge?.setHermesApiKey){
+    const saved=await window.petBridge.setHermesApiKey(hermesAgentKey);
+    if(!saved){
+      updateHermesAgentStatus('Hermes API Key 保存失败');
+      return;
+    }
+  }
   cfg={p:curP,k:fKey.value.trim(),m:fModel.value.trim(),
     b:fBase.value.trim().replace(/\/+$/,''),proxy:IS_ELECTRON?false:fProxy.checked,freq:cfg.freq||'mid',
     feishuEnabled,
     feishuInterval:normalizeFeishuInterval(feishuIntervalEl?.value),
     feishuAppEnabled,
     feishuAppId,
-    feishuAppChatId};
+    feishuAppChatId,
+    hermesAgentEnabled,
+    hermesAgentBaseUrl,
+    hermesAgentModel,
+    hermesEnabled,
+    longTasks};
+  const longTaskWebhooksSaved=await saveLongTaskWebhooks();
+  if(!longTaskWebhooksSaved) return;
   save();history=[];closeSettings();
   appendMsg('pet',hasKey()?'设置好了 ✦\n快来跟我聊天吧！':'好的，我在这里呢~ 🌸');
   restartFeishuAppConnection();
   restartFeishuSupervisor();
+  restartLongTaskSupervisor();
   updateStatus();
 });
 syncSeg();updateStatus();
@@ -723,6 +1242,108 @@ function buildChatURL(base){
   return /\/v\d+$/.test(t)?`${t}/chat/completions`:`${t}/v1/chat/completions`;
 }
 
+function hermesAgentMessages(userText, source='chat'){
+  const label=source==='feishu'?'飞书监督汇报':'桌面聊天';
+  return [
+    {role:'system',content:`${buildHermesSystemPrompt()}\n\n你正在通过孬孬连接官方 Hermes Agent。回复要短、直接、适合 ADHD 用户执行；如果是飞书监督汇报，先确认收到，再要求用户给出下一步 5-15 分钟的具体动作。`},
+    ...history.filter(item=>typeof item.content==='string').slice(-8),
+    {role:'user',content:`来源：${label}\n用户消息：${userText||''}`},
+  ];
+}
+
+async function requestHermesAgentReply(userText, source='chat'){
+  const messages=hermesAgentMessages(userText,source);
+  if(window.petBridge?.chatHermesAgent){
+    const result=await window.petBridge.chatHermesAgent({
+      baseUrl:cfg.hermesAgentBaseUrl,
+      model:hermesAgentModelName(),
+      messages,
+      maxTokens:220,
+    });
+    if(!result?.success) throw new Error(result?.error||'Hermes Agent 请求失败');
+    return String(result.text||'').trim()||summarizeFeishuReport(userText);
+  }
+  const response=await fetch(hermesAgentEndpoint('chat/completions'),{
+    method:'POST',
+    headers:await hermesAgentHeaders(),
+    body:JSON.stringify({
+      model:hermesAgentModelName(),
+      messages,
+      max_tokens:220,
+      stream:false,
+    }),
+  });
+  if(!response.ok){
+    const err=await response.json().catch(()=>({}));
+    throw new Error(err?.error?.message||`Hermes Agent HTTP ${response.status}`);
+  }
+  const data=await response.json();
+  return String(data?.choices?.[0]?.message?.content||'').trim()||summarizeFeishuReport(userText);
+}
+
+async function streamHermesAgent(msg){
+  const messages=hermesAgentMessages(msg,'chat');
+  history.push({role:'user',content:msg});
+  if(history.length>20) history=history.slice(-20);
+  if(window.petBridge?.chatHermesAgent){
+    const result=await window.petBridge.chatHermesAgent({
+      baseUrl:cfg.hermesAgentBaseUrl,
+      model:hermesAgentModelName(),
+      messages,
+      maxTokens:240,
+    });
+    if(!result?.success) throw new Error(result?.error||'Hermes Agent 请求失败');
+    const full=String(result.text||'').trim()||'…';
+    const fn=window._streamPatch||onStreamChunk;
+    for(const chunk of full.match(/.{1,16}/gs)||[full]) fn(chunk);
+    history.push({role:'assistant',content:full});
+    if(full&&/(下次|以后|适合你|你可以|建议你)/.test(full)){
+      addHermesMemory('reflection',`Hermes Agent 建议：${full.slice(0,120)}`,'chat',.45);
+    }
+    return;
+  }
+  const response=await fetch(hermesAgentEndpoint('chat/completions'),{
+    method:'POST',
+    headers:await hermesAgentHeaders(),
+    body:JSON.stringify({
+      model:hermesAgentModelName(),
+      messages,
+      max_tokens:240,
+      stream:true,
+    }),
+  });
+  if(!response.ok){
+    const err=await response.json().catch(()=>({}));
+    throw new Error(err?.error?.message||`Hermes Agent HTTP ${response.status}`);
+  }
+  const reader=response.body.getReader();
+  const dec=new TextDecoder();
+  let buf='',full='';
+  while(true){
+    const {done,value}=await reader.read();
+    if(done) break;
+    buf+=dec.decode(value,{stream:true});
+    const lines=buf.split('\n');buf=lines.pop();
+    for(const line of lines){
+      if(!line.startsWith('data:')) continue;
+      const raw=line.slice(5).trim();
+      if(raw==='[DONE]') break;
+      try{
+        const chunk=JSON.parse(raw)?.choices?.[0]?.delta?.content||null;
+        if(chunk){
+          full+=chunk;
+          const fn=window._streamPatch||onStreamChunk;
+          fn(chunk);
+        }
+      }catch(e){console.error('Hermes stream chunk parse:',e)}
+    }
+  }
+  history.push({role:'assistant',content:full||'…'});
+  if(full&&/(下次|以后|适合你|你可以|建议你)/.test(full)){
+    addHermesMemory('reflection',`Hermes Agent 建议：${full.slice(0,120)}`,'chat',.45);
+  }
+}
+
 /* ── streaming bubble state ── */
 let streamBubbleEl=null;   // the <div class="dlg-bubble"> being written into
 let streamAccum='';        // accumulated plain text so far
@@ -770,10 +1391,11 @@ async function send(){
   chatInput.value='';chatInput.style.height='';
   setHappy(true);spawnHeart(px+55,py+35);
   appendMsg('user',msg,img);
+  learnHermesFromText(msg,'chat');
   clearAttachment();
   localStorage.setItem('nono_last_activity', Date.now());
 
-  if(!hasKey()){
+  if(!hasKey() && !(cfg.hermesAgentEnabled&&!img)){
     // 没有 API key，确保本地模型已加载
     if (!localModelReady) {
       const loaded = await loadLocalModel((pct, msg) => {
@@ -792,7 +1414,7 @@ async function send(){
     showThinkingIndicator();
     startStreamBubble();
     try {
-      const response = await localInference(msg);
+      const response = await localInference(buildHermesLocalPrompt(msg));
       if (response) {
         onStreamChunk(response);
       } else {
@@ -843,6 +1465,10 @@ async function send(){
 
 /* Patched wrapper that uses _streamPatch for first-chunk detection */
 async function streamAPIPatched(msg,img){
+  if(cfg.hermesAgentEnabled&&!img){
+    await streamHermesAgent(msg);
+    return;
+  }
   const isAnthropic=cfg.p==='anthropic';
   let userContent;
   if(img){
@@ -876,9 +1502,10 @@ async function streamAPIPatched(msg,img){
       'anthropic-dangerous-direct-browser-access':'true'}
     :{'content-type':'application/json','Authorization':`Bearer ${cfg.k}`};
 
+  const systemPrompt=buildHermesSystemPrompt();
   const body=isAnthropic
-    ?JSON.stringify({model,max_tokens:200,stream:true,system:SYS,messages:history})
-    :JSON.stringify({model,messages:[{role:'system',content:SYS},...history],max_tokens:200,stream:true});
+    ?JSON.stringify({model,max_tokens:200,stream:true,system:systemPrompt,messages:history})
+    :JSON.stringify({model,messages:[{role:'system',content:systemPrompt},...history],max_tokens:200,stream:true});
 
   let r;
   try{r=await fetch(url,{method:'POST',headers,body});}
@@ -912,6 +1539,9 @@ async function streamAPIPatched(msg,img){
     }
   }
   history.push({role:'assistant',content:full||'…'});
+  if(full&&/(下次|以后|适合你|你可以|建议你)/.test(full)){
+    addHermesMemory('reflection',`孬孬建议：${full.slice(0,120)}`,'chat',.45);
+  }
 }
 
 function appendErrorMsg(txt){
@@ -1914,6 +2544,70 @@ function restartFeishuSupervisor(){
   schedule();
 }
 
+let longTaskSupervisorTimer=null;
+const longTaskSendingIds=new Set();
+
+function buildLongTaskCheckinText(task,isTest=false){
+  const hm=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  const lines=[
+    isTest?'【孬孬长远任务测试】':'【孬孬长远任务追踪】',
+    `${hm} 请汇报这个目标的进度：${task.title}`,
+  ];
+  if(task.goal) lines.push(`目标说明：${task.goal}`);
+  lines.push(`汇报间隔：每 ${normalizeLongTaskInterval(task.interval)} 分钟`);
+  lines.push('请用三句话回复：1. 刚推进了什么；2. 遇到什么阻碍；3. 下一步具体做什么。');
+  return lines.join('\n');
+}
+
+async function sendLongTaskCheckin(task,isTest=false){
+  if(!IS_ELECTRON||!window.petBridge?.sendLongTaskFeishu) return {success:false,error:'长远任务发送不可用'};
+  if(!task?.id||longTaskSendingIds.has(task.id)) return {success:false,error:'正在发送中'};
+  longTaskSendingIds.add(task.id);
+  try{
+    const result=await window.petBridge.sendLongTaskFeishu(task.id, buildLongTaskCheckinText(task,isTest));
+    if(result?.success){
+      if(!isTest){
+        const current=(cfg.longTasks||[]).find(item=>item.id===task.id);
+        if(current){
+          current.lastSentAt=Date.now();
+          save();
+          renderLongTaskSettings();
+        }
+      }
+      addLog(`长远任务提醒已发送：${task.title}`);
+    }else{
+      addLog(`长远任务提醒失败「${task.title}」：${result?.error||'未知错误'}`);
+    }
+    return result;
+  }finally{
+    longTaskSendingIds.delete(task.id);
+  }
+}
+
+async function tickLongTaskSupervisor(){
+  if(!cfg.longTasks?.length) return;
+  const now=Date.now();
+  for(const task of cfg.longTasks){
+    if(!task.enabled) continue;
+    const intervalMs=normalizeLongTaskInterval(task.interval)*60*1000;
+    const last=Number(task.lastSentAt)||now;
+    if(now-last<intervalMs) continue;
+    await sendLongTaskCheckin(task,false);
+  }
+}
+
+function restartLongTaskSupervisor(){
+  if(longTaskSupervisorTimer){
+    clearInterval(longTaskSupervisorTimer);
+    longTaskSupervisorTimer=null;
+  }
+  if(!_isPetWin) return;
+  const active=(cfg.longTasks||[]).filter(task=>task.enabled);
+  if(!active.length) return;
+  addLog(`长远任务监督已启动：${active.length} 个任务`);
+  longTaskSupervisorTimer=setInterval(()=>tickLongTaskSupervisor(),30*1000);
+}
+
 // 自动提醒 — 只在宠物窗口触发，且只走头顶气泡（不进聊天对话框、不污染 AI 上下文）
 // Web (non-Electron) 也走宠物视图，所以兼容判断
 const _isPetWin = !IS_ELECTRON || IS_PET_WIN;
@@ -1952,6 +2646,7 @@ if(_isPetWin){
   }
 }
 restartFeishuSupervisor();
+restartLongTaskSupervisor();
 
 
 
@@ -2115,7 +2810,16 @@ PHRASES.forEach(({label,text})=>{
 const BAR_H_PET=110;
 let px=Math.max(20,Math.round(window.innerWidth*0.28));
 let py=Math.min(window.innerHeight/2-80,window.innerHeight-BAR_H_PET-160);
-function applyPos(){pw.style.left=px+'px';pw.style.top=py+'px';}
+function applyPos(){
+  if(IS_ELECTRON&&IS_PET_WIN){
+    pw.style.left='0px';
+    pw.style.top='0px';
+    pw.style.right='0px';
+    pw.style.bottom='0px';
+    return;
+  }
+  pw.style.left=px+'px';pw.style.top=py+'px';
+}
 applyPos();
 
 let drag=false,sx,sy,spx,spy,moved=false;
@@ -2145,9 +2849,9 @@ function onEnd(){
     appendMsg('pet',hasKey()?'在这里呢~ 🌸\n有什么想说的吗？':smartFallback('你好'));
   }
 }
-// Pet-window-only drag/resize: in chat/settings windows the pet element isn't visible,
-// so binding global mouse/touch listeners there just wastes CPU on every pointer event.
-if(!IS_ELECTRON || IS_PET_WIN){
+// Browser preview and desktop pet mode both move the pet inside the page.
+// The Electron pet window stays as a transparent work-area overlay.
+if(!IS_ELECTRON){
   pw.addEventListener('touchstart',onStart,{passive:false});
   pw.addEventListener('touchmove',onMove,{passive:false});
   pw.addEventListener('touchend',onEnd);
@@ -2307,6 +3011,86 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
 
 /* ════════ DESKTOP PET MODE ════════ */
 let petExpanded = false;
+const PET_SIZE_KEY='nono_pet_size';
+const PET_POS_KEY='nono_pet_pos';
+const PET_SIZE_MIN=.7;
+const PET_SIZE_MAX=1.4;
+const PET_SIZE_STEP=.1;
+let petSize=readPetSize();
+let petPos=readPetPosition();
+
+function normalizePetSize(value){
+  const scale=Number(value);
+  if(!Number.isFinite(scale)) return 1;
+  return Math.max(PET_SIZE_MIN,Math.min(PET_SIZE_MAX,Math.round(scale*100)/100));
+}
+
+function readPetSize(){
+  try{return normalizePetSize(localStorage.getItem(PET_SIZE_KEY)||1);}
+  catch{return 1;}
+}
+
+function updatePetSizeButtons(){
+  const handle=document.getElementById('pet-size-handle');
+  if(handle) handle.title=`拖动调整大小，点击切换大小 · 当前 ${Math.round(petSize*100)}%`;
+}
+
+function defaultPetPosition(){
+  return {
+    x:Math.round(window.innerWidth*.6),
+    y:Math.round(window.innerHeight*.5),
+  };
+}
+
+function readPetPosition(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(PET_POS_KEY)||'null');
+    if(saved&&Number.isFinite(saved.x)&&Number.isFinite(saved.y)) return saved;
+  }catch(e){console.error('read pet position:',e)}
+  return defaultPetPosition();
+}
+
+function clampPetPosition(pos){
+  const height=320*petSize;
+  return {
+    x:Math.max(-40,Math.min(window.innerWidth-56,pos.x)),
+    y:Math.max(-40,Math.min(window.innerHeight-Math.min(56,height),pos.y)),
+  };
+}
+
+function applyPetPosition(nextPos,opt={}){
+  petPos=clampPetPosition(nextPos||petPos);
+  document.documentElement.style.setProperty('--pet-left', `${Math.round(petPos.x)}px`);
+  document.documentElement.style.setProperty('--pet-top', `${Math.round(petPos.y)}px`);
+  if(opt.persist!==false){
+    try{localStorage.setItem(PET_POS_KEY,JSON.stringify(petPos));}
+    catch(e){console.error('save pet position:',e)}
+  }
+  if(typeof window.syncPetAnchors==='function'){
+    requestAnimationFrame(()=>window.syncPetAnchors());
+  }
+}
+
+function applyPetSize(nextSize, opt={}){
+  petSize=normalizePetSize(nextSize);
+  document.documentElement.style.setProperty('--pet-size-scale', petSize.toFixed(2));
+  if(opt.persist!==false){
+    try{localStorage.setItem(PET_SIZE_KEY,String(petSize));}
+    catch(e){console.error('save pet size:',e)}
+  }
+  updatePetSizeButtons();
+  applyPetPosition(petPos,{persist:false});
+  if(typeof window.syncPetAnchors==='function'){
+    requestAnimationFrame(()=>window.syncPetAnchors());
+  }
+  if(opt.resize!==false&&IS_ELECTRON&&IS_PET_WIN&&window.petBridge?.setPetSize){
+    window.petBridge.setPetSize(petSize)
+      .then(()=>requestAnimationFrame(()=>window.syncPetAnchors?.()))
+      .catch(e=>console.error('setPetSize:',e));
+  }
+}
+
+applyPetSize(petSize,{persist:false,resize:IS_PET_WIN});
 
 if(IS_CHAT_WIN){
   document.documentElement.classList.add('chat-only-html');
@@ -2382,12 +3166,21 @@ if(IS_CHAT_WIN){
     });
   }
 } else if(IS_PET_WIN){
+  document.documentElement.classList.add('pet-mode-html');
   document.body.classList.add('pet-mode');
   document.documentElement.style.background = 'transparent';
   document.documentElement.style.setProperty('--bg','transparent');
   document.documentElement.style.setProperty('--bar-bg','transparent');
   document.body.style.background = 'transparent';
   document.body.style.backgroundColor = 'transparent';
+
+  const petWrap = document.querySelector('.pet-img-wrap');
+  const petTray = document.getElementById('pet-tray');
+  const petSizeHandle = document.getElementById('pet-size-handle');
+  const miniBubbleNode = document.getElementById('mini-bubble');
+  if(petWrap&&petTray&&petTray.parentElement!==petWrap) petWrap.appendChild(petTray);
+  if(petWrap&&petSizeHandle&&petSizeHandle.parentElement!==petWrap) petWrap.appendChild(petSizeHandle);
+  if(petWrap&&miniBubbleNode&&miniBubbleNode.parentElement!==petWrap) petWrap.appendChild(miniBubbleNode);
 
   // Tray buttons
   // Chat button: always opens (or focuses if already open) the chat window. Never toggles icon.
@@ -2420,7 +3213,11 @@ if(IS_CHAT_WIN){
     if(miniTimer) clearTimeout(miniTimer);
     miniBubble.textContent = msg;
     miniBubble.classList.add('show');
-    miniTimer = setTimeout(()=>miniBubble.classList.remove('show'), 10000);
+    requestAnimationFrame(()=>window.syncPetAnchors?.());
+    miniTimer = setTimeout(()=>{
+      miniBubble.classList.remove('show');
+      requestAnimationFrame(()=>window.syncPetAnchors?.());
+    }, 10000);
   }
   // 让自动提醒走头顶气泡，超长文本截断
   _bubblePush = (msg)=>{
@@ -2435,13 +3232,120 @@ if(IS_CHAT_WIN){
   const petImg = document.getElementById('pet-img');
   const alphaCanvas = document.createElement('canvas');
   const alphaCtx = alphaCanvas.getContext('2d');
+  let alphaBounds = null;
+  function computeAlphaBounds(){
+    if(!alphaCanvas.width||!alphaCanvas.height) return null;
+    try{
+      const data=alphaCtx.getImageData(0,0,alphaCanvas.width,alphaCanvas.height).data;
+      let minX=alphaCanvas.width,minY=alphaCanvas.height,maxX=0,maxY=0,found=false;
+      for(let y=0;y<alphaCanvas.height;y+=2){
+        for(let x=0;x<alphaCanvas.width;x+=2){
+          if(data[(y*alphaCanvas.width+x)*4+3]<=30) continue;
+          found=true;
+          if(x<minX) minX=x;
+          if(y<minY) minY=y;
+          if(x>maxX) maxX=x;
+          if(y>maxY) maxY=y;
+        }
+      }
+      alphaBounds=found?{minX,minY,maxX,maxY,width:alphaCanvas.width,height:alphaCanvas.height}:null;
+    }catch(e){
+      console.error('computeAlphaBounds:',e);
+      alphaBounds=null;
+    }
+    return alphaBounds;
+  }
+  function getVisibleKoalaRect(){
+    const rect=petImg.getBoundingClientRect();
+    if(!alphaBounds) return rect;
+    const sx=rect.width/alphaBounds.width;
+    const sy=rect.height/alphaBounds.height;
+    const left=rect.left+alphaBounds.minX*sx;
+    const top=rect.top+alphaBounds.minY*sy;
+    const right=rect.left+alphaBounds.maxX*sx;
+    const bottom=rect.top+alphaBounds.maxY*sy;
+    return {left,top,right,bottom,width:right-left,height:bottom-top};
+  }
+  function getPetEffectPoint(){
+    const body=getVisibleKoalaRect();
+    return {
+      x:body.left+body.width*.5,
+      y:body.top+body.height*.24,
+    };
+  }
+  let petShapeFrame=0;
+  let dragging=false, startX=0, startY=0, dragMoved=false, dragStartPos={x:0,y:0};
+  let resizingPet=false, resizeStartX=0, resizeStartY=0, resizeStartSize=1, resizeMoved=false;
+  function cyclePetSize(){
+    const presets=[PET_SIZE_MIN,1,1.2,PET_SIZE_MAX];
+    const next=presets.find(size=>size>petSize+.01)||presets[0];
+    applyPetSize(next);
+  }
+  function toShapeRect(rect,pad){
+    const left=Math.max(0,Math.floor(rect.left-pad));
+    const top=Math.max(0,Math.floor(rect.top-pad));
+    const right=Math.ceil(rect.right+pad);
+    const bottom=Math.ceil(rect.bottom+pad);
+    return {x:left,y:top,width:Math.max(1,right-left),height:Math.max(1,bottom-top)};
+  }
+  function requestPetShapeSync(){
+    if(!window.petBridge?.setPetShape) return;
+    if(dragging) return;
+    if(resizingPet) return;
+    if(petShapeFrame) return;
+    petShapeFrame=requestAnimationFrame(()=>{
+      petShapeFrame=0;
+      const rects=[toShapeRect(getVisibleKoalaRect(),4)];
+      if(petTray&&getComputedStyle(petTray).display!=='none'){
+        rects.push(toShapeRect(petTray.getBoundingClientRect(),3));
+      }
+      if(petSizeHandle&&getComputedStyle(petSizeHandle).display!=='none'){
+        rects.push(toShapeRect(petSizeHandle.getBoundingClientRect(),3));
+      }
+      if(miniBubbleNode&&miniBubbleNode.classList.contains('show')){
+        rects.push(toShapeRect(miniBubbleNode.getBoundingClientRect(),4));
+      }
+      window.petBridge.setPetShape(rects);
+    });
+  }
+  function syncPetAnchors(){
+    if(dragging) return;
+    const body=getVisibleKoalaRect();
+    const wrapRect=(petWrap||petImg).getBoundingClientRect();
+    const scale=petSize||1;
+    const trayLeft=body.right-wrapRect.left+10*scale;
+    const trayTop=body.top-wrapRect.top+body.height*.56;
+    const sizeLeft=body.right-wrapRect.left-6*scale;
+    const sizeTop=body.bottom-wrapRect.top-18*scale;
+    const bubbleWidth=200;
+    let bubbleLeft=trayLeft+34*scale;
+    let bubbleSide='right';
+    if(wrapRect.left+bubbleLeft+bubbleWidth>window.innerWidth-8){
+      bubbleLeft=Math.max(4,body.left-wrapRect.left-bubbleWidth-14*scale);
+      bubbleSide='left';
+    }
+    if(miniBubbleNode) miniBubbleNode.classList.toggle('left-side', bubbleSide==='left');
+    document.documentElement.style.setProperty('--pet-tray-left', `${Math.round(trayLeft)}px`);
+    document.documentElement.style.setProperty('--pet-tray-top', `${Math.round(trayTop)}px`);
+    document.documentElement.style.setProperty('--pet-size-left', `${Math.round(sizeLeft)}px`);
+    document.documentElement.style.setProperty('--pet-size-top', `${Math.round(sizeTop)}px`);
+    document.documentElement.style.setProperty('--pet-bubble-left', `${Math.round(bubbleLeft)}px`);
+    document.documentElement.style.setProperty('--pet-bubble-top', `${Math.max(4,Math.round(body.top-wrapRect.top+2*scale))}px`);
+    requestPetShapeSync();
+  }
+  window.syncPetAnchors=syncPetAnchors;
+  window.__nonoPetVisibleRect=()=>getVisibleKoalaRect();
+  window.__nonoPetEffectPoint=()=>getPetEffectPoint();
   function setupAlpha(){
     alphaCanvas.width = petImg.naturalWidth;
     alphaCanvas.height = petImg.naturalHeight;
     alphaCtx.drawImage(petImg, 0, 0);
+    computeAlphaBounds();
+    syncPetAnchors();
   }
   if(petImg.complete && petImg.naturalWidth) setupAlpha();
   else petImg.addEventListener('load', setupAlpha);
+  window.addEventListener('resize',()=>requestAnimationFrame(syncPetAnchors));
 
   function isOverKoala(cx, cy){
     // Always respond over tray buttons
@@ -2449,6 +3353,10 @@ if(IS_CHAT_WIN){
     if(tray){
       const tr = tray.getBoundingClientRect();
       if(cx>=tr.left&&cx<=tr.right&&cy>=tr.top&&cy<=tr.bottom) return true;
+    }
+    if(petSizeHandle){
+      const hr = petSizeHandle.getBoundingClientRect();
+      if(cx>=hr.left&&cx<=hr.right&&cy>=hr.top&&cy<=hr.bottom) return true;
     }
     // Check pixel alpha on koala image
     const rect = petImg.getBoundingClientRect();
@@ -2460,36 +3368,104 @@ if(IS_CHAT_WIN){
   }
 
   /* ── Drag + click ── */
-  let dragging=false, lastX=0, lastY=0, dragMoved=false;
+  petSizeHandle?.addEventListener('mousedown', e=>{
+    resizingPet=true;
+    resizeMoved=false;
+    resizeStartX=e.clientX;
+    resizeStartY=e.clientY;
+    resizeStartSize=petSize;
+    window.petBridge.setIgnoreMouse(false);
+    e.stopPropagation();
+    e.preventDefault();
+  });
 
   window.addEventListener('mousemove', e=>{
+    if(resizingPet){
+      const dx=e.clientX-resizeStartX;
+      const dy=e.clientY-resizeStartY;
+      const delta=(dx+dy)/2;
+      if(Math.abs(dx)>2||Math.abs(dy)>2) resizeMoved=true;
+      applyPetSize(resizeStartSize+delta/260,{persist:false});
+      return;
+    }
     if(dragging){
-      const dx=e.screenX-lastX, dy=e.screenY-lastY;
+      const dx=e.clientX-startX, dy=e.clientY-startY;
       if(Math.abs(dx)>1||Math.abs(dy)>1) dragMoved=true;
-      window.petBridge.moveWindow(dx,dy);
-      lastX=e.screenX; lastY=e.screenY;
+      applyPetPosition({x:dragStartPos.x+dx,y:dragStartPos.y+dy},{persist:false});
       return;
     }
     window.petBridge.setIgnoreMouse(!isOverKoala(e.clientX,e.clientY));
   });
 
+  let pausedPetAnimations=[];
+  let frozenPetTransforms=[];
+  function capturePetTransforms(){
+    const root=petWrap||pw;
+    return [petWrap,root.querySelector('.pet-sway-wrap'),petImg,root.querySelector('.pet-zzz'),root.querySelector('.pet-focus-mark')]
+      .filter(Boolean)
+      .map(el=>({el,transform:el.style.transform,computed:getComputedStyle(el).transform}));
+  }
+  function pausePetAnimations(snapshot){
+    const root=petWrap||pw;
+    frozenPetTransforms=snapshot||capturePetTransforms();
+    pausedPetAnimations=root.getAnimations({subtree:true}).filter(anim=>anim.playState==='running'||anim.playState==='pending');
+    pausedPetAnimations.forEach(anim=>anim.pause());
+    frozenPetTransforms.forEach(item=>{
+      item.el.style.transform=item.computed&&item.computed!=='none'?item.computed:item.transform;
+    });
+  }
+  function resumePetAnimations(){
+    const list=pausedPetAnimations;
+    const frozen=frozenPetTransforms;
+    pausedPetAnimations=[];
+    frozenPetTransforms=[];
+    frozen.forEach(item=>{item.el.style.transform=item.transform;});
+    list.forEach(anim=>{
+      try{anim.play();}catch(e){console.error('resume pet animation:',e)}
+    });
+  }
+
   window.addEventListener('mousedown', e=>{
+    if(e.target.closest('#pet-size-handle')) return;
+    const pressTransforms=capturePetTransforms();
     if(!isOverKoala(e.clientX,e.clientY)) return;
     if(e.target.closest('.tray-btn')) return;
+    if(e.target.setPointerCapture&&typeof e.pointerId==='number'){
+      try{e.target.setPointerCapture(e.pointerId);}catch{}
+    }
     window.petBridge.setIgnoreMouse(false);
     dragging=true; dragMoved=false;
-    lastX=e.screenX; lastY=e.screenY;
+    dragStartPos={...petPos};
+    pausePetAnimations(pressTransforms);
+    pw.classList.add('dragging');
+    startX=e.clientX; startY=e.clientY;
     e.preventDefault();
   });
 
   window.addEventListener('mouseup', ()=>{
+    if(resizingPet){
+      resizingPet=false;
+      window.petBridge.setIgnoreMouse(false);
+      if(resizeMoved){
+        applyPetSize(petSize,{persist:true});
+      }else{
+        cyclePetSize();
+      }
+      requestAnimationFrame(syncPetAnchors);
+      return;
+    }
     if(!dragging) return;
     dragging=false;
     window.petBridge.setIgnoreMouse(false);
+    pw.classList.remove('dragging');
+    applyPetPosition(petPos,{persist:true});
+    resumePetAnimations();
+    requestAnimationFrame(syncPetAnchors);
     if(!dragMoved){
       petReact();
       setHappy(true);
-      spawnHeart(60,80);
+      const p=getPetEffectPoint();
+      spawnHeart(p.x,p.y);
       const msg = Math.random()<0.35 ? rand(ADHD_TIPS) : smartFallback('');
       showMini(msg);
     }

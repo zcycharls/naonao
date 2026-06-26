@@ -185,6 +185,47 @@ async function runLocalInference(text) {
 let win
 const PRELOAD = path.join(__dirname, 'preload.js')
 const APP_HTML = path.join(__dirname, 'app', 'index.html')
+const PET_BASE_WIDTH = 335
+const PET_BASE_HEIGHT = 320
+const PET_MIN_SCALE = 0.7
+const PET_MAX_SCALE = 1.4
+let petDragAnchor = null
+let petDragTimer = null
+let petWindowShape = null
+
+function normalizePetScale(value) {
+  const scale = Number(value)
+  if (!Number.isFinite(scale)) return 1
+  return Math.max(PET_MIN_SCALE, Math.min(PET_MAX_SCALE, scale))
+}
+
+function petWindowWidthForScale(scale) {
+  return Math.round(240 * scale + 95)
+}
+
+function petWindowHeightForScale(scale) {
+  return Math.round(PET_BASE_HEIGHT * scale)
+}
+
+function stopPetDragTimer() {
+  if (!petDragTimer) return
+  clearInterval(petDragTimer)
+  petDragTimer = null
+}
+
+function applyPetWindowShape() {
+  // Keep the native window rectangular. Electron setShape clips the transparent
+  // window surface on Windows and can make the pet appear to sink or lose mouse
+  // events during drag. petWindowShape is still used as the visible drag bounds.
+}
+
+function movePetWindowToCursor() {
+  if (!win || win.isDestroyed() || !petDragAnchor) return
+  const cursor = screen.getCursorScreenPoint()
+  const x = cursor.x - petDragAnchor.dx
+  const y = cursor.y - petDragAnchor.dy
+  win.setPosition(Math.round(x), Math.round(y))
+}
 
 function canOpenExternal(url) {
   try {
@@ -238,29 +279,31 @@ function makeWindow(opts) {
 }
 
 function createWindow() {
-  const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize
+  const { workArea } = screen.getPrimaryDisplay()
+  const { width: sw, height: sh } = workArea
 
   // Koala wrapper is 240px wide (left-aligned, see app/index.html .pet-img-wrap).
   // Right gutter holds the bubble (width:200) + tray buttons (right:18, ~22px).
-  const W = 500, H = 320
+  const W = workArea.width, H = workArea.height
 
   win = makeWindow({
     width: W,
     height: H,
-    x: Math.floor(sw * 0.6),
-    y: Math.floor(sh * 0.5),
+    x: workArea.x,
+    y: workArea.y,
     transparent: true,
     skipTaskbar: false,
     focusable: false,
     thickFrame: false,
     resizable: false,
     hasShadow: false,
-    backgroundColor: '#00000001',
+    backgroundColor: '#00000000',
   })
 
   win.loadFile(APP_HTML)
   win.webContents.on('did-finish-load', () => {
     win.setBackgroundColor('#00000000')
+    if (typeof win.setHasShadow === 'function') win.setHasShadow(false)
   })
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   win.setAlwaysOnTop(true, 'screen-saver')
@@ -275,6 +318,52 @@ function createWindow() {
     const nx = Math.max(0, Math.min(sw - w, x + Math.round(Math.max(-2000, Math.min(2000, dx)))))
     const ny = Math.max(0, Math.min(sh - h, y + Math.round(Math.max(-2000, Math.min(2000, dy)))))
     sender.setPosition(nx, ny)
+  })
+
+  ipcMain.on('pet:drag-start', (event) => {
+    if (!win || win.isDestroyed()) return
+    const sender = BrowserWindow.fromWebContents(event.sender)
+    if (sender !== win) return
+    stopPetDragTimer()
+    const cursor = screen.getCursorScreenPoint()
+    const bounds = win.getBounds()
+    petDragAnchor = {
+      dx: cursor.x - bounds.x,
+      dy: cursor.y - bounds.y,
+    }
+    petDragTimer = setInterval(movePetWindowToCursor, 16)
+  })
+
+  ipcMain.on('pet:drag-move', (event) => {
+    if (!win || win.isDestroyed() || !petDragAnchor) return
+    const sender = BrowserWindow.fromWebContents(event.sender)
+    if (sender !== win) return
+    movePetWindowToCursor()
+  })
+
+  ipcMain.on('pet:drag-end', (event) => {
+    const sender = BrowserWindow.fromWebContents(event.sender)
+    if (sender !== win) return
+    stopPetDragTimer()
+    petDragAnchor = null
+    applyPetWindowShape()
+  })
+
+  ipcMain.on('pet:shape:set', (event, rects) => {
+    if (!win || win.isDestroyed() || typeof win.setShape !== 'function') return
+    const sender = BrowserWindow.fromWebContents(event.sender)
+    if (sender !== win || !Array.isArray(rects)) return
+    const bounds = win.getBounds()
+    const shape = rects.slice(0, 8).map(rect => {
+      const x = Math.max(0, Math.floor(Number(rect?.x) || 0))
+      const y = Math.max(0, Math.floor(Number(rect?.y) || 0))
+      const width = Math.min(bounds.width - x, Math.ceil(Number(rect?.width) || 0))
+      const height = Math.min(bounds.height - y, Math.ceil(Number(rect?.height) || 0))
+      return { x, y, width, height }
+    }).filter(rect => rect.width > 0 && rect.height > 0)
+    if (shape.length) {
+      petWindowShape = shape
+    }
   })
 
   let chatWin = null
@@ -313,6 +402,15 @@ function createWindow() {
 
   ipcMain.on('set-ignore-mouse', (_, ignore) => {
     win.setIgnoreMouseEvents(!!ignore, { forward: true })
+  })
+
+  ipcMain.handle('pet:size:set', (event, value) => {
+    if (!win || win.isDestroyed()) return { success: false, error: '宠物窗口不存在' }
+    const sender = BrowserWindow.fromWebContents(event.sender)
+    if (sender !== win) return { success: false, error: '只能从宠物窗口调整大小' }
+    const scale = normalizePetScale(value)
+    const bounds = win.getBounds()
+    return { success: true, scale, width: bounds.width, height: bounds.height }
   })
 
   let settingsWin = null
@@ -375,6 +473,8 @@ function createWindow() {
 const SECRET_FILE = () => path.join(app.getPath('userData'), 'apk.bin')
 const FEISHU_WEBHOOK_FILE = () => path.join(app.getPath('userData'), 'feishu-webhook.bin')
 const FEISHU_APP_SECRET_FILE = () => path.join(app.getPath('userData'), 'feishu-app-secret.bin')
+const HERMES_API_KEY_FILE = () => path.join(app.getPath('userData'), 'hermes-api-key.bin')
+const LONG_TASK_WEBHOOKS_FILE = () => path.join(app.getPath('userData'), 'long-task-webhooks.bin')
 let feishuClient = null
 let feishuWsClient = null
 let feishuWsConnected = false
@@ -457,6 +557,27 @@ function writeEncryptedString(filePath, value, maxLength) {
   }
 }
 
+function readEncryptedJSON(filePath, fallback) {
+  const raw = readEncryptedString(filePath)
+  if (!raw) return fallback
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : fallback
+  } catch (e) {
+    console.error('[孬孬] 读取加密 JSON 失败:', e.message)
+    return fallback
+  }
+}
+
+function writeEncryptedJSON(filePath, value, maxLength) {
+  try {
+    return writeEncryptedString(filePath, JSON.stringify(value || {}), maxLength)
+  } catch (e) {
+    console.error('[孬孬] 保存加密 JSON 失败:', e.message)
+    return false
+  }
+}
+
 function isAllowedFeishuWebhook(value) {
   try {
     const url = new URL(value)
@@ -466,6 +587,10 @@ function isAllowedFeishuWebhook(value) {
   } catch {
     return false
   }
+}
+
+function isValidLongTaskId(value) {
+  return /^[A-Za-z0-9_-]{3,48}$/.test(String(value || '').trim())
 }
 
 function isValidFeishuAppId(value) {
@@ -530,8 +655,7 @@ ipcMain.handle('feishu:webhook:set', (_evt, value) => {
   return writeEncryptedString(FEISHU_WEBHOOK_FILE(), webhook, 2048)
 })
 
-ipcMain.handle('feishu:send', async (_evt, text) => {
-  const webhook = readEncryptedString(FEISHU_WEBHOOK_FILE())
+async function sendFeishuWebhookMessage(webhook, text) {
   const message = String(text || '').trim().slice(0, 1800)
   if (!webhook || !isAllowedFeishuWebhook(webhook)) {
     return { success: false, error: '飞书 Webhook 未配置或格式不正确' }
@@ -565,6 +689,36 @@ ipcMain.handle('feishu:send', async (_evt, text) => {
   } catch (e) {
     return { success: false, error: e.message || '发送失败' }
   }
+}
+
+ipcMain.handle('feishu:send', async (_evt, text) => {
+  const webhook = readEncryptedString(FEISHU_WEBHOOK_FILE())
+  return sendFeishuWebhookMessage(webhook, text)
+})
+
+ipcMain.handle('feishu:long-task-webhook:get', (_evt, taskId) => {
+  const id = String(taskId || '').trim()
+  if (!isValidLongTaskId(id)) return ''
+  const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
+  return String(webhooks[id] || '')
+})
+
+ipcMain.handle('feishu:long-task-webhook:set', (_evt, taskId, value) => {
+  const id = String(taskId || '').trim()
+  const webhook = String(value || '').trim()
+  if (!isValidLongTaskId(id)) return false
+  if (webhook && !isAllowedFeishuWebhook(webhook)) return false
+  const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
+  if (webhook) webhooks[id] = webhook
+  else delete webhooks[id]
+  return writeEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), webhooks, 20000)
+})
+
+ipcMain.handle('feishu:long-task-send', async (_evt, taskId, text) => {
+  const id = String(taskId || '').trim()
+  if (!isValidLongTaskId(id)) return { success: false, error: '长远任务 id 不正确' }
+  const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
+  return sendFeishuWebhookMessage(String(webhooks[id] || ''), text)
 })
 
 ipcMain.handle('feishu:app-secret:get', () => {
@@ -573,6 +727,81 @@ ipcMain.handle('feishu:app-secret:get', () => {
 
 ipcMain.handle('feishu:app-secret:set', (_evt, value) => {
   return writeEncryptedString(FEISHU_APP_SECRET_FILE(), String(value || '').trim(), 2048)
+})
+
+ipcMain.handle('hermes:api-key:get', () => {
+  return readEncryptedString(HERMES_API_KEY_FILE())
+})
+
+ipcMain.handle('hermes:api-key:set', (_evt, value) => {
+  return writeEncryptedString(HERMES_API_KEY_FILE(), String(value || '').trim(), 2048)
+})
+
+function normalizeHermesBaseUrl(value) {
+  const raw = String(value || '').trim() || 'http://127.0.0.1:8642/v1'
+  const url = new URL(raw)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Hermes API Base URL 只支持 http/https')
+  url.hash = ''
+  url.search = ''
+  url.pathname = (url.pathname || '/v1').replace(/\/+$/, '') || '/v1'
+  return url.toString().replace(/\/+$/, '')
+}
+
+function hermesEndpoint(baseUrl, pathName) {
+  return `${normalizeHermesBaseUrl(baseUrl).replace(/\/+$/, '')}/${String(pathName || '').replace(/^\/+/, '')}`
+}
+
+function hermesHealthUrl(baseUrl) {
+  const url = new URL(normalizeHermesBaseUrl(baseUrl))
+  url.pathname = url.pathname.replace(/\/v\d+$/, '').replace(/\/+$/, '') + '/health'
+  return url.toString()
+}
+
+function hermesHeaders() {
+  const headers = { 'content-type': 'application/json' }
+  const key = readEncryptedString(HERMES_API_KEY_FILE())
+  if (key) headers.Authorization = `Bearer ${key}`
+  return headers
+}
+
+ipcMain.handle('hermes:test', async (_evt, config) => {
+  try {
+    const baseUrl = normalizeHermesBaseUrl(config?.baseUrl)
+    let response = await fetch(hermesHealthUrl(baseUrl), { headers: hermesHeaders() })
+    if (!response.ok) response = await fetch(hermesEndpoint(baseUrl, 'models'), { headers: hermesHeaders() })
+    if (!response.ok) return { success: false, error: `HTTP ${response.status}` }
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: e.message || '连接失败' }
+  }
+})
+
+ipcMain.handle('hermes:chat', async (_evt, config) => {
+  try {
+    const baseUrl = normalizeHermesBaseUrl(config?.baseUrl)
+    const model = String(config?.model || '').trim() || 'hermes-agent'
+    const messages = Array.isArray(config?.messages) ? config.messages : []
+    const response = await fetch(hermesEndpoint(baseUrl, 'chat/completions'), {
+      method: 'POST',
+      headers: hermesHeaders(),
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: Math.min(1000, Math.max(1, Number(config?.maxTokens) || 240)),
+        stream: false,
+      }),
+    })
+    const bodyText = await response.text()
+    let body = null
+    try { body = JSON.parse(bodyText) } catch {}
+    if (!response.ok) {
+      return { success: false, error: body?.error?.message || `HTTP ${response.status}` }
+    }
+    const text = String(body?.choices?.[0]?.message?.content || '').trim()
+    return { success: true, text }
+  } catch (e) {
+    return { success: false, error: e.message || '请求失败' }
+  }
 })
 
 ipcMain.handle('feishu:app-start', async (_evt, config) => {
