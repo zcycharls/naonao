@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('petBridge', {
   movePetDrag: () => ipcRenderer.send('pet:drag-move'),
   endPetDrag: () => ipcRenderer.send('pet:drag-end'),
   openSettings:   ()   => ipcRenderer.send('open-settings'),
+  openLongTasks:  ()   => ipcRenderer.send('open-long-tasks'),
   closeSelf:      ()   => ipcRenderer.send('close-self'),
   minimizeSelf:   ()   => ipcRenderer.send('minimize-self'),
   notifyConfigChanged: () => ipcRenderer.send('config:changed'),

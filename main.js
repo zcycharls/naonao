@@ -278,6 +278,34 @@ function makeWindow(opts) {
   return browserWindow
 }
 
+function lockWindowSize(browserWindow, width, height) {
+  if (!browserWindow || browserWindow.isDestroyed()) return
+  const fixedWidth = Math.round(width)
+  const fixedHeight = Math.round(height)
+  const restoreSize = () => {
+    if (browserWindow.isDestroyed()) return
+    const bounds = browserWindow.getBounds()
+    if (bounds.width !== fixedWidth || bounds.height !== fixedHeight) {
+      browserWindow.setBounds({ ...bounds, width: fixedWidth, height: fixedHeight })
+    }
+  }
+  browserWindow.setResizable(false)
+  browserWindow.setMaximizable(false)
+  browserWindow.setMinimumSize(fixedWidth, fixedHeight)
+  browserWindow.setMaximumSize(fixedWidth, fixedHeight)
+  browserWindow.on('will-resize', event => {
+    event.preventDefault()
+    restoreSize()
+  })
+  browserWindow.on('resize', restoreSize)
+  browserWindow.on('maximize', () => {
+    browserWindow.unmaximize()
+    restoreSize()
+  })
+  browserWindow.webContents.on('did-finish-load', restoreSize)
+  restoreSize()
+}
+
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
   const { width: sw, height: sh } = workArea
@@ -391,6 +419,7 @@ function createWindow() {
       hasShadow: false,
       resizable: false,
     })
+    lockWindowSize(chatWin, chatW, chatH)
     chatWin.setAlwaysOnTop(true, 'screen-saver')
     chatWin.loadFile(APP_HTML, { query: { mode: 'chat' } })
     chatWin.on('closed', () => { chatWin = null })
@@ -414,6 +443,7 @@ function createWindow() {
   })
 
   let settingsWin = null
+  let longTasksWin = null
   ipcMain.on('open-settings', () => {
     if (settingsWin && !settingsWin.isDestroyed()) {
       settingsWin.focus(); return
@@ -432,9 +462,33 @@ function createWindow() {
       hasShadow: false,
       resizable: false,
     })
+    lockWindowSize(settingsWin, setW, setH)
     settingsWin.setAlwaysOnTop(true, 'screen-saver')
     settingsWin.loadFile(APP_HTML, { query: { mode: 'settings' } })
     settingsWin.on('closed', () => { settingsWin = null })
+  })
+
+  ipcMain.on('open-long-tasks', () => {
+    if (longTasksWin && !longTasksWin.isDestroyed()) {
+      longTasksWin.focus(); return
+    }
+    const [x, y] = win.getPosition()
+    const setW = 480, setH = 680
+    longTasksWin = makeWindow({
+      width: setW,
+      height: setH,
+      x: Math.max(0, x - (setW + 8)),
+      y: Math.max(0, Math.min(y, screen.getPrimaryDisplay().workAreaSize.height - setH)),
+      transparent: true,
+      backgroundColor: '#00000000',
+      thickFrame: false,
+      hasShadow: false,
+      resizable: false,
+    })
+    lockWindowSize(longTasksWin, setW, setH)
+    longTasksWin.setAlwaysOnTop(true, 'screen-saver')
+    longTasksWin.loadFile(APP_HTML, { query: { mode: 'long-tasks' } })
+    longTasksWin.on('closed', () => { longTasksWin = null })
   })
 
   ipcMain.on('close-app', () => app.quit())

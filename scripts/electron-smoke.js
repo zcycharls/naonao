@@ -123,6 +123,7 @@ async function main() {
           window.dispatchEvent(new StorageEvent('storage', { key: 'nono_bd', newValue: previousBodyDouble }));
         }
       }
+      await new Promise(resolve => setTimeout(resolve, 700));
       const pw = document.getElementById('pw');
       const petImg = document.getElementById('pet-img');
       const tray = document.getElementById('pet-tray');
@@ -135,11 +136,21 @@ async function main() {
       let petClickJumps = false;
       let petHeartNearBody = false;
       let petBubbleAvoidsTray = false;
+      let petBubbleTrayRects = null;
+      let miniBubbleRects = null;
       let petPressLayoutDelta = {};
       if (pw && petImg) {
         pw.style.left = '0px';
         pw.style.top = '0px';
+        const testPetPos = {
+          x: Math.round(window.innerWidth * .42),
+          y: Math.round(window.innerHeight * .42),
+        };
+        document.documentElement.style.setProperty('--pet-left', testPetPos.x + 'px');
+        document.documentElement.style.setProperty('--pet-top', testPetPos.y + 'px');
+        localStorage.setItem('nono_pet_pos', JSON.stringify(testPetPos));
         window.syncPetAnchors?.();
+        await new Promise(requestAnimationFrame);
         const sway = document.querySelector('.pet-sway-wrap');
         if (sway) sway.style.transform = 'translate(9px, 11px)';
         petImg.style.transform = 'translate(4px, 6px)';
@@ -175,6 +186,8 @@ async function main() {
           trayTop: trayBefore && trayPressed ? trayPressed.top - trayBefore.top : 0,
           bubbleLeft: bubbleBefore && bubblePressed ? bubblePressed.left - bubbleBefore.left : 0,
           bubbleTop: bubbleBefore && bubblePressed ? bubblePressed.top - bubbleBefore.top : 0,
+          petLeftVarBefore: testPetPos.x,
+          petTopVarBefore: testPetPos.y,
           petLeftVar: getComputedStyle(document.documentElement).getPropertyValue('--pet-left'),
           petTopVar: getComputedStyle(document.documentElement).getPropertyValue('--pet-top'),
           wrapBefore: wrapBefore ? { left: wrapBefore.left, top: wrapBefore.top, width: wrapBefore.width, height: wrapBefore.height } : null,
@@ -198,13 +211,15 @@ async function main() {
         petImg.style.transform = '';
         petBodyPinned = pw.style.left === '0px' && pw.style.top === '0px';
         window.syncPetAnchors?.();
-        const bodyRect = window.__nonoPetVisibleRect ? window.__nonoPetVisibleRect() : rect;
+        let bodyRect = window.__nonoPetVisibleRect ? window.__nonoPetVisibleRect() : rect;
         const clickX = bodyRect.left + bodyRect.width / 2;
         const clickY = bodyRect.top + bodyRect.height / 2;
         petImg.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: clickX, clientY: clickY, screenX: 360, screenY: 360 }));
         window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: clickX, clientY: clickY, screenX: 360, screenY: 360 }));
         await new Promise(requestAnimationFrame);
         petClickJumps = pw.classList.contains('jumping');
+        window.syncPetAnchors?.();
+        bodyRect = window.__nonoPetVisibleRect ? window.__nonoPetVisibleRect() : petImg.getBoundingClientRect();
         const heart = document.querySelector('.heart');
         if (heart) {
           const heartRect = heart.getBoundingClientRect();
@@ -223,6 +238,10 @@ async function main() {
             Math.abs(trayCenterY - targetY) <= 18;
           if (miniBubble && miniBubble.classList.contains('show')) {
             const bubbleRect = miniBubble.getBoundingClientRect();
+            petBubbleTrayRects = {
+              tray: { left: trayRect.left, right: trayRect.right, top: trayRect.top, bottom: trayRect.bottom },
+              bubble: { left: bubbleRect.left, right: bubbleRect.right, top: bubbleRect.top, bottom: bubbleRect.bottom }
+            };
             petBubbleAvoidsTray = trayRect.right < bubbleRect.left ||
               bubbleRect.right < trayRect.left ||
               trayRect.bottom < bubbleRect.top ||
@@ -233,10 +252,14 @@ async function main() {
         }
         if (miniBubble) {
           const bubbleRect = miniBubble.getBoundingClientRect();
-          const bubbleOnRight = bubbleRect.left >= bodyRect.right + 20 &&
-            bubbleRect.left <= bodyRect.right + 90;
+          miniBubbleRects = {
+            body: { left: bodyRect.left, right: bodyRect.right, top: bodyRect.top, bottom: bodyRect.bottom },
+            bubble: { left: bubbleRect.left, right: bubbleRect.right, top: bubbleRect.top, bottom: bubbleRect.bottom },
+          };
+          const bubbleOnRight = bubbleRect.left >= bodyRect.right + 96 &&
+            bubbleRect.left <= bodyRect.right + 190;
           const bubbleOnLeft = bubbleRect.right <= bodyRect.left - 8 &&
-            bubbleRect.right >= bodyRect.left - 90;
+            bubbleRect.right >= bodyRect.left - 160;
           miniBubbleNearBody = (bubbleOnRight || bubbleOnLeft) &&
             bubbleRect.top >= bodyRect.top - 8 &&
             bubbleRect.top <= bodyRect.top + 32;
@@ -249,6 +272,7 @@ async function main() {
         fallbackWorks: typeof smartFallback === 'function' && !!smartFallback('你好'),
         localModelApi: typeof refreshLocalModelStatus === 'function' && typeof loadLocalModel === 'function' && typeof localInference === 'function',
         petSizeApi: !!window.petBridge && typeof window.petBridge.setPetSize === 'function' && typeof window.petBridge.setPetShape === 'function' && typeof window.petBridge.startPetDrag === 'function' && typeof window.petBridge.movePetDrag === 'function' && typeof window.petBridge.endPetDrag === 'function',
+        longTaskOpenApi: !!window.petBridge && typeof window.petBridge.openLongTasks === 'function',
         feishuApi: !!window.petBridge && typeof window.petBridge.getFeishuWebhook === 'function' && typeof window.petBridge.setFeishuWebhook === 'function' && typeof window.petBridge.sendFeishu === 'function',
         feishuAppApi: !!window.petBridge && typeof window.petBridge.startFeishuApp === 'function' && typeof window.petBridge.sendFeishuApp === 'function' && typeof window.petBridge.onFeishuMessage === 'function',
         longTaskFeishuApi: !!window.petBridge && typeof window.petBridge.getLongTaskWebhook === 'function' && typeof window.petBridge.setLongTaskWebhook === 'function' && typeof window.petBridge.sendLongTaskFeishu === 'function',
@@ -256,6 +280,7 @@ async function main() {
         configSyncApi: !!window.petBridge && typeof window.petBridge.notifyConfigChanged === 'function' && typeof window.petBridge.onConfigChanged === 'function',
         feishuSettings: !!document.getElementById('feishu-enabled') && !!document.getElementById('feishu-webhook') && !!document.getElementById('feishu-interval') && !!document.getElementById('feishu-app-id') && !!document.getElementById('feishu-app-secret'),
         longTaskSettings: !!document.getElementById('long-task-add-btn') && !!document.getElementById('long-task-list') && !!document.getElementById('long-task-status'),
+        longTaskPage: !!document.getElementById('tray-long-tasks') && !!document.getElementById('lt-page-panel') && !!document.getElementById('long-task-save-btn'),
         feishuIntervalMin: document.getElementById('feishu-interval')?.getAttribute('min'),
         petSizeControls: !!document.getElementById('pet-size-handle') && !document.getElementById('tray-size-down') && !document.getElementById('tray-size-up'),
         hermesSettings: !!document.getElementById('hermes-agent-enabled') && !!document.getElementById('hermes-agent-base') && !!document.getElementById('hermes-agent-key') && !!document.getElementById('hermes-agent-test-btn') && !!document.getElementById('hermes-enabled') && !!document.getElementById('hermes-review-btn') && !!document.getElementById('hermes-clear-btn'),
@@ -267,6 +292,8 @@ async function main() {
         petClickJumps,
         petHeartNearBody,
         petBubbleAvoidsTray,
+        petBubbleTrayRects,
+        miniBubbleRects,
         petPressLayoutDelta,
         petTrayNearBody,
         miniBubbleNearBody,
@@ -293,6 +320,7 @@ async function main() {
   assert.strictEqual(smoke.fallbackWorks, true)
   assert.strictEqual(smoke.localModelApi, true)
   assert.strictEqual(smoke.petSizeApi, true)
+  assert.strictEqual(smoke.longTaskOpenApi, true)
   assert.strictEqual(smoke.feishuApi, true)
   assert.strictEqual(smoke.feishuAppApi, true)
   assert.strictEqual(smoke.longTaskFeishuApi, true)
@@ -300,6 +328,7 @@ async function main() {
   assert.strictEqual(smoke.configSyncApi, true)
   assert.strictEqual(smoke.feishuSettings, true)
   assert.strictEqual(smoke.longTaskSettings, true)
+  assert.strictEqual(smoke.longTaskPage, true)
   assert.strictEqual(smoke.feishuIntervalMin, '1')
   assert.strictEqual(smoke.petSizeControls, true)
   assert.strictEqual(smoke.hermesSettings, true)
@@ -310,9 +339,9 @@ async function main() {
   assert.strictEqual(smoke.petPressKeepsLayout, true, `pet press moved layout: ${JSON.stringify(smoke.petPressLayoutDelta)}`)
   assert.strictEqual(smoke.petClickJumps, true)
   assert.strictEqual(smoke.petHeartNearBody, true)
-  assert.strictEqual(smoke.petBubbleAvoidsTray, true)
+  assert.strictEqual(smoke.petBubbleAvoidsTray, true, `pet bubble overlaps tray: ${JSON.stringify(smoke.petBubbleTrayRects)}`)
   assert.strictEqual(smoke.petTrayNearBody, true)
-  assert.strictEqual(smoke.miniBubbleNearBody, true)
+  assert.strictEqual(smoke.miniBubbleNearBody, true, `mini bubble is not near body: ${JSON.stringify(smoke.miniBubbleRects)}`)
   assert.strictEqual(smoke.taskRows, true)
 
   console.log('electron smoke passed')

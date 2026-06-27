@@ -51,6 +51,7 @@
 <div id="pet-tray">
   <button class="tray-btn" id="tray-expand" title="展开聊天">💬</button>
   <button class="tray-btn" id="tray-settings" title="设置">⚙️</button>
+  <button class="tray-btn" id="tray-long-tasks" title="长远任务">🎯</button>
   <button class="tray-btn" id="tray-hide" title="最小化">➖</button>
   <button class="tray-btn" id="tray-close" title="退出">✕</button>
 </div>
@@ -164,16 +165,6 @@
       <span id="feishu-app-status" class="hint" style="margin-top:6px;display:block"></span>
     </div>
 
-    <div class="seg-lbl" style="margin-top:22px">长远任务监督</div>
-    <div class="fgrp long-task-panel">
-      <div class="long-task-head">
-        <span class="hint">每个长远任务绑定一个飞书自定义机器人 Webhook，可设置不同提醒间隔。</span>
-        <button id="long-task-add-btn" class="mini-action" type="button">+ 添加</button>
-      </div>
-      <div id="long-task-list"></div>
-      <span id="long-task-status" class="hint" style="margin-top:6px;display:block"></span>
-    </div>
-
     <div class="seg-lbl" style="margin-top:22px">宠物模式</div>
     <div class="seg" role="group" id="pet-mode-seg">
       <button class="seg-b on" data-pet="lively">活泼模式</button>
@@ -253,6 +244,33 @@
     <div class="seg-lbl" style="margin-top:22px">🔄 重新引导</div>
     <button id="reset-onboarding-btn" style="margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">重新引导（重新显示首次欢迎）</button>
     <span class="hint" style="margin-top:6px;display:block">清除引导标记，下次启动时会重新显示引导。</span>
+  </div>
+</div>
+
+<!-- Long-term goals page -->
+<div id="lt-page-panel" role="dialog" aria-modal="true" aria-label="长远任务监督">
+  <div class="sh-handle"></div>
+  <div class="sh-header" id="lt-header-drag">
+    <div class="win-title">
+      <span class="win-orb" aria-hidden="true">🎯</span>
+      <span>长远任务</span>
+    </div>
+    <div id="lt-header-btns">
+      <button id="lt-minimize" aria-label="最小化" title="最小化">−</button>
+      <button id="lt-close" aria-label="关闭" title="关闭" class="danger">✕</button>
+    </div>
+  </div>
+  <div class="sh-body">
+    <div class="seg-lbl">长远任务监督</div>
+    <div class="fgrp long-task-panel">
+      <div class="long-task-head">
+        <span class="hint">每个长远任务绑定一个飞书自定义机器人 Webhook，可设置不同提醒间隔。</span>
+        <button id="long-task-add-btn" class="mini-action" type="button">+ 添加</button>
+      </div>
+      <div id="long-task-list"></div>
+      <span id="long-task-status" class="hint" style="margin-top:6px;display:block"></span>
+    </div>
+    <button id="long-task-save-btn">保存长远任务 ✦</button>
   </div>
 </div>
 

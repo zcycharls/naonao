@@ -68,6 +68,40 @@ body.settings-only-mode #s-panel{
   overflow-y:auto !important;
   background:transparent !important}
 body.settings-only-mode #s-overlay{display:none !important}
+body.settings-only-mode #lt-page-panel{display:none !important}
+
+/* 鈺愨晲 LONG TASKS ONLY MODE 鈺愨晲 */
+html.long-tasks-only-html{
+  background:transparent !important;
+  background-image:linear-gradient(transparent,transparent) !important;
+}
+body.long-tasks-only-mode{
+  background:#f5f0ff !important;
+  overflow:hidden;
+  border-radius:18px;
+  box-shadow:0 8px 28px rgba(80,60,120,.18);
+  height:100vh;
+  margin:0;
+}
+body.long-tasks-only-mode #pw{display:none !important}
+body.long-tasks-only-mode #sparkles{display:none !important}
+body.long-tasks-only-mode #chat-dialog{display:none !important}
+body.long-tasks-only-mode #chat-bar{display:none !important}
+body.long-tasks-only-mode #hint{display:none !important}
+body.long-tasks-only-mode #pet-tray{display:none !important}
+body.long-tasks-only-mode #settings-btn{display:none !important}
+body.long-tasks-only-mode #s-panel{display:none !important}
+body.long-tasks-only-mode #s-overlay{display:none !important}
+body.long-tasks-only-mode #lt-page-panel{
+  position:relative !important;
+  transform:none !important;
+  border-radius:0 !important;
+  max-height:none !important;
+  height:100% !important;
+  box-shadow:none !important;
+  display:block !important;
+  overflow-y:auto !important;
+  background:transparent !important}
 
 /* ══ CHAT ONLY MODE (separate chat window) ══ */
 html.chat-only-html{
@@ -80,6 +114,9 @@ body.chat-only-mode{
   border-radius:18px;
   box-shadow:0 8px 28px rgba(80,60,120,.18);
   height:100vh;
+  width:380px;
+  min-width:380px;
+  max-width:380px;
   margin:0;
 }
 body.chat-only-mode::before{display:block !important}
@@ -94,18 +131,24 @@ body.chat-only-mode #chat-dialog{
   position:fixed !important;
   top:14px !important;
   left:12px !important;
-  right:12px !important;
+  right:auto !important;
+  width:356px !important;
   bottom:145px !important;
   max-height:none !important;
   opacity:1 !important;
   pointer-events:auto !important;
   transform:none !important}
-body.chat-only-mode #chat-bar{display:flex !important;border-radius:0 0 18px 18px;overflow:hidden}
+body.chat-only-mode #chat-bar{
+  display:flex !important;
+  left:0 !important;
+  right:auto !important;
+  width:380px !important;
+  border-radius:0 0 18px 18px;overflow:hidden}
 body.chat-only-mode #quick-bar{display:flex !important}
 body.chat-only-mode #mini-bubble{display:none !important}
 body.chat-only-mode #settings-btn{display:none !important}
-body.chat-only-mode #dlg-header{cursor:grab;user-select:none}
-body.chat-only-mode #dlg-header.dragging{cursor:grabbing}
+body.chat-only-mode #dlg-header{cursor:default;user-select:none}
+body.chat-only-mode #dlg-header.dragging{cursor:default}
 
 /* ══ DESKTOP PET MODE ══ */
 html.pet-mode-html,
@@ -120,7 +163,14 @@ body.pet-mode::before{display:none}
 body.pet-mode .sp{display:none}
 body.pet-mode #settings-btn{display:none}
 body.pet-mode #s-panel,body.pet-mode #s-overlay{display:none !important}
+body.pet-mode #lt-page-panel{display:none !important}
 body.pet-mode #chat-dialog{display:none}
+html.pet-mode-html,
+html.pet-mode-html *,
+body.pet-mode,
+body.pet-mode *{
+  cursor:default !important;
+}
 
 /* mini bubble in pet mode */
 #mini-bubble{
@@ -202,7 +252,7 @@ body.pet-mode.expanded #chat-bar{display:flex}
 body.pet-mode.expanded #settings-btn{display:flex}
 
 /* drag region on pet body */
-#pw{position:fixed;inset:0;overflow:hidden;cursor:grab}
+#pw{position:fixed;inset:0;overflow:hidden;cursor:default}
 #chat-bar,#chat-dialog,#pet-tray,.tray-btn,#pet-size-handle,
 #chat-input,#send-btn,#settings-btn,
 #task-add-input,#task-list,#dlg-clear,#pomo-toggle,
@@ -324,12 +374,23 @@ body.pet-mode::before{display:none}
   max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 #s-panel.open{transform:translateY(0)}
 
+#lt-page-panel{
+  position:fixed;bottom:0;left:0;right:0;
+  display:none;
+  background:var(--sheet-bg);border-radius:26px 26px 0 0;
+  padding-bottom:env(safe-area-inset-bottom,0);
+  box-shadow:0 -10px 48px rgba(100,70,180,.16);
+  z-index:102;transform:translateY(102%);
+  transition:transform .38s cubic-bezier(.3,1.1,.55,1);
+  max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#lt-page-panel.open{transform:translateY(0)}
+
 .sh-handle{width:34px;height:3px;background:#cabaee;border-radius:2px;margin:11px auto 0;opacity:.7}
-#s-header-drag{display:flex;align-items:center;justify-content:space-between;
-  padding:14px 18px 12px;-webkit-app-region:drag;cursor:grab;
+#s-header-drag,#lt-header-drag{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px 12px;-webkit-app-region:drag;cursor:default;
   position:relative;z-index:2}
-#s-header-drag:active{cursor:grabbing}
-#s-header-btns{display:flex;align-items:center;gap:6px;-webkit-app-region:no-drag}
+#s-header-drag:active,#lt-header-drag:active{cursor:default}
+#s-header-btns,#lt-header-btns{display:flex;align-items:center;gap:6px;-webkit-app-region:no-drag}
 .sh-body{padding:6px 22px 28px;position:relative;z-index:1}
 .seg-lbl{
   display:inline-flex;align-items:center;gap:7px;
@@ -393,7 +454,7 @@ body.pet-mode::before{display:none}
 .lt-grid{display:grid;grid-template-columns:1fr 1.45fr;gap:10px}
 .lt-status{font-size:11px;color:var(--text-dim);line-height:1.45}
 @media (max-width:520px){.lt-grid{grid-template-columns:1fr}.long-task-head,.lt-card-head{align-items:flex-start;flex-direction:column}.lt-actions{width:100%}.lt-action{flex:1}}
-#save-btn{
+#save-btn,#long-task-save-btn{
   position:relative;width:100%;padding:14px;border:none;border-radius:14px;
   background:linear-gradient(135deg,#c2a8e8 0%,#9a7cd4 50%,#7c5cbf 100%);
   color:#fff;font-family:var(--font-body);font-size:14px;font-weight:800;
@@ -402,17 +463,17 @@ body.pet-mode::before{display:none}
              inset 0 1px 0 rgba(255,255,255,.35),
              inset 0 -2px 0 rgba(70,40,120,.22);
   transition:transform .14s,box-shadow .2s;touch-action:manipulation;overflow:hidden}
-#save-btn::before{content:'';position:absolute;inset:0;
+#save-btn::before,#long-task-save-btn::before{content:'';position:absolute;inset:0;
   background:radial-gradient(ellipse at 30% 0%,rgba(255,255,255,.35),transparent 60%);
   pointer-events:none}
-#save-btn:hover{box-shadow:0 8px 24px rgba(124,92,191,.42),
+#save-btn:hover,#long-task-save-btn:hover{box-shadow:0 8px 24px rgba(124,92,191,.42),
              inset 0 1px 0 rgba(255,255,255,.35),
              inset 0 -2px 0 rgba(70,40,120,.22)}
-#save-btn:active{transform:scale(.97)}
+#save-btn:active,#long-task-save-btn:active{transform:scale(.97)}
 
 /* ═══ PET ═══ */
-#pw{position:fixed;inset:0;overflow:hidden;cursor:grab}
-#pw:active{cursor:grabbing}
+#pw{position:fixed;inset:0;overflow:hidden;cursor:default}
+#pw:active{cursor:default}
 /* drop-shadow removed: creates a visible colored halo on transparent Electron windows */
 #pw.happy{}
 #pw.thinking{}
@@ -496,7 +557,7 @@ body.pet-mode #pw.jumping .pet-img-wrap{
   transition: filter .6s ease;
 }
 
-#pw.dragging{cursor:grabbing}
+#pw.dragging{cursor:default}
 
 /* "Alive" state — mouse moved in this window in the last few seconds */
 #pw.alive:not(.focusing):not(.sleeping) .pet-sway-wrap{
@@ -922,7 +983,7 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
 #pomo-toggle:active{transform:scale(.96)}
 
 /* clear/minimize/close use shared icon-btn — keep ids in case other CSS targets them */
-#dlg-clear,#dlg-minimize,#dlg-close,#s-minimize,#s-close{
+#dlg-clear,#dlg-minimize,#dlg-close,#s-minimize,#s-close,#lt-minimize,#lt-close{
   width:28px;height:28px;border-radius:50%;
   border:1.5px solid var(--btn-bd);background:var(--btn-bg);
   color:var(--btn-fg);
@@ -933,10 +994,10 @@ body.quiet-pet #pw.sleeping .pet-sway-wrap{ transform: rotate(-4deg) !important;
   transition:background .15s,border-color .15s,transform .12s;
   padding:0;line-height:1}
 #dlg-clear{font-size:12px}
-#dlg-clear:hover,#dlg-minimize:hover,#s-minimize:hover{
+#dlg-clear:hover,#dlg-minimize:hover,#s-minimize:hover,#lt-minimize:hover{
   background:var(--btn-bg-hov);border-color:var(--btn-bd-hov)}
-#s-close:hover,#dlg-close:hover{background:#ffdada;border-color:#e08a8a;color:#a14545}
-#dlg-clear:active,#dlg-minimize:active,#dlg-close:active,#s-minimize:active,#s-close:active{transform:scale(.92)}
+#s-close:hover,#dlg-close:hover,#lt-close:hover{background:#ffdada;border-color:#e08a8a;color:#a14545}
+#dlg-clear:active,#dlg-minimize:active,#dlg-close:active,#s-minimize:active,#s-close:active,#lt-minimize:active,#lt-close:active{transform:scale(.92)}
 
 /* ═══ QUICK PHRASES ═══ */
 #quick-bar{

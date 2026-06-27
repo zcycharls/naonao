@@ -46,6 +46,7 @@ const _urlMode = new URLSearchParams(window.location.search).get('mode');
 const IS_PET_WIN  = IS_ELECTRON && !_urlMode;
 const IS_CHAT_WIN = IS_ELECTRON && _urlMode === 'chat';
 const IS_SET_WIN  = IS_ELECTRON && _urlMode === 'settings';
+const IS_LONG_TASKS_WIN = IS_ELECTRON && _urlMode === 'long-tasks';
 
 const LONG_TASK_MAX=8;
 const LONG_TASK_TITLE_MAX=60;
@@ -173,6 +174,7 @@ const feishuAppStatusEl=document.getElementById('feishu-app-status');
 const longTaskListEl=document.getElementById('long-task-list');
 const longTaskAddBtn=document.getElementById('long-task-add-btn');
 const longTaskStatusEl=document.getElementById('long-task-status');
+const longTaskSaveBtn=document.getElementById('long-task-save-btn');
 const hermesAgentEnabledEl=document.getElementById('hermes-agent-enabled');
 const hermesAgentBaseEl=document.getElementById('hermes-agent-base');
 const hermesAgentKeyEl=document.getElementById('hermes-agent-key');
@@ -527,6 +529,17 @@ async function saveLongTaskWebhooks(){
   return true;
 }
 
+async function saveLongTaskSettings(){
+  cfg.longTasks=normalizeLongTasks(collectLongTasksFromUI());
+  const saved=await saveLongTaskWebhooks();
+  if(!saved) return false;
+  save();
+  renderLongTaskSettings();
+  restartLongTaskSupervisor();
+  if(longTaskStatusEl) longTaskStatusEl.textContent=`已保存 ${cfg.longTasks.length}/${LONG_TASK_MAX} 个长远任务`;
+  return true;
+}
+
 async function syncFeishuSettingsFields(){
   if(feishuEnabledEl) feishuEnabledEl.checked=!!cfg.feishuEnabled;
   if(feishuIntervalEl) feishuIntervalEl.value=String(cfg.feishuInterval||30);
@@ -541,7 +554,6 @@ async function syncFeishuSettingsFields(){
   updateHermesAgentStatus();
   if(hermesEnabledEl) hermesEnabledEl.checked=!!cfg.hermesEnabled;
   updateHermesStatus();
-  renderLongTaskSettings();
   if(feishuWebhookEl && window.petBridge?.getFeishuWebhook){
     try{feishuWebhookEl.value=await window.petBridge.getFeishuWebhook();}
     catch(e){console.error('getFeishuWebhook failed:',e);feishuWebhookEl.value='';}
@@ -578,6 +590,7 @@ async function applyExternalConfigUpdate(){
     fProxy.checked=!!cfg.proxy;
     await syncFeishuSettingsFields();
   }
+  if(IS_LONG_TASKS_WIN) renderLongTaskSettings();
   updateHermesAgentStatus();
   updateHermesStatus();
   restartFeishuAppConnection();
@@ -684,6 +697,10 @@ longTaskListEl?.addEventListener('click',async e=>{
     const result=await window.petBridge.sendLongTaskFeishu(task.id, buildLongTaskCheckinText(task,true));
     if(status) status.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
   }
+});
+
+longTaskSaveBtn?.addEventListener('click',async ()=>{
+  await saveLongTaskSettings();
 });
 
 async function openSettings(){
@@ -1075,7 +1092,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   const hermesAgentKey=hermesAgentKeyEl?.value.trim()||'';
   const hermesAgentModel=hermesAgentModelEl?.value.trim()||'';
   const hermesEnabled=!!hermesEnabledEl?.checked;
-  const longTasks=normalizeLongTasks(collectLongTasksFromUI());
+  const longTasks=normalizeLongTasks(cfg.longTasks);
   if(feishuEnabled&&!feishuAppEnabled&&!isValidFeishuWebhook(feishuWebhook)){
     if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
     return;
@@ -1125,8 +1142,6 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
     hermesAgentModel,
     hermesEnabled,
     longTasks};
-  const longTaskWebhooksSaved=await saveLongTaskWebhooks();
-  if(!longTaskWebhooksSaved) return;
   save();history=[];closeSettings();
   appendMsg('pet',hasKey()?'设置好了 ✦\n快来跟我聊天吧！':'好的，我在这里呢~ 🌸');
   restartFeishuAppConnection();
@@ -3071,6 +3086,15 @@ function applyPetPosition(nextPos,opt={}){
   }
 }
 
+function syncPetPositionFromCss(){
+  const style=getComputedStyle(document.documentElement);
+  const x=parseFloat(style.getPropertyValue('--pet-left'));
+  const y=parseFloat(style.getPropertyValue('--pet-top'));
+  if(Number.isFinite(x)&&Number.isFinite(y)){
+    petPos=clampPetPosition({x,y});
+  }
+}
+
 function applyPetSize(nextSize, opt={}){
   petSize=normalizePetSize(nextSize);
   document.documentElement.style.setProperty('--pet-size-scale', petSize.toFixed(2));
@@ -3147,11 +3171,11 @@ if(IS_CHAT_WIN){
   if(sHeader && window.petBridge){
     let sDrag=false, sLastX=0, sLastY=0;
     sHeader.style.webkitAppRegion = 'no-drag';   // turn off the broken native drag
-    sHeader.style.cursor = 'grab';
+    sHeader.style.cursor = 'default';
     sHeader.addEventListener('mousedown', e=>{
       if(e.target.closest('button')) return;
       sDrag=true; sLastX=e.screenX; sLastY=e.screenY;
-      sHeader.style.cursor='grabbing';
+      sHeader.style.cursor='default';
       e.preventDefault();
     });
     window.addEventListener('mousemove', e=>{
@@ -3162,7 +3186,35 @@ if(IS_CHAT_WIN){
     });
     window.addEventListener('mouseup', ()=>{
       if(!sDrag) return;
-      sDrag=false; sHeader.style.cursor='grab';
+      sDrag=false; sHeader.style.cursor='default';
+    });
+  }
+} else if(IS_LONG_TASKS_WIN){
+  document.documentElement.classList.add('long-tasks-only-html');
+  document.body.classList.add('long-tasks-only-mode');
+  renderLongTaskSettings();
+  document.getElementById('lt-close').onclick = () => window.petBridge.closeSelf();
+  document.getElementById('lt-minimize').onclick = () => window.petBridge.minimizeSelf();
+  const ltHeader = document.getElementById('lt-header-drag');
+  if(ltHeader && window.petBridge){
+    let ltDrag=false, ltLastX=0, ltLastY=0;
+    ltHeader.style.webkitAppRegion = 'no-drag';
+    ltHeader.style.cursor = 'default';
+    ltHeader.addEventListener('mousedown', e=>{
+      if(e.target.closest('button')) return;
+      ltDrag=true; ltLastX=e.screenX; ltLastY=e.screenY;
+      ltHeader.style.cursor='default';
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e=>{
+      if(!ltDrag) return;
+      const dx=e.screenX-ltLastX, dy=e.screenY-ltLastY;
+      window.petBridge.moveWindow(dx,dy);
+      ltLastX=e.screenX; ltLastY=e.screenY;
+    });
+    window.addEventListener('mouseup', ()=>{
+      if(!ltDrag) return;
+      ltDrag=false; ltHeader.style.cursor='default';
     });
   }
 } else if(IS_PET_WIN){
@@ -3191,6 +3243,10 @@ if(IS_CHAT_WIN){
 
   document.getElementById('tray-settings').addEventListener('click', ()=>{
     window.petBridge.openSettings();
+  });
+
+  document.getElementById('tray-long-tasks').addEventListener('click', ()=>{
+    window.petBridge.openLongTasks();
   });
 
   document.getElementById('tray-hide').addEventListener('click', ()=>{
@@ -3318,10 +3374,11 @@ if(IS_CHAT_WIN){
     const sizeLeft=body.right-wrapRect.left-6*scale;
     const sizeTop=body.bottom-wrapRect.top-18*scale;
     const bubbleWidth=200;
-    let bubbleLeft=trayLeft+34*scale;
+    const bubbleGap=Math.max(124, Math.round(126*scale));
+    let bubbleLeft=trayLeft+bubbleGap;
     let bubbleSide='right';
     if(wrapRect.left+bubbleLeft+bubbleWidth>window.innerWidth-8){
-      bubbleLeft=Math.max(4,body.left-wrapRect.left-bubbleWidth-14*scale);
+      bubbleLeft=Math.max(8-wrapRect.left,body.left-wrapRect.left-bubbleWidth-bubbleGap);
       bubbleSide='left';
     }
     if(miniBubbleNode) miniBubbleNode.classList.toggle('left-side', bubbleSide==='left');
@@ -3358,6 +3415,17 @@ if(IS_CHAT_WIN){
       const hr = petSizeHandle.getBoundingClientRect();
       if(cx>=hr.left&&cx<=hr.right&&cy>=hr.top&&cy<=hr.bottom) return true;
     }
+    if(miniBubbleNode&&miniBubbleNode.classList.contains('show')){
+      const br = miniBubbleNode.getBoundingClientRect();
+      if(cx>=br.left&&cx<=br.right&&cy>=br.top&&cy<=br.bottom) return true;
+    }
+    // Keep a small transparent halo around the koala inside the pet window.
+    // Otherwise Electron passes that area through to the app underneath, and
+    // the underlying app's cursor (often a grab cursor) can leak through.
+    const body = getVisibleKoalaRect();
+    const hoverPad = Math.max(12, Math.round(18 * (petSize || 1)));
+    if(cx>=body.left-hoverPad&&cx<=body.right+hoverPad&&
+       cy>=body.top-hoverPad&&cy<=body.bottom+hoverPad) return true;
     // Check pixel alpha on koala image
     const rect = petImg.getBoundingClientRect();
     if(cx<rect.left||cx>rect.right||cy<rect.top||cy>rect.bottom) return false;
@@ -3435,6 +3503,7 @@ if(IS_CHAT_WIN){
     }
     window.petBridge.setIgnoreMouse(false);
     dragging=true; dragMoved=false;
+    syncPetPositionFromCss();
     dragStartPos={...petPos};
     pausePetAnimations(pressTransforms);
     pw.classList.add('dragging');
