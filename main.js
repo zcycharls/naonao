@@ -529,22 +529,17 @@ const FEISHU_WEBHOOK_FILE = () => path.join(app.getPath('userData'), 'feishu-web
 const FEISHU_APP_SECRET_FILE = () => path.join(app.getPath('userData'), 'feishu-app-secret.bin')
 const HERMES_API_KEY_FILE = () => path.join(app.getPath('userData'), 'hermes-api-key.bin')
 const LONG_TASK_WEBHOOKS_FILE = () => path.join(app.getPath('userData'), 'long-task-webhooks.bin')
+const FEISHU_SUPERVISOR_FILE = () => path.join(app.getPath('userData'), 'feishu-supervisor.bin')
 let feishuClient = null
 let feishuWsClient = null
 let feishuWsConnected = false
 let feishuAppId = ''
 const feishuSeenMessages = new Set()
+let feishuSupervisorTimer = null
+let feishuSupervisorSending = false
 
-ipcMain.handle('secret:get', () => {
-  try {
-    const f = SECRET_FILE()
-    if (!fs.existsSync(f)) return ''
-    if (!safeStorage.isEncryptionAvailable()) return ''
-    return safeStorage.decryptString(fs.readFileSync(f))
-  } catch (e) {
-    console.error('[孬孬] 读取加密密钥失败:', e.message)
-    return ''
-  }
+ipcMain.handle('secret:has', () => {
+  return !!readEncryptedString(SECRET_FILE())
 })
 
 ipcMain.handle('secret:set', (_evt, value) => {
@@ -566,6 +561,7 @@ ipcMain.handle('secret:set', (_evt, value) => {
 
 app.whenReady().then(() => {
   createWindow()
+  restoreFeishuSupervisor()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -632,6 +628,128 @@ function writeEncryptedJSON(filePath, value, maxLength) {
   }
 }
 
+const PROVIDER_DEFAULT_MODEL = {
+  anthropic: 'claude-3-5-sonnet-20241022',
+  openai: 'gpt-4o-mini',
+}
+const PROVIDER_MAX_MESSAGES = 24
+const PROVIDER_MAX_TEXT = 12000
+
+function normalizeProvider(value) {
+  return String(value || '').trim().toLowerCase() === 'openai' ? 'openai' : 'anthropic'
+}
+
+function normalizeProviderModel(provider, value) {
+  return String(value || '').trim().slice(0, 160) || PROVIDER_DEFAULT_MODEL[provider]
+}
+
+function normalizeOpenAIBaseUrl(value) {
+  const raw = String(value || '').trim() || 'https://api.openai.com'
+  const url = new URL(raw)
+  const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
+  if (url.protocol !== 'https:' && !localHttp) {
+    throw new Error('OpenAI-compatible Base URL must use https or local http')
+  }
+  url.username = ''
+  url.password = ''
+  url.hash = ''
+  url.search = ''
+  let pathname = (url.pathname || '/v1').replace(/\/+$/, '') || '/v1'
+  if (!/\/chat\/completions$/.test(pathname)) pathname += '/chat/completions'
+  url.pathname = pathname
+  return url.toString()
+}
+
+function normalizeProviderContent(content) {
+  if (typeof content === 'string') return content.slice(0, PROVIDER_MAX_TEXT)
+  if (!Array.isArray(content)) return String(content || '').slice(0, PROVIDER_MAX_TEXT)
+  return content.slice(0, 8).map(part => {
+    if (!part || typeof part !== 'object') return null
+    if (part.type === 'text') return { type: 'text', text: String(part.text || '').slice(0, PROVIDER_MAX_TEXT) }
+    if (part.type === 'image' && part.source && typeof part.source === 'object') {
+      return {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: String(part.source.media_type || 'image/png').slice(0, 80),
+          data: String(part.source.data || '').slice(0, 10_000_000),
+        },
+      }
+    }
+    if (part.type === 'image_url' && part.image_url && typeof part.image_url === 'object') {
+      return { type: 'image_url', image_url: { url: String(part.image_url.url || '').slice(0, 10_000_000) } }
+    }
+    return null
+  }).filter(Boolean)
+}
+
+function normalizeProviderMessages(messages) {
+  if (!Array.isArray(messages)) return []
+  return messages.slice(-PROVIDER_MAX_MESSAGES).map(message => {
+    const role = ['system', 'user', 'assistant'].includes(message?.role) ? message.role : 'user'
+    return { role, content: normalizeProviderContent(message?.content) }
+  }).filter(message => message.content !== '' && (!Array.isArray(message.content) || message.content.length > 0))
+}
+
+function providerHeaders(provider, apiKey) {
+  if (provider === 'anthropic') {
+    return {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    }
+  }
+  return {
+    'content-type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  }
+}
+
+function extractProviderText(provider, body) {
+  if (provider === 'anthropic') return String(body?.content?.[0]?.text || '').trim()
+  return String(body?.choices?.[0]?.message?.content || '').trim()
+}
+
+ipcMain.handle('ai:chat', async (_evt, config) => {
+  try {
+    const apiKey = readEncryptedString(SECRET_FILE())
+    if (!apiKey) return { success: false, error: 'API Key is not configured' }
+
+    const provider = normalizeProvider(config?.provider)
+    const model = normalizeProviderModel(provider, config?.model)
+    const maxTokens = Math.min(2000, Math.max(1, Number(config?.maxTokens) || 400))
+    const systemPrompt = String(config?.system || '').slice(0, PROVIDER_MAX_TEXT)
+    let messages = normalizeProviderMessages(config?.messages)
+    if (!messages.length) return { success: false, error: 'No messages to send' }
+
+    let url
+    let body
+    if (provider === 'anthropic') {
+      url = 'https://api.anthropic.com/v1/messages'
+      messages = messages.filter(message => message.role !== 'system')
+      body = { model, max_tokens: maxTokens, stream: false, system: systemPrompt, messages }
+    } else {
+      url = normalizeOpenAIBaseUrl(config?.baseUrl)
+      body = { model, messages, max_tokens: maxTokens, stream: false }
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: providerHeaders(provider, apiKey),
+      body: JSON.stringify(body),
+    })
+    const bodyText = await response.text()
+    let parsed = null
+    try { parsed = JSON.parse(bodyText) } catch {}
+    if (!response.ok) {
+      return { success: false, error: parsed?.error?.message || `HTTP ${response.status}` }
+    }
+    return { success: true, text: extractProviderText(provider, parsed) }
+  } catch (e) {
+    return { success: false, error: e.message || 'AI request failed' }
+  }
+})
+
 function isAllowedFeishuWebhook(value) {
   try {
     const url = new URL(value)
@@ -649,6 +767,193 @@ function isValidLongTaskId(value) {
 
 function isValidFeishuAppId(value) {
   return /^cli_[A-Za-z0-9]+$/.test(String(value || '').trim())
+}
+
+function normalizeFeishuInterval(value) {
+  return Math.min(240, Math.max(1, Math.round(Number(value) || 30)))
+}
+
+function sanitizeFeishuSupervisorTask(task) {
+  if (!task || typeof task !== 'object') return null
+  const title = String(task.title || '').trim().slice(0, 80)
+  const nextStep = String(task.nextStep || '').trim().slice(0, 120)
+  if (!title && !nextStep) return null
+  return { title, nextStep }
+}
+
+function normalizeFeishuSupervisorState(value) {
+  const raw = value && typeof value === 'object' ? value : {}
+  return {
+    enabled: !!raw.enabled,
+    interval: normalizeFeishuInterval(raw.interval),
+    appEnabled: !!raw.appEnabled,
+    appId: String(raw.appId || '').trim().slice(0, 80),
+    chatId: String(raw.chatId || '').trim().slice(0, 160),
+    task: sanitizeFeishuSupervisorTask(raw.task),
+    lastSentAt: Number(raw.lastSentAt) || 0,
+    nextDueAt: Number(raw.nextDueAt) || 0,
+    retryCount: Math.max(0, Math.min(3, Number(raw.retryCount) || 0)),
+    lastError: String(raw.lastError || '').slice(0, 240),
+    updatedAt: Number(raw.updatedAt) || Date.now(),
+  }
+}
+
+function readFeishuSupervisorState() {
+  return normalizeFeishuSupervisorState(readEncryptedJSON(FEISHU_SUPERVISOR_FILE(), {}))
+}
+
+function writeFeishuSupervisorState(state) {
+  return writeEncryptedJSON(FEISHU_SUPERVISOR_FILE(), normalizeFeishuSupervisorState(state), 12000)
+}
+
+function broadcastFeishuSupervisorStatus(extra = {}) {
+  const state = readFeishuSupervisorState()
+  BrowserWindow.getAllWindows().forEach(w => {
+    if (!w.isDestroyed()) {
+      w.webContents.send('feishu:supervisor-status', { ...state, ...extra })
+    }
+  })
+}
+
+function buildFeishuSupervisorMessage(state, isTest = false) {
+  const now = new Date()
+  const hm = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const lines = [
+    isTest ? '[孬孬测试提醒]' : '[孬孬监督签到]',
+    `${hm} 现在在做什么？`,
+  ]
+  if (state.task?.title) lines.push(`当前任务：${state.task.title}`)
+  if (state.task?.nextStep) lines.push(`下一步：${state.task.nextStep}`)
+  lines.push('请用一句话回复/记录：我刚才在做什么，下一步做什么。')
+  return lines.join('\n')
+}
+
+async function sendFeishuAppMessage(chatId, text) {
+  const message = String(text || '').trim().slice(0, 1800)
+  const targetChatId = String(chatId || '').trim()
+  if (!feishuClient || !feishuWsConnected) {
+    return { success: false, error: '飞书应用机器人未连接' }
+  }
+  if (!targetChatId || !message) {
+    return { success: false, error: '缺少会话或消息内容' }
+  }
+  try {
+    const messageApi = feishuClient.im?.v1?.message || feishuClient.im?.message
+    if (!messageApi?.create) return { success: false, error: '飞书 SDK 消息 API 不可用' }
+    await messageApi.create({
+      params: { receive_id_type: 'chat_id' },
+      data: {
+        receive_id: targetChatId,
+        msg_type: 'text',
+        content: JSON.stringify({ text: message }),
+      },
+    })
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: e.message || '发送失败' }
+  }
+}
+
+async function sendFeishuSupervisorMessage(state, isTest = false) {
+  const text = buildFeishuSupervisorMessage(state, isTest)
+  if (state.appEnabled && state.chatId) {
+    const appResult = await sendFeishuAppMessage(state.chatId, text)
+    if (appResult?.success) return appResult
+    const webhook = readEncryptedString(FEISHU_WEBHOOK_FILE())
+    if (!webhook) return appResult
+  }
+  return sendFeishuWebhookMessage(readEncryptedString(FEISHU_WEBHOOK_FILE()), text)
+}
+
+function stopFeishuSupervisorTimer() {
+  if (!feishuSupervisorTimer) return
+  clearTimeout(feishuSupervisorTimer)
+  feishuSupervisorTimer = null
+}
+
+function scheduleFeishuSupervisor() {
+  stopFeishuSupervisorTimer()
+  const state = readFeishuSupervisorState()
+  if (!state.enabled) {
+    broadcastFeishuSupervisorStatus({ running: false })
+    return
+  }
+  const intervalMs = normalizeFeishuInterval(state.interval) * 60 * 1000
+  const dueAt = state.nextDueAt || (Date.now() + intervalMs)
+  const delay = Math.max(1000, Math.min(dueAt - Date.now(), 2_147_000_000))
+  feishuSupervisorTimer = setTimeout(() => runFeishuSupervisorTick(false), delay)
+  broadcastFeishuSupervisorStatus({ running: true, nextDueAt: dueAt })
+}
+
+async function runFeishuSupervisorTick(isTest = false) {
+  if (feishuSupervisorSending) return { success: false, error: '正在发送中' }
+  const state = readFeishuSupervisorState()
+  if (!state.enabled && !isTest) return { success: false, error: '飞书监督未开启' }
+  feishuSupervisorSending = true
+  try {
+    const result = await sendFeishuSupervisorMessage(state, isTest)
+    if (isTest) {
+      broadcastFeishuSupervisorStatus({ testResult: result })
+      return result
+    }
+    const now = Date.now()
+    if (result?.success) {
+      state.lastSentAt = now
+      state.retryCount = 0
+      state.lastError = ''
+      state.nextDueAt = now + normalizeFeishuInterval(state.interval) * 60 * 1000
+    } else {
+      const retrySteps = [60_000, 5 * 60_000, 15 * 60_000]
+      const retryCount = Math.min(3, state.retryCount + 1)
+      state.retryCount = retryCount
+      state.lastError = result?.error || '发送失败'
+      state.nextDueAt = now + retrySteps[Math.min(retryCount - 1, retrySteps.length - 1)]
+    }
+    state.updatedAt = now
+    writeFeishuSupervisorState(state)
+    broadcastFeishuSupervisorStatus({ running: true })
+    return result
+  } finally {
+    feishuSupervisorSending = false
+    if (!isTest) scheduleFeishuSupervisor()
+  }
+}
+
+function configureFeishuSupervisor(config) {
+  const previous = readFeishuSupervisorState()
+  const next = normalizeFeishuSupervisorState({
+    ...previous,
+    enabled: !!config?.enabled,
+    interval: config?.interval,
+    appEnabled: !!config?.appEnabled,
+    appId: config?.appId,
+    chatId: config?.chatId,
+    task: config?.task,
+    updatedAt: Date.now(),
+  })
+  const intervalChanged = previous.interval !== next.interval
+  const wasDisabled = !previous.enabled && next.enabled
+  if (!next.enabled) {
+    next.nextDueAt = 0
+    next.retryCount = 0
+    next.lastError = ''
+  } else if (!previous.nextDueAt || intervalChanged || wasDisabled) {
+    next.nextDueAt = Date.now() + normalizeFeishuInterval(next.interval) * 60 * 1000
+    next.retryCount = 0
+  }
+  writeFeishuSupervisorState(next)
+  scheduleFeishuSupervisor()
+  return { success: true, state: readFeishuSupervisorState() }
+}
+
+async function restoreFeishuSupervisor() {
+  const state = readFeishuSupervisorState()
+  if (state.appEnabled && isValidFeishuAppId(state.appId) && readEncryptedString(FEISHU_APP_SECRET_FILE())) {
+    try { await startFeishuAppConnection({ appId: state.appId }) } catch (e) {
+      console.error('[孬孬] 飞书应用恢复失败:', e.message)
+    }
+  }
+  scheduleFeishuSupervisor()
 }
 
 function broadcastFeishuStatus(payload) {
@@ -858,7 +1163,7 @@ ipcMain.handle('hermes:chat', async (_evt, config) => {
   }
 })
 
-ipcMain.handle('feishu:app-start', async (_evt, config) => {
+async function startFeishuAppConnection(config) {
   const appId = String(config?.appId || '').trim()
   const appSecret = readEncryptedString(FEISHU_APP_SECRET_FILE())
   if (!isValidFeishuAppId(appId)) {
@@ -903,7 +1208,9 @@ ipcMain.handle('feishu:app-start', async (_evt, config) => {
     stopFeishuWs()
     return { success: false, error: e.message || '连接失败' }
   }
-})
+}
+
+ipcMain.handle('feishu:app-start', async (_evt, config) => startFeishuAppConnection(config))
 
 ipcMain.handle('feishu:app-stop', async () => {
   stopFeishuWs()
@@ -938,6 +1245,21 @@ ipcMain.handle('feishu:app-send', async (_evt, chatId, text) => {
   } catch (e) {
     return { success: false, error: e.message || '发送失败' }
   }
+})
+
+ipcMain.handle('feishu:supervisor:configure', (_evt, config) => {
+  return configureFeishuSupervisor(config)
+})
+
+ipcMain.handle('feishu:supervisor:status', () => {
+  return { success: true, state: readFeishuSupervisorState(), running: !!feishuSupervisorTimer }
+})
+
+ipcMain.handle('feishu:supervisor:test', async (_evt, config) => {
+  const state = normalizeFeishuSupervisorState({ ...readFeishuSupervisorState(), ...(config || {}) })
+  const result = await sendFeishuSupervisorMessage(state, true)
+  broadcastFeishuSupervisorStatus({ testResult: result })
+  return result
 })
 
 ipcMain.handle('local-model:load', async () => {

@@ -98,7 +98,7 @@ let busy=false;
 function load(){
   try{const s=JSON.parse(localStorage.getItem('nono_config')||'{}');
     return{
-      p:s.p||'anthropic',k:s.k||'',m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid',
+      p:s.p||'anthropic',k:s.k||'',hasApiKey:!!s.hasApiKey,m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid',
       feishuEnabled:!!s.feishuEnabled,
       feishuInterval:normalizeFeishuInterval(s.feishuInterval),
       feishuAppEnabled:!!s.feishuAppEnabled,
@@ -110,7 +110,7 @@ function load(){
       hermesEnabled:s.hermesEnabled!==false,
       longTasks:normalizeLongTasks(s.longTasks),
     };}
-  catch{return{p:'anthropic',k:'',m:'',b:'',proxy:false,freq:'mid',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:'',hermesAgentEnabled:false,hermesAgentBaseUrl:'http://127.0.0.1:8642/v1',hermesAgentModel:'',hermesEnabled:true,longTasks:[]};}
+  catch{return{p:'anthropic',k:'',hasApiKey:false,m:'',b:'',proxy:false,freq:'mid',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:'',hermesAgentEnabled:false,hermesAgentBaseUrl:'http://127.0.0.1:8642/v1',hermesAgentModel:'',hermesEnabled:true,longTasks:[]};}
 }
 function save(){
   // On desktop the API key lives in OS-encrypted storage (DPAPI / Keychain); never persist it
@@ -118,20 +118,54 @@ function save(){
   if(IS_ELECTRON){
     const {k, ...rest}=cfg;
     localStorage.setItem('nono_config',JSON.stringify(rest));
-    window.petBridge.setSecret(k||'').catch(e=>console.error('setSecret failed:',e));
     window.petBridge.notifyConfigChanged?.();
   } else {
     localStorage.setItem('nono_config',JSON.stringify(cfg));
   }
 }
-function hasKey(){return!!cfg.k;}
+function hasKey(){return!!(cfg.k||cfg.hasApiKey);}
+
+async function refreshProviderKeyState(fallback){
+  if(!IS_ELECTRON||!window.petBridge?.hasSecret) return !!cfg.k;
+  try{return !!(await window.petBridge.hasSecret());}
+  catch(e){console.error('hasSecret failed:',e);return !!fallback;}
+}
+
+async function saveProviderApiKeyIfNeeded(value){
+  const key=String(value||'').trim();
+  if(!IS_ELECTRON){
+    if(key) cfg.k=key;
+    cfg.hasApiKey=!!cfg.k;
+    return true;
+  }
+  if(!key) return true;
+  if(!window.petBridge?.setSecret) return false;
+  const saved=await window.petBridge.setSecret(key);
+  if(saved){
+    cfg.k='';
+    cfg.hasApiKey=true;
+  }
+  return !!saved;
+}
+
+function syncApiKeyField(){
+  if(!fKey) return;
+  if(IS_ELECTRON){
+    fKey.value='';
+    fKey.placeholder=hasKey()?'已保存，留空则继续使用当前 Key':'粘贴你的 API Key…';
+  } else {
+    fKey.value=cfg.k;
+    fKey.placeholder='粘贴你的 API Key…';
+  }
+}
 
 // Desktop: pull the key from OS-encrypted storage on boot, and migrate any legacy
 // plaintext key out of localStorage.
 if(IS_ELECTRON){
   (async()=>{
     try{
-      const stored=await window.petBridge.getSecret();
+      const stored='';
+      cfg.hasApiKey=await refreshProviderKeyState(cfg.hasApiKey);
       if(stored){
         cfg.k=stored;
       } else if(cfg.k){
@@ -143,6 +177,9 @@ if(IS_ELECTRON){
         const raw=JSON.parse(localStorage.getItem('nono_config')||'{}');
         if('k' in raw){ delete raw.k; localStorage.setItem('nono_config',JSON.stringify(raw)); }
       }catch(e){console.error('key scrub failed:',e)}
+      cfg.k='';
+      cfg.hasApiKey=await refreshProviderKeyState(cfg.hasApiKey);
+      save();
       // Refresh UI bits that depend on hasKey()
       try{ if(typeof updateStatus==='function') updateStatus(); }catch(e){console.error('updateStatus:',e)}
       try{ if(typeof renderTasks==='function') renderTasks(); }catch(e){console.error('renderTasks:',e)}
@@ -576,15 +613,21 @@ feishuEnabledEl?.addEventListener('change',()=>updateFeishuSupervisorStatus(true
 
 async function applyExternalConfigUpdate(){
   const apiKey=cfg.k;
+  const hadApiKey=cfg.hasApiKey;
   cfg=load();
-  cfg.k=apiKey;
-  if(IS_ELECTRON) cfg.proxy=false;
+  if(IS_ELECTRON){
+    cfg.k='';
+    cfg.hasApiKey=await refreshProviderKeyState(hadApiKey);
+    cfg.proxy=false;
+  } else {
+    cfg.k=apiKey;
+  }
   curP=cfg.p;
   syncSeg();
   syncFreq();
   syncPetMode();
   if(IS_SET_WIN||overlay.classList.contains('open')){
-    fKey.value=cfg.k;
+    syncApiKeyField();
     fModel.value=cfg.m;
     fBase.value=cfg.b;
     fProxy.checked=!!cfg.proxy;
@@ -704,7 +747,8 @@ longTaskSaveBtn?.addEventListener('click',async ()=>{
 });
 
 async function openSettings(){
-  fKey.value=cfg.k;fModel.value=cfg.m;fBase.value=cfg.b;
+  cfg.hasApiKey=await refreshProviderKeyState(cfg.hasApiKey);
+  syncApiKeyField();fModel.value=cfg.m;fBase.value=cfg.b;
   fProxy.checked=!!cfg.proxy;
   // Desktop: hide CORS proxy row entirely — Electron doesn't need it and routing keys
   // through corsproxy.io is a security risk.
@@ -1030,6 +1074,7 @@ if(window.petBridge?.onFeishuMessage){
     if(!msg?.text) return;
     cfg.feishuAppChatId=msg.chatId||cfg.feishuAppChatId||'';
     save();
+    scheduleFeishuSupervisorSync();
     if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId;
     learnHermesFromText(msg.text,'feishu');
     appendMsg('user',`飞书汇报：${msg.text}`);
@@ -1054,28 +1099,39 @@ if(window.petBridge?.onFeishuStatus){
   });
 }
 
+if(window.petBridge?.onFeishuSupervisorStatus){
+  window.petBridge.onFeishuSupervisorStatus(status=>{
+    if(!feishuStatusEl||!status) return;
+    const minutes=normalizeFeishuInterval(status.interval||cfg.feishuInterval);
+    if(!status.enabled){
+      feishuStatusEl.textContent=`飞书监督未开启；每 ${minutes} 分钟提醒一次`;
+      return;
+    }
+    const next=Number(status.nextDueAt)||0;
+    const remain=next?Math.max(0,Math.ceil((next-Date.now())/60000)):minutes;
+    feishuStatusEl.textContent=status.lastError
+      ? `飞书监督等待重试：${status.lastError}`
+      : `飞书监督由主进程运行：约 ${remain} 分钟后提醒`;
+  });
+}
+
 document.getElementById('feishu-test-btn')?.addEventListener('click',async ()=>{
   const webhook=feishuWebhookEl?.value.trim()||'';
-  if(feishuAppEnabledEl?.checked&&feishuChatIdEl?.value.trim()&&window.petBridge?.sendFeishuApp){
-    const result=await window.petBridge.sendFeishuApp(feishuChatIdEl.value.trim(), buildFeishuCheckinText(true));
-    if(feishuStatusEl) feishuStatusEl.textContent=result?.success?'应用机器人测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
-    return;
-  }
-  if(!window.petBridge?.setFeishuWebhook||!window.petBridge?.sendFeishu){
+  if(!window.petBridge?.setFeishuWebhook||!window.petBridge?.testFeishuSupervisor){
     if(feishuStatusEl) feishuStatusEl.textContent='当前环境不支持飞书发送';
     return;
   }
-  if(!isValidFeishuWebhook(webhook)){
+  if(!feishuAppEnabledEl?.checked&&!isValidFeishuWebhook(webhook)){
     if(feishuStatusEl) feishuStatusEl.textContent='Webhook 格式不正确';
     return;
   }
-  if(feishuStatusEl) feishuStatusEl.textContent='正在发送测试提醒…';
-  const saved=await window.petBridge.setFeishuWebhook(webhook);
+  if(feishuStatusEl) feishuStatusEl.textContent='正在发送测试提醒...';
+  const saved=webhook ? await window.petBridge.setFeishuWebhook(webhook) : true;
   if(!saved){
     if(feishuStatusEl) feishuStatusEl.textContent='Webhook 保存失败';
     return;
   }
-  const result=await window.petBridge.sendFeishu(buildFeishuCheckinText(true));
+  const result=await sendFeishuSupervisorCheckin(true);
   if(feishuStatusEl) feishuStatusEl.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
 });
 
@@ -1093,6 +1149,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   const hermesAgentModel=hermesAgentModelEl?.value.trim()||'';
   const hermesEnabled=!!hermesEnabledEl?.checked;
   const longTasks=normalizeLongTasks(cfg.longTasks);
+  const providerApiKey=fKey.value.trim();
   if(feishuEnabled&&!feishuAppEnabled&&!isValidFeishuWebhook(feishuWebhook)){
     if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
     return;
@@ -1130,7 +1187,13 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
       return;
     }
   }
-  cfg={p:curP,k:fKey.value.trim(),m:fModel.value.trim(),
+  const providerKeySaved=await saveProviderApiKeyIfNeeded(providerApiKey);
+  if(!providerKeySaved){
+    appendErrorMsg('API Key 保存失败');
+    return;
+  }
+  const hasProviderKey=IS_ELECTRON?await refreshProviderKeyState(cfg.hasApiKey):!!providerApiKey;
+  cfg={p:curP,k:IS_ELECTRON?'':providerApiKey,hasApiKey:hasProviderKey,m:fModel.value.trim(),
     b:fBase.value.trim().replace(/\/+$/,''),proxy:IS_ELECTRON?false:fProxy.checked,freq:cfg.freq||'mid',
     feishuEnabled,
     feishuInterval:normalizeFeishuInterval(feishuIntervalEl?.value),
@@ -1312,7 +1375,7 @@ async function streamHermesAgent(msg){
     const fn=window._streamPatch||onStreamChunk;
     for(const chunk of full.match(/.{1,16}/gs)||[full]) fn(chunk);
     history.push({role:'assistant',content:full});
-    if(full&&/(下次|以后|适合你|你可以|建议你)/.test(full)){
+    if(full&&/(下次|以后|适合你|你可以|建议你|next|later|suggest|advice)/i.test(full)){
       addHermesMemory('reflection',`Hermes Agent 建议：${full.slice(0,120)}`,'chat',.45);
     }
     return;
@@ -1354,7 +1417,7 @@ async function streamHermesAgent(msg){
     }
   }
   history.push({role:'assistant',content:full||'…'});
-  if(full&&/(下次|以后|适合你|你可以|建议你)/.test(full)){
+  if(full&&/(下次|以后|适合你|你可以|建议你|next|later|suggest|advice)/i.test(full)){
     addHermesMemory('reflection',`Hermes Agent 建议：${full.slice(0,120)}`,'chat',.45);
   }
 }
@@ -1507,6 +1570,29 @@ async function streamAPIPatched(msg,img){
   history.push({role:'user',content:userContent});
   if(history.length>20) history=history.slice(-20);
   const model=cfg.m||(isAnthropic?DEFAULT_MODEL.anthropic:DEFAULT_MODEL.openai);
+  const systemPrompt=buildHermesSystemPrompt();
+  if(IS_ELECTRON&&window.petBridge?.chatProvider){
+    const result=await window.petBridge.chatProvider({
+      provider:cfg.p,
+      baseUrl:cfg.b,
+      model,
+      system:systemPrompt,
+      messages:isAnthropic?history:[{role:'system',content:systemPrompt},...history],
+      maxTokens:200,
+    });
+    if(!result?.success) throw new Error(result?.error||'AI request failed');
+    const full=String(result.text||'').trim()||'…';
+    const chunks=full.match(/[\s\S]{1,18}/g)||[full];
+    for(const chunk of chunks){
+      const fn=window._streamPatch||onStreamChunk;
+      fn(chunk);
+    }
+    history.push({role:'assistant',content:full});
+    if(full&&/(下次|以后|适合你|你可以|建议你|next|later|suggest|advice)/i.test(full)){
+      addHermesMemory('reflection',`Nono suggestion: ${full.slice(0,120)}`,'chat',.45);
+    }
+    return;
+  }
   const url=isAnthropic
     ?proxify('https://api.anthropic.com/v1/messages')
     :proxify(buildChatURL(cfg.b||'https://api.openai.com'));
@@ -1517,7 +1603,6 @@ async function streamAPIPatched(msg,img){
       'anthropic-dangerous-direct-browser-access':'true'}
     :{'content-type':'application/json','Authorization':`Bearer ${cfg.k}`};
 
-  const systemPrompt=buildHermesSystemPrompt();
   const body=isAnthropic
     ?JSON.stringify({model,max_tokens:200,stream:true,system:systemPrompt,messages:history})
     :JSON.stringify({model,messages:[{role:'system',content:systemPrompt},...history],max_tokens:200,stream:true});
@@ -1554,7 +1639,7 @@ async function streamAPIPatched(msg,img){
     }
   }
   history.push({role:'assistant',content:full||'…'});
-  if(full&&/(下次|以后|适合你|你可以|建议你)/.test(full)){
+  if(full&&/(下次|以后|适合你|你可以|建议你|next|later|suggest|advice)/i.test(full)){
     addHermesMemory('reflection',`孬孬建议：${full.slice(0,120)}`,'chat',.45);
   }
 }
@@ -1592,6 +1677,19 @@ async function requestJSON(userPrompt, systemPrompt, opt={}){
         {role:'system',content:systemPrompt},
         {role:'user',content:userPrompt}
       ],max_tokens:800,stream:false};
+
+  if(IS_ELECTRON&&window.petBridge?.chatProvider){
+    const result=await window.petBridge.chatProvider({
+      provider:cfg.p,
+      baseUrl:cfg.b,
+      model,
+      system:systemPrompt,
+      messages:body.messages,
+      maxTokens:800,
+    });
+    if(!result?.success) throw new Error(result?.error||'AI request failed');
+    return String(result.text||'');
+  }
   
   const ctrl=new AbortController();
   const tid=setTimeout(()=>ctrl.abort(),timeoutMs);
@@ -2091,7 +2189,10 @@ function openTaskMenu(container, btn, taskId){
   });
 }
 
-TaskStore.onChange(renderTasks);
+TaskStore.onChange(()=>{
+  renderTasks();
+  scheduleFeishuSupervisorSync();
+});
 renderTasks();
 
 /* ════════ POMODORO ════════ */
@@ -2501,8 +2602,31 @@ function checkinMsg(){
   }
 }
 
-let feishuSupervisorTimer=null;
+let feishuSupervisorSyncTimer=null;
 let feishuSending=false;
+
+function getFeishuSupervisorTaskSnapshot(){
+  if(typeof TaskStore==='undefined'||!TaskStore.getActive) return null;
+  const act=TaskStore.getActive();
+  if(!act) return null;
+  const next=TaskStore.nextUnchecked(act.id);
+  return {
+    title:act.title||'',
+    nextStep:next?.text||'',
+  };
+}
+
+function buildFeishuSupervisorConfig(opt={}){
+  const fromFields=!!opt.fromFields;
+  return {
+    enabled: opt.enabled ?? (fromFields ? !!feishuEnabledEl?.checked : !!cfg.feishuEnabled),
+    interval: normalizeFeishuInterval(fromFields ? feishuIntervalEl?.value : cfg.feishuInterval),
+    appEnabled: fromFields ? !!feishuAppEnabledEl?.checked : !!cfg.feishuAppEnabled,
+    appId: fromFields ? (feishuAppIdEl?.value.trim()||'') : (cfg.feishuAppId||''),
+    chatId: fromFields ? (feishuChatIdEl?.value.trim()||'') : (cfg.feishuAppChatId||''),
+    task: getFeishuSupervisorTaskSnapshot(),
+  };
+}
 
 function buildFeishuCheckinText(isTest=false){
   const now=new Date();
@@ -2525,40 +2649,41 @@ async function sendFeishuSupervisorCheckin(isTest=false){
   if(!IS_ELECTRON||feishuSending) return {success:false,error:'飞书发送不可用'};
   feishuSending=true;
   try{
-    const text=buildFeishuCheckinText(isTest);
-    const result=(cfg.feishuAppEnabled&&cfg.feishuAppChatId&&window.petBridge?.sendFeishuApp)
-      ? await window.petBridge.sendFeishuApp(cfg.feishuAppChatId, text)
-      : window.petBridge?.sendFeishu
-        ? await window.petBridge.sendFeishu(text)
-        : {success:false,error:'飞书发送不可用'};
+    const config=buildFeishuSupervisorConfig({fromFields:isTest, enabled:isTest?true:undefined});
+    const result=window.petBridge?.testFeishuSupervisor
+      ? await window.petBridge.testFeishuSupervisor(config)
+      : {success:false,error:'飞书发送不可用'};
     if(result?.success){
       addLog(isTest?'飞书测试提醒已发送':'飞书监督提醒已发送');
     }else{
-      addLog('飞书提醒发送失败：'+(result?.error||'未知错误'));
+      addLog('Feishu supervisor configure failed: '+(result?.error||'unknown error'));
     }
     return result;
   }finally{
     feishuSending=false;
   }
 }
-
 function restartFeishuSupervisor(){
-  if(feishuSupervisorTimer){
-    clearTimeout(feishuSupervisorTimer);
-    feishuSupervisorTimer=null;
-  }
-  if(!_isPetWin||!cfg.feishuEnabled) return;
-  const minutes=normalizeFeishuInterval(cfg.feishuInterval);
-  addLog(`飞书监督计时器已启动：每 ${minutes} 分钟提醒一次`);
-  const schedule=()=>{
-    feishuSupervisorTimer=setTimeout(async ()=>{
-      if(cfg.feishuEnabled) await sendFeishuSupervisorCheckin(false);
-      schedule();
-    }, minutes*60*1000);
-  };
-  schedule();
+  if(!IS_ELECTRON||!window.petBridge?.configureFeishuSupervisor) return;
+  const config=buildFeishuSupervisorConfig();
+  window.petBridge.configureFeishuSupervisor(config).then(result=>{
+    if(result?.success){
+      const minutes=normalizeFeishuInterval(config.interval);
+      addLog(config.enabled?('Feishu supervisor moved to main: every '+minutes+' minutes'):'Feishu supervisor disabled in main');
+    }else{
+      addLog('Feishu supervisor configure failed: '+(result?.error||'unknown error'));
+    }
+  }).catch(e=>addLog('Feishu supervisor configure failed: '+(e.message||e)));
 }
 
+function scheduleFeishuSupervisorSync(){
+  if(!IS_ELECTRON||!window.petBridge?.configureFeishuSupervisor) return;
+  if(feishuSupervisorSyncTimer) clearTimeout(feishuSupervisorSyncTimer);
+  feishuSupervisorSyncTimer=setTimeout(()=>{
+    feishuSupervisorSyncTimer=null;
+    restartFeishuSupervisor();
+  },500);
+}
 let longTaskSupervisorTimer=null;
 const longTaskSendingIds=new Set();
 
@@ -2935,7 +3060,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
     }));
 
   // Delegate click events
-  overlay.addEventListener('click',function(e){
+  overlay.addEventListener('click',async function(e){
     const action=e.target.dataset.action;
     if(!action) return;
 
@@ -2955,7 +3080,10 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
       const base=document.getElementById('onboard-base').value.trim().replace(/\/+$/,'');
       const model=document.getElementById('onboard-model').value.trim();
       cfg.p=obProvider;
-      if(key) cfg.k=key;
+      if(key){
+        const saved=await saveProviderApiKeyIfNeeded(key);
+        if(!saved) return;
+      }
       if(base) cfg.b=base;
       if(model) cfg.m=model;
       save();
@@ -2984,14 +3112,17 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   const obModel=document.getElementById('onboard-model');
   const obBase=document.getElementById('onboard-base');
   if(apiKeyInput){
-    apiKeyInput.addEventListener('keydown',function(e){
+    apiKeyInput.addEventListener('keydown',async function(e){
       if(e.key==='Enter'){
         e.preventDefault();
         const key=this.value.trim();
         const base=(obBase?obBase.value:'').trim().replace(/\/+$/,'');
         const model=obModel?obModel.value.trim():'';
         cfg.p=obProvider;
-        if(key) cfg.k=key;
+        if(key){
+          const saved=await saveProviderApiKeyIfNeeded(key);
+          if(!saved) return;
+        }
         if(base) cfg.b=base;
         if(model) cfg.m=model;
         save();

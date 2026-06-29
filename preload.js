@@ -21,9 +21,11 @@ contextBridge.exposeInMainWorld('petBridge', {
   closeSelf:      ()   => ipcRenderer.send('close-self'),
   minimizeSelf:   ()   => ipcRenderer.send('minimize-self'),
   notifyConfigChanged: () => ipcRenderer.send('config:changed'),
-  // Encrypted API key storage (DPAPI / Keychain via Electron safeStorage)
-  getSecret: () => ipcRenderer.invoke('secret:get'),
+  // Encrypted API key storage (DPAPI / Keychain via Electron safeStorage).
+  // The renderer can only check presence or save a replacement; it never reads the key.
+  hasSecret: () => ipcRenderer.invoke('secret:has'),
   setSecret: (v) => ipcRenderer.invoke('secret:set', String(v || '')),
+  chatProvider: (config) => ipcRenderer.invoke('ai:chat', config && typeof config === 'object' ? config : {}),
   getFeishuWebhook: () => ipcRenderer.invoke('feishu:webhook:get'),
   setFeishuWebhook: (v) => ipcRenderer.invoke('feishu:webhook:set', String(v || '')),
   sendFeishu: (text) => ipcRenderer.invoke('feishu:send', String(text || '').slice(0, 1800)),
@@ -40,6 +42,9 @@ contextBridge.exposeInMainWorld('petBridge', {
   stopFeishuApp: () => ipcRenderer.invoke('feishu:app-stop'),
   feishuAppStatus: () => ipcRenderer.invoke('feishu:app-status'),
   sendFeishuApp: (chatId, text) => ipcRenderer.invoke('feishu:app-send', String(chatId || ''), String(text || '').slice(0, 1800)),
+  configureFeishuSupervisor: (config) => ipcRenderer.invoke('feishu:supervisor:configure', config && typeof config === 'object' ? config : {}),
+  feishuSupervisorStatus: () => ipcRenderer.invoke('feishu:supervisor:status'),
+  testFeishuSupervisor: (config) => ipcRenderer.invoke('feishu:supervisor:test', config && typeof config === 'object' ? config : {}),
   // Local AI model (on-demand download)
   localModelStatus: () => ipcRenderer.invoke('local-model:status'),
   localModelDownload: () => ipcRenderer.invoke('local-model:download'),
@@ -64,6 +69,10 @@ contextBridge.exposeInMainWorld('petBridge', {
   onFeishuStatus: (callback) => {
     const cb = safeCallback(callback)
     ipcRenderer.on('feishu:status', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
+  },
+  onFeishuSupervisorStatus: (callback) => {
+    const cb = safeCallback(callback)
+    ipcRenderer.on('feishu:supervisor-status', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
   },
   onConfigChanged: (callback) => {
     const cb = safeCallback(callback)
