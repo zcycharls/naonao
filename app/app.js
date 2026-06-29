@@ -85,6 +85,9 @@ function normalizeLongTasks(value){
       enabled:!!item?.enabled,
       createdAt:Number(item?.createdAt)||Date.now(),
       lastSentAt:Number(item?.lastSentAt)||Date.now(),
+      nextDueAt:Number(item?.nextDueAt)||0,
+      retryCount:Math.max(0,Math.min(3,Number(item?.retryCount)||0)),
+      lastError:String(item?.lastError||'').slice(0,240),
     };
   }).filter(Boolean).slice(0,LONG_TASK_MAX);
 }
@@ -436,13 +439,13 @@ function updateFeishuSupervisorStatus(pending=false){
 
 function longTaskStatusText(task){
   if(!task.enabled) return '未启用';
+  if(task.lastError) return `等待重试：${task.lastError}`;
   const last=Number(task.lastSentAt)||0;
+  const next=Number(task.nextDueAt)||last+normalizeLongTaskInterval(task.interval)*60*1000;
   if(!last) return `启用中：每 ${task.interval} 分钟提醒`;
-  const next=last+normalizeLongTaskInterval(task.interval)*60*1000;
   const remain=Math.max(0,Math.ceil((next-Date.now())/60000));
   return remain>0?`启用中：约 ${remain} 分钟后提醒`:'启用中：等待下一轮发送';
 }
-
 function createLongTaskDraft(){
   const now=Date.now();
   return {
@@ -534,6 +537,9 @@ function collectLongTasksFromUI(){
       enabled,
       createdAt:prev?.createdAt||now,
       lastSentAt:enabled&&prev?.enabled ? (Number(prev.lastSentAt)||now) : now,
+      nextDueAt:enabled&&prev?.enabled ? (Number(prev.nextDueAt)||0) : 0,
+      retryCount:enabled&&prev?.enabled ? (Number(prev.retryCount)||0) : 0,
+      lastError:enabled&&prev?.enabled ? (prev.lastError||'') : '',
     });
   });
   return normalizeLongTasks(next);
@@ -737,7 +743,7 @@ longTaskListEl?.addEventListener('click',async e=>{
       if(status) status.textContent='Webhook 保存失败';
       return;
     }
-    const result=await window.petBridge.sendLongTaskFeishu(task.id, buildLongTaskCheckinText(task,true));
+    const result=await sendLongTaskCheckin(task,true);
     if(status) status.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
   }
 });
@@ -1112,6 +1118,12 @@ if(window.petBridge?.onFeishuSupervisorStatus){
     feishuStatusEl.textContent=status.lastError
       ? `飞书监督等待重试：${status.lastError}`
       : `飞书监督由主进程运行：约 ${remain} 分钟后提醒`;
+  });
+}
+
+if(window.petBridge?.onLongTaskSupervisorStatus){
+  window.petBridge.onLongTaskSupervisorStatus(status=>{
+    applyLongTaskSupervisorState(status);
   });
 }
 
@@ -2684,13 +2696,52 @@ function scheduleFeishuSupervisorSync(){
     restartFeishuSupervisor();
   },500);
 }
-let longTaskSupervisorTimer=null;
+let longTaskSupervisorSyncTimer=null;
 const longTaskSendingIds=new Set();
+
+function buildLongTaskSupervisorConfig(){
+  return {
+    tasks:normalizeLongTasks(cfg.longTasks).map(task=>({
+      id:task.id,
+      title:task.title,
+      goal:task.goal,
+      interval:task.interval,
+      enabled:task.enabled,
+      createdAt:task.createdAt,
+      lastSentAt:task.lastSentAt,
+      nextDueAt:task.nextDueAt,
+      retryCount:task.retryCount,
+      lastError:task.lastError,
+    })),
+  };
+}
+
+function applyLongTaskSupervisorState(state){
+  const tasks=Array.isArray(state?.tasks)?state.tasks:[];
+  if(!tasks.length) return;
+  let changed=false;
+  cfg.longTasks=normalizeLongTasks(cfg.longTasks).map(task=>{
+    const fresh=tasks.find(item=>item.id===task.id);
+    if(!fresh) return task;
+    changed=true;
+    return {
+      ...task,
+      lastSentAt:Number(fresh.lastSentAt)||task.lastSentAt,
+      nextDueAt:Number(fresh.nextDueAt)||0,
+      retryCount:Number(fresh.retryCount)||0,
+      lastError:String(fresh.lastError||''),
+    };
+  });
+  if(changed){
+    save();
+    renderLongTaskSettings();
+  }
+}
 
 function buildLongTaskCheckinText(task,isTest=false){
   const hm=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
   const lines=[
-    isTest?'【孬孬长远任务测试】':'【孬孬长远任务追踪】',
+    isTest?'[孬孬长远任务测试]':'[孬孬长远任务追踪]',
     `${hm} 请汇报这个目标的进度：${task.title}`,
   ];
   if(task.goal) lines.push(`目标说明：${task.goal}`);
@@ -2700,56 +2751,43 @@ function buildLongTaskCheckinText(task,isTest=false){
 }
 
 async function sendLongTaskCheckin(task,isTest=false){
-  if(!IS_ELECTRON||!window.petBridge?.sendLongTaskFeishu) return {success:false,error:'长远任务发送不可用'};
-  if(!task?.id||longTaskSendingIds.has(task.id)) return {success:false,error:'正在发送中'};
+  if(!IS_ELECTRON||!task?.id||longTaskSendingIds.has(task.id)) return {success:false,error:'long task send unavailable'};
   longTaskSendingIds.add(task.id);
   try{
-    const result=await window.petBridge.sendLongTaskFeishu(task.id, buildLongTaskCheckinText(task,isTest));
-    if(result?.success){
-      if(!isTest){
-        const current=(cfg.longTasks||[]).find(item=>item.id===task.id);
-        if(current){
-          current.lastSentAt=Date.now();
-          save();
-          renderLongTaskSettings();
-        }
-      }
-      addLog(`长远任务提醒已发送：${task.title}`);
-    }else{
-      addLog(`长远任务提醒失败「${task.title}」：${result?.error||'未知错误'}`);
-    }
+    const result=window.petBridge?.testLongTaskSupervisor
+      ? await window.petBridge.testLongTaskSupervisor(task)
+      : window.petBridge?.sendLongTaskFeishu
+        ? await window.petBridge.sendLongTaskFeishu(task.id, buildLongTaskCheckinText(task,isTest))
+        : {success:false,error:'long task send unavailable'};
+    addLog(result?.success?`Long task reminder sent: ${task.title}`:`Long task reminder failed: ${task.title} - ${result?.error||'unknown error'}`);
     return result;
   }finally{
     longTaskSendingIds.delete(task.id);
   }
 }
 
-async function tickLongTaskSupervisor(){
-  if(!cfg.longTasks?.length) return;
-  const now=Date.now();
-  for(const task of cfg.longTasks){
-    if(!task.enabled) continue;
-    const intervalMs=normalizeLongTaskInterval(task.interval)*60*1000;
-    const last=Number(task.lastSentAt)||now;
-    if(now-last<intervalMs) continue;
-    await sendLongTaskCheckin(task,false);
-  }
-}
-
 function restartLongTaskSupervisor(){
-  if(longTaskSupervisorTimer){
-    clearInterval(longTaskSupervisorTimer);
-    longTaskSupervisorTimer=null;
-  }
-  if(!_isPetWin) return;
-  const active=(cfg.longTasks||[]).filter(task=>task.enabled);
-  if(!active.length) return;
-  addLog(`长远任务监督已启动：${active.length} 个任务`);
-  longTaskSupervisorTimer=setInterval(()=>tickLongTaskSupervisor(),30*1000);
+  if(!IS_ELECTRON||!window.petBridge?.configureLongTaskSupervisor) return;
+  const config=buildLongTaskSupervisorConfig();
+  window.petBridge.configureLongTaskSupervisor(config).then(result=>{
+    if(result?.success){
+      const active=config.tasks.filter(task=>task.enabled).length;
+      addLog(active?`Long task supervisor moved to main: ${active} active task(s)`:'Long task supervisor disabled in main');
+      applyLongTaskSupervisorState(result.state);
+    }else{
+      addLog('Long task supervisor configure failed: '+(result?.error||'unknown error'));
+    }
+  }).catch(e=>addLog('Long task supervisor configure failed: '+(e.message||e)));
 }
 
-// 自动提醒 — 只在宠物窗口触发，且只走头顶气泡（不进聊天对话框、不污染 AI 上下文）
-// Web (non-Electron) 也走宠物视图，所以兼容判断
+function scheduleLongTaskSupervisorSync(){
+  if(!IS_ELECTRON||!window.petBridge?.configureLongTaskSupervisor) return;
+  if(longTaskSupervisorSyncTimer) clearTimeout(longTaskSupervisorSyncTimer);
+  longTaskSupervisorSyncTimer=setTimeout(()=>{
+    longTaskSupervisorSyncTimer=null;
+    restartLongTaskSupervisor();
+  },500);
+}
 const _isPetWin = !IS_ELECTRON || IS_PET_WIN;
 // 占位函数，pet-mode 块加载后会被替换为真实的 showMini 调用
 let _bubblePush = ()=>{};

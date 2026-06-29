@@ -529,6 +529,7 @@ const FEISHU_WEBHOOK_FILE = () => path.join(app.getPath('userData'), 'feishu-web
 const FEISHU_APP_SECRET_FILE = () => path.join(app.getPath('userData'), 'feishu-app-secret.bin')
 const HERMES_API_KEY_FILE = () => path.join(app.getPath('userData'), 'hermes-api-key.bin')
 const LONG_TASK_WEBHOOKS_FILE = () => path.join(app.getPath('userData'), 'long-task-webhooks.bin')
+const LONG_TASK_SUPERVISOR_FILE = () => path.join(app.getPath('userData'), 'long-task-supervisor.bin')
 const FEISHU_SUPERVISOR_FILE = () => path.join(app.getPath('userData'), 'feishu-supervisor.bin')
 let feishuClient = null
 let feishuWsClient = null
@@ -537,6 +538,8 @@ let feishuAppId = ''
 const feishuSeenMessages = new Set()
 let feishuSupervisorTimer = null
 let feishuSupervisorSending = false
+let longTaskSupervisorTimer = null
+const longTaskSupervisorSending = new Set()
 
 ipcMain.handle('secret:has', () => {
   return !!readEncryptedString(SECRET_FILE())
@@ -562,6 +565,7 @@ ipcMain.handle('secret:set', (_evt, value) => {
 app.whenReady().then(() => {
   createWindow()
   restoreFeishuSupervisor()
+  restoreLongTaskSupervisor()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -765,6 +769,10 @@ function isValidLongTaskId(value) {
   return /^[A-Za-z0-9_-]{3,48}$/.test(String(value || '').trim())
 }
 
+function normalizeLongTaskInterval(value) {
+  return Math.min(10080, Math.max(1, Math.round(Number(value) || 1440)))
+}
+
 function isValidFeishuAppId(value) {
   return /^cli_[A-Za-z0-9]+$/.test(String(value || '').trim())
 }
@@ -946,6 +954,168 @@ function configureFeishuSupervisor(config) {
   return { success: true, state: readFeishuSupervisorState() }
 }
 
+function sanitizeLongTaskStateTask(task, previous) {
+  if (!task || typeof task !== 'object') return null
+  const id = String(task.id || '').trim()
+  if (!isValidLongTaskId(id)) return null
+  const title = String(task.title || '').trim().slice(0, 80)
+  const goal = String(task.goal || '').trim().slice(0, 260)
+  if (!title && !goal) return null
+  const enabled = !!task.enabled
+  const interval = normalizeLongTaskInterval(task.interval)
+  const now = Date.now()
+  const intervalChanged = previous && previous.interval !== interval
+  const becameEnabled = enabled && !previous?.enabled
+  const lastSentAt = Math.max(Number(task.lastSentAt) || 0, Number(previous?.lastSentAt) || 0) || now
+  return {
+    id,
+    title: title || 'Untitled long task',
+    goal,
+    interval,
+    enabled,
+    createdAt: Number(task.createdAt) || Number(previous?.createdAt) || now,
+    lastSentAt,
+    nextDueAt: enabled
+      ? (intervalChanged || becameEnabled || !previous?.nextDueAt ? now + interval * 60 * 1000 : Number(previous.nextDueAt))
+      : 0,
+    retryCount: enabled ? Math.max(0, Math.min(3, Number(previous?.retryCount) || 0)) : 0,
+    lastError: enabled ? String(previous?.lastError || '').slice(0, 240) : '',
+    updatedAt: now,
+  }
+}
+
+function normalizeLongTaskSupervisorState(value) {
+  const raw = value && typeof value === 'object' ? value : {}
+  const previousTasks = new Map(Array.isArray(raw.tasks) ? raw.tasks.map(task => [String(task.id || ''), task]) : [])
+  const tasks = (Array.isArray(raw.tasks) ? raw.tasks : [])
+    .map(task => sanitizeLongTaskStateTask(task, previousTasks.get(String(task?.id || ''))))
+    .filter(Boolean)
+    .slice(0, 8)
+  return {
+    tasks,
+    updatedAt: Number(raw.updatedAt) || Date.now(),
+  }
+}
+
+function readLongTaskSupervisorState() {
+  return normalizeLongTaskSupervisorState(readEncryptedJSON(LONG_TASK_SUPERVISOR_FILE(), {}))
+}
+
+function writeLongTaskSupervisorState(state) {
+  return writeEncryptedJSON(LONG_TASK_SUPERVISOR_FILE(), normalizeLongTaskSupervisorState(state), 30000)
+}
+
+function broadcastLongTaskSupervisorStatus(extra = {}) {
+  const state = readLongTaskSupervisorState()
+  BrowserWindow.getAllWindows().forEach(w => {
+    if (!w.isDestroyed()) {
+      w.webContents.send('feishu:long-task-supervisor-status', { ...state, ...extra })
+    }
+  })
+}
+
+function buildLongTaskSupervisorMessage(task, isTest = false) {
+  const hm = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const lines = [
+    isTest ? '[孬孬长远任务测试]' : '[孬孬长远任务追踪]',
+    `${hm} 请汇报这个目标的进度：${task.title}`,
+  ]
+  if (task.goal) lines.push(`目标说明：${task.goal}`)
+  lines.push(`汇报间隔：每 ${normalizeLongTaskInterval(task.interval)} 分钟`)
+  lines.push('请用三句话回复：1. 刚推进了什么；2. 遇到什么阻碍；3. 下一步具体做什么。')
+  return lines.join('\n')
+}
+
+async function sendLongTaskSupervisorMessage(task, isTest = false) {
+  const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
+  const webhook = String(webhooks[task.id] || '')
+  return sendFeishuWebhookMessage(webhook, buildLongTaskSupervisorMessage(task, isTest))
+}
+
+function stopLongTaskSupervisorTimer() {
+  if (!longTaskSupervisorTimer) return
+  clearTimeout(longTaskSupervisorTimer)
+  longTaskSupervisorTimer = null
+}
+
+function scheduleLongTaskSupervisor() {
+  stopLongTaskSupervisorTimer()
+  const state = readLongTaskSupervisorState()
+  const active = state.tasks.filter(task => task.enabled)
+  if (!active.length) {
+    broadcastLongTaskSupervisorStatus({ running: false })
+    return
+  }
+  const nextDueAt = Math.min(...active.map(task => task.nextDueAt || (Date.now() + normalizeLongTaskInterval(task.interval) * 60 * 1000)))
+  const delay = Math.max(1000, Math.min(nextDueAt - Date.now(), 2_147_000_000))
+  longTaskSupervisorTimer = setTimeout(() => runLongTaskSupervisorTick(false), delay)
+  broadcastLongTaskSupervisorStatus({ running: true, nextDueAt })
+}
+
+async function runLongTaskSupervisorTick(isTest = false, testTask = null) {
+  const state = readLongTaskSupervisorState()
+  const now = Date.now()
+  const dueTasks = isTest && testTask
+    ? [sanitizeLongTaskStateTask(testTask, null)].filter(Boolean)
+    : state.tasks.filter(task => task.enabled && (Number(task.nextDueAt) || 0) <= now)
+  if (!dueTasks.length) {
+    if (!isTest) scheduleLongTaskSupervisor()
+    return { success: true, skipped: true }
+  }
+  const results = []
+  for (const task of dueTasks) {
+    if (!task || longTaskSupervisorSending.has(task.id)) continue
+    longTaskSupervisorSending.add(task.id)
+    try {
+      const result = await sendLongTaskSupervisorMessage(task, isTest)
+      results.push({ id: task.id, ...result })
+      if (isTest) continue
+      const current = state.tasks.find(item => item.id === task.id)
+      if (!current) continue
+      if (result?.success) {
+        current.lastSentAt = Date.now()
+        current.retryCount = 0
+        current.lastError = ''
+        current.nextDueAt = current.lastSentAt + normalizeLongTaskInterval(current.interval) * 60 * 1000
+      } else {
+        const retrySteps = [60_000, 5 * 60_000, 15 * 60_000]
+        const retryCount = Math.min(3, current.retryCount + 1)
+        current.retryCount = retryCount
+        current.lastError = result?.error || 'send failed'
+        current.nextDueAt = Date.now() + retrySteps[Math.min(retryCount - 1, retrySteps.length - 1)]
+      }
+      current.updatedAt = Date.now()
+    } finally {
+      longTaskSupervisorSending.delete(task.id)
+    }
+  }
+  if (!isTest) {
+    state.updatedAt = Date.now()
+    writeLongTaskSupervisorState(state)
+    broadcastLongTaskSupervisorStatus({ running: true, results })
+    scheduleLongTaskSupervisor()
+  }
+  return results.length === 1 ? results[0] : { success: results.every(item => item.success), results }
+}
+
+function configureLongTaskSupervisor(config) {
+  const previous = readLongTaskSupervisorState()
+  const previousById = new Map(previous.tasks.map(task => [task.id, task]))
+  const incoming = Array.isArray(config?.tasks) ? config.tasks : []
+  const tasks = incoming
+    .map(task => sanitizeLongTaskStateTask(task, previousById.get(String(task?.id || ''))))
+    .filter(Boolean)
+    .slice(0, 8)
+  const state = { tasks, updatedAt: Date.now() }
+  writeLongTaskSupervisorState(state)
+  scheduleLongTaskSupervisor()
+  return { success: true, state: readLongTaskSupervisorState() }
+}
+
+function restoreLongTaskSupervisor() {
+  scheduleLongTaskSupervisor()
+}
+
 async function restoreFeishuSupervisor() {
   const state = readFeishuSupervisorState()
   if (state.appEnabled && isValidFeishuAppId(state.appId) && readEncryptedString(FEISHU_APP_SECRET_FILE())) {
@@ -1078,6 +1248,18 @@ ipcMain.handle('feishu:long-task-send', async (_evt, taskId, text) => {
   if (!isValidLongTaskId(id)) return { success: false, error: '长远任务 id 不正确' }
   const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
   return sendFeishuWebhookMessage(String(webhooks[id] || ''), text)
+})
+
+ipcMain.handle('feishu:long-task-supervisor:configure', (_evt, config) => {
+  return configureLongTaskSupervisor(config)
+})
+
+ipcMain.handle('feishu:long-task-supervisor:status', () => {
+  return { success: true, state: readLongTaskSupervisorState(), running: !!longTaskSupervisorTimer }
+})
+
+ipcMain.handle('feishu:long-task-supervisor:test', async (_evt, task) => {
+  return runLongTaskSupervisorTick(true, task)
 })
 
 ipcMain.handle('feishu:app-secret:get', () => {

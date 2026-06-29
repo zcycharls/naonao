@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('petBridge', {
   getLongTaskWebhook: (taskId) => ipcRenderer.invoke('feishu:long-task-webhook:get', String(taskId || '')),
   setLongTaskWebhook: (taskId, v) => ipcRenderer.invoke('feishu:long-task-webhook:set', String(taskId || ''), String(v || '')),
   sendLongTaskFeishu: (taskId, text) => ipcRenderer.invoke('feishu:long-task-send', String(taskId || ''), String(text || '').slice(0, 1800)),
+  configureLongTaskSupervisor: (config) => ipcRenderer.invoke('feishu:long-task-supervisor:configure', config && typeof config === 'object' ? config : {}),
+  longTaskSupervisorStatus: () => ipcRenderer.invoke('feishu:long-task-supervisor:status'),
+  testLongTaskSupervisor: (task) => ipcRenderer.invoke('feishu:long-task-supervisor:test', task && typeof task === 'object' ? task : {}),
   getFeishuAppSecret: () => ipcRenderer.invoke('feishu:app-secret:get'),
   setFeishuAppSecret: (v) => ipcRenderer.invoke('feishu:app-secret:set', String(v || '')),
   getHermesApiKey: () => ipcRenderer.invoke('hermes:api-key:get'),
@@ -73,6 +76,10 @@ contextBridge.exposeInMainWorld('petBridge', {
   onFeishuSupervisorStatus: (callback) => {
     const cb = safeCallback(callback)
     ipcRenderer.on('feishu:supervisor-status', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
+  },
+  onLongTaskSupervisorStatus: (callback) => {
+    const cb = safeCallback(callback)
+    ipcRenderer.on('feishu:long-task-supervisor-status', (_evt, data) => cb(data && typeof data === 'object' ? data : {}))
   },
   onConfigChanged: (callback) => {
     const cb = safeCallback(callback)
