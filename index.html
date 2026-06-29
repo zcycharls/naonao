@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>孬孬 — 陪你专注的小可爱</title>
-<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHD 朋友轻轻把注意力拽回来。支持番茄钟、一起专注、想法冰箱、数据统计、飞书监督、长远任务独立页面、Hermes Agent、桌宠缩放和可选本地 AI。Windows 桌面版，开源 MIT。" />
+<meta name="description" content="一只住在桌面角落的树袋熊，陪 ADHD 朋友轻轻把注意力拽回来。支持番茄钟、一起专注、想法冰箱、数据统计、飞书监督、长远任务独立页面、主进程持久化监督器、Hermes Agent、桌宠缩放和可选本地 AI。Windows 桌面版，开源 MIT。" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -855,7 +855,7 @@
   </div>
 
   <div class="theme-cell">
-    <span class="top">v1.521.1912</span>
+    <span class="top">v1.529.1626</span>
     <div class="lamp" aria-hidden="true"></div>
   </div>
 </header>
@@ -888,7 +888,7 @@
           </div>
           <div class="step-body">
             <a class="dl-btn" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
-              <span class="file">&#9660; 孬孬-Setup-1.521.1912.exe</span>
+              <span class="file">&#9660; 孬孬-Setup-1.529.1626.exe</span>
               <span class="arrow">&#8595;</span>
             </a>
             <span class="meta">~ 100 MB &middot; WIN10 / WIN11</span>
@@ -1054,13 +1054,13 @@
           <div class="num">X &middot;</div>
           <h3>飞书监督</h3>
           <div class="en">Feishu Coach</div>
-          <p>Check-ins in Feishu. <span class="sc">定时把你叫回现场，也能读取你发给机器人的汇报。</span></p>
+          <p>Main-process check-ins. <span class="sc">定时把你叫回现场，支持持久化调度、失败重试、重启恢复，也能读取你发给机器人的汇报。</span></p>
         </div>
         <div class="feat">
           <div class="num">XI &middot;</div>
           <h3>长远任务</h3>
           <div class="en">Long Goals</div>
-          <p>Separate goals, separate bots. <span class="sc">独立页面管理多个长期目标，每个目标绑定独立飞书机器人和汇报间隔。</span></p>
+          <p>Separate goals, separate bots. <span class="sc">独立页面管理多个长期目标，每个目标绑定独立飞书机器人和汇报间隔，监督状态由主进程恢复。</span></p>
         </div>
       </div>
     </div>
@@ -1071,7 +1071,7 @@
       Take it home.
       <span class="cn">把它接回家</span>
     </h2>
-    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key and Feishu webhooks encrypted on your machine. Feishu supervision, long-term goal check-ins, Hermes Agent, pet resizing and local model are optional.</p>
+    <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key and Feishu webhooks encrypted on your machine. Feishu supervision, long-term goal check-ins, Hermes Agent, pet resizing and local model are optional; supervisor schedules persist locally and resume after restart.</p>
     <div class="actions">
       <a class="primary" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
         <span>DOWNLOAD .EXE</span>
@@ -1107,6 +1107,17 @@
     </h2>
 
     <div style="border-left:2px solid var(--ink-line);padding-left:24px;">
+      <div style="margin-bottom:32px;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-06-29 &nbsp; <span style="color:var(--gold);">v1.529.1626</span></div>
+        <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">主进程监督器 + 安装包回归</h3>
+        <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
+          <li><strong>飞书监督</strong>：定时发送从渲染进程迁移到主进程，支持持久化、失败重试和应用重启后的恢复</li>
+          <li><strong>长远任务监督</strong>：每个长期目标的独立机器人和汇报间隔由主进程统一调度，减少窗口关闭后的漏发</li>
+          <li><strong>安全边界</strong>：AI Key 与飞书 Webhook 继续加密保存在本机，渲染进程只拿状态不拿明文密钥</li>
+          <li><strong>真实回归</strong>：已用 NSIS 安装包完成静默安装、已安装应用启动 smoke 和卸载清理</li>
+        </ul>
+      </div>
+
       <div style="margin-bottom:32px;">
         <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-06-27 &nbsp; <span style="color:var(--gold);">v1.529.1626</span></div>
         <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">独立长远任务页 + 无边界桌宠细节</h3>
