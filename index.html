@@ -1108,6 +1108,18 @@
 
     <div style="border-left:2px solid var(--ink-line);padding-left:24px;">
       <div style="margin-bottom:32px;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-06-30 &nbsp; <span style="color:var(--gold);">v1.529.1626</span></div>
+        <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">桌面客户端设置重组 + 桌宠缩放修复</h3>
+        <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
+          <li><strong>设置页</strong>：按模型、监督、长期任务、外观和高级能力重组，降低配置时的来回查找成本</li>
+          <li><strong>桌面优先</strong>：项目入口收敛到 Electron 客户端，旧网页版不再作为产品入口维护</li>
+          <li><strong>隐私边界</strong>：渲染进程只读取密钥是否已保存，不再回显 AI Key、飞书 Webhook 或 Hermes Key 明文</li>
+          <li><strong>桌宠缩放</strong>：最小尺寸降到 35%，并在小尺寸下避开右侧关闭按钮和托盘按钮</li>
+          <li><strong>启动体验</strong>：`npm start` 改为跨平台启动器，默认隐藏多余控制台窗口</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom:32px;">
         <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-06-29 &nbsp; <span style="color:var(--gold);">v1.529.1626</span></div>
         <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">主进程监督器 + 安装包回归</h3>
         <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
