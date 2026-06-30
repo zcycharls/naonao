@@ -1,7 +1,9 @@
 const { app, BrowserWindow, shell, ipcMain, screen, safeStorage } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const crypto = require('crypto')
 const { pathToFileURL } = require('url')
+const { DEFAULT_MODEL: PROVIDER_DEFAULT_MODEL } = require('./app/js/provider-defaults.js')
 
 // ═══ 日志转发到前端 ═══
 function sendLogToRenderer(msg) {
@@ -16,9 +18,15 @@ let localModelLoading = false
 let localModelReady = false
 let localModelCancelFlag = false
 const MODEL_NAME = 'Xenova/Qwen1.5-0.5B-Chat'
+const MODEL_REVISION = '340777bb38067a8a5af921a405e3206a8cc2f318'
 const MODEL_RELATIVE_DIR = path.join('Xenova', 'Qwen1.5-0.5B-Chat')
-const MODEL_CONFIG_FILE = path.join(MODEL_RELATIVE_DIR, 'config.json')
-const MODEL_ONNX_FILE = path.join(MODEL_RELATIVE_DIR, 'onnx', 'decoder_model_merged_quantized.onnx')
+const MODEL_REQUIRED_FILES = Object.freeze([
+  { file: 'config.json', size: 677, sha256: '347b4bab02495e69e6c460cb0de4f5db0fa8f9d7cf188aea2fc36ca5b7bd58fb' },
+  { file: 'generation_config.json', size: 179, sha256: '4a438118078e120d18b7fe4dbf884041d3c999e90b27346ee295cfb9e7f15ad7' },
+  { file: 'tokenizer.json', size: 7028015, sha256: 'f7c9b2dba4a296b1aa76c16a34b8225c0c118978400d4bb66bff0902d702f5b8' },
+  { file: 'tokenizer_config.json', size: 1168, sha256: 'fb7a9aad08c87a3e8a90fa7557e8039f0a122d90b07afed374bd825928c42510' },
+  { file: 'onnx/decoder_model_merged_quantized.onnx', size: 482326147, sha256: '068cad70fa3850652e6ebc0ad7a49847568f32e6eda5a8527e5893de9a7b8939' },
+])
 
 function getModelRootCandidates(includeDev = true) {
   const userDataRoot = path.join(app.getPath('userData'), 'models')
@@ -30,35 +38,87 @@ function getModelRootCandidates(includeDev = true) {
   return roots
 }
 
-// 模型存放目录：优先 userData/models/（按需下载），兼容开发环境
-function getModelDir() {
-  for (const root of getModelRootCandidates()) {
-    if (fs.existsSync(path.join(root, MODEL_CONFIG_FILE))) {
-      return path.join(root, MODEL_RELATIVE_DIR)
+function sha256File(filePath) {
+  const hash = crypto.createHash('sha256')
+  const fd = fs.openSync(filePath, 'r')
+  try {
+    const buffer = Buffer.allocUnsafe(1024 * 1024)
+    while (true) {
+      const bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null)
+      if (bytesRead === 0) break
+      hash.update(bytesRead === buffer.length ? buffer : buffer.subarray(0, bytesRead))
     }
+    return hash.digest('hex')
+  } finally {
+    fs.closeSync(fd)
   }
-  return null
 }
 
-function getModelsRootDir() {
-  // 返回模型所在的父目录（供 transformers.js env.localModelPath 使用）
-  for (const root of getModelRootCandidates()) {
-    if (fs.existsSync(path.join(root, MODEL_CONFIG_FILE))) return root
+function getModelLayouts(root) {
+  return [
+    {
+      root,
+      localModelPath: root,
+      cacheDir: path.join(root, '.cache-disabled'),
+      files: MODEL_REQUIRED_FILES.map(entry => ({ ...entry, path: path.join(root, MODEL_RELATIVE_DIR, entry.file) })),
+    },
+    {
+      root,
+      localModelPath: path.basename(root) === '.cache' ? path.dirname(root) : root,
+      cacheDir: root,
+      files: MODEL_REQUIRED_FILES.map(entry => ({ ...entry, path: path.join(root, MODEL_NAME, MODEL_REVISION, entry.file) })),
+    },
+  ]
+}
+
+function verifyLocalModelLayout(layout) {
+  for (const entry of MODEL_REQUIRED_FILES) {
+    const filePath = layout.files.find(item => item.file === entry.file)?.path
+    if (!filePath || !fs.existsSync(filePath)) return { ok: false, error: `${entry.file} missing` }
+    const stat = fs.statSync(filePath)
+    if (stat.size !== entry.size) return { ok: false, error: `${entry.file} size mismatch` }
+    if (sha256File(filePath) !== entry.sha256) return { ok: false, error: `${entry.file} sha256 mismatch` }
   }
-  return null
+  return { ok: true, ...layout }
+}
+
+function verifyLocalModelRoot(root) {
+  let lastError = 'model files missing'
+  for (const layout of getModelLayouts(root)) {
+    const result = verifyLocalModelLayout(layout)
+    if (result.ok) return result
+    lastError = result.error || lastError
+  }
+  return { ok: false, error: lastError }
+}
+
+function verifyLocalModelFiles(includeDev = true) {
+  let lastError = 'model files missing'
+  for (const root of getModelRootCandidates(includeDev)) {
+    const result = verifyLocalModelRoot(root)
+    if (result.ok) return result
+    lastError = result.error || lastError
+  }
+  return { ok: false, error: lastError }
+}
+
+function configureLocalModelEnvironment(env, verification) {
+  env.localModelPath = verification.localModelPath
+  env.cacheDir = verification.cacheDir
+  env.allowRemoteModels = false
+  env.allowLocalModels = true
 }
 
 // 检查用户是否已下载模型（只看 userData，不等同于 getModelDir 的 dev 回退）
 function hasDownloadedModel() {
-  return getModelRootCandidates(false).some(root => fs.existsSync(path.join(root, MODEL_ONNX_FILE)))
+  return verifyLocalModelFiles(false).ok
 }
 
 async function loadLocalModel() {
   if (localModelLoading || localModelReady) return localModelReady
-  const modelDir = getModelDir()
-  const modelsRoot = getModelsRootDir()
+  const verification = verifyLocalModelFiles(true)
 
-  if (!modelDir || !modelsRoot) {
+  if (!verification.ok) {
     console.log('[孬孬] 模型目录未找到')
     return false
   }
@@ -68,13 +128,12 @@ async function loadLocalModel() {
     const transformers = await import('@xenova/transformers')
     const { pipeline, env } = transformers
     // 设置本地模型根目录，让 transformers.js 能正确找到本地模型
-    env.localModelPath = modelsRoot
-    env.cacheDir = path.join(app.getPath('userData'), 'models', '.cache')
-    env.allowRemoteModels = false
-    env.allowLocalModels = true
+    configureLocalModelEnvironment(env, verification)
     console.log('[孬孬] 开始加载模型: ' + MODEL_NAME)
     localModelPipeline = await pipeline('text-generation', MODEL_NAME, {
       local_files_only: true,
+      revision: MODEL_REVISION,
+      model_file_name: 'decoder_model_merged_quantized',
     })
     localModelReady = true
     console.log('[孬孬] ✅ 模型加载成功')
@@ -110,6 +169,8 @@ async function downloadLocalModel(progressCallback, isCancelled) {
     console.log('[孬孬] 开始下载模型:', MODEL_NAME, '(镜像: hf-mirror.com)')
     // 下载并加载模型（会触发自动下载）
     const p = await pipeline('text-generation', MODEL_NAME, {
+      revision: MODEL_REVISION,
+      model_file_name: 'decoder_model_merged_quantized',
       progress_callback: (info) => {
         if (isCancelled && isCancelled()) throw new Error('CANCELLED')
         if (progressCallback && info) {
@@ -123,6 +184,10 @@ async function downloadLocalModel(progressCallback, isCancelled) {
       }
     })
     console.log('[孬孬] ✅ 模型下载并完成加载')
+    const verification = verifyLocalModelFiles(false)
+    if (!verification.ok) {
+      return { success: false, error: `model integrity check failed: ${verification.error}` }
+    }
     return { success: true, pipeline: p }
   } catch (e) {
     if (e.message === 'CANCELLED') {
@@ -187,7 +252,7 @@ const PRELOAD = path.join(__dirname, 'preload.js')
 const APP_HTML = path.join(__dirname, 'app', 'index.html')
 const PET_BASE_WIDTH = 335
 const PET_BASE_HEIGHT = 320
-const PET_MIN_SCALE = 0.7
+const PET_MIN_SCALE = 0.35
 const PET_MAX_SCALE = 1.4
 let petDragAnchor = null
 let petDragTimer = null
@@ -449,12 +514,11 @@ function createWindow() {
       settingsWin.focus(); return
     }
     const [x, y] = win.getPosition()
-    // Match the chat window's dimensions (380x680) so the two side panels feel like a pair.
-    const setW = 380, setH = 680
+    const setW = 980, setH = 680
     settingsWin = makeWindow({
       width: setW,
       height: setH,
-      x: Math.max(0, x - (setW + 8)),
+      x: Math.max(0, Math.min(x - (setW + 8), screen.getPrimaryDisplay().workAreaSize.width - setW)),
       y: Math.max(0, Math.min(y, screen.getPrimaryDisplay().workAreaSize.height - setH)),
       transparent: true,
       backgroundColor: '#00000000',
@@ -632,10 +696,6 @@ function writeEncryptedJSON(filePath, value, maxLength) {
   }
 }
 
-const PROVIDER_DEFAULT_MODEL = {
-  anthropic: 'claude-3-5-sonnet-20241022',
-  openai: 'gpt-4o-mini',
-}
 const PROVIDER_MAX_MESSAGES = 24
 const PROVIDER_MAX_TEXT = 12000
 
@@ -1174,8 +1234,8 @@ function stopFeishuWs() {
   broadcastFeishuStatus({ connected: false })
 }
 
-ipcMain.handle('feishu:webhook:get', () => {
-  return readEncryptedString(FEISHU_WEBHOOK_FILE())
+ipcMain.handle('feishu:webhook:has', () => {
+  return !!readEncryptedString(FEISHU_WEBHOOK_FILE())
 })
 
 ipcMain.handle('feishu:webhook:set', (_evt, value) => {
@@ -1225,11 +1285,11 @@ ipcMain.handle('feishu:send', async (_evt, text) => {
   return sendFeishuWebhookMessage(webhook, text)
 })
 
-ipcMain.handle('feishu:long-task-webhook:get', (_evt, taskId) => {
+ipcMain.handle('feishu:long-task-webhook:has', (_evt, taskId) => {
   const id = String(taskId || '').trim()
-  if (!isValidLongTaskId(id)) return ''
+  if (!isValidLongTaskId(id)) return false
   const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
-  return String(webhooks[id] || '')
+  return !!String(webhooks[id] || '').trim()
 })
 
 ipcMain.handle('feishu:long-task-webhook:set', (_evt, taskId, value) => {
@@ -1262,16 +1322,16 @@ ipcMain.handle('feishu:long-task-supervisor:test', async (_evt, task) => {
   return runLongTaskSupervisorTick(true, task)
 })
 
-ipcMain.handle('feishu:app-secret:get', () => {
-  return readEncryptedString(FEISHU_APP_SECRET_FILE())
+ipcMain.handle('feishu:app-secret:has', () => {
+  return !!readEncryptedString(FEISHU_APP_SECRET_FILE())
 })
 
 ipcMain.handle('feishu:app-secret:set', (_evt, value) => {
   return writeEncryptedString(FEISHU_APP_SECRET_FILE(), String(value || '').trim(), 2048)
 })
 
-ipcMain.handle('hermes:api-key:get', () => {
-  return readEncryptedString(HERMES_API_KEY_FILE())
+ipcMain.handle('hermes:api-key:has', () => {
+  return !!readEncryptedString(HERMES_API_KEY_FILE())
 })
 
 ipcMain.handle('hermes:api-key:set', (_evt, value) => {

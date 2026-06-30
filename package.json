@@ -4,7 +4,7 @@
   "description": "孬孬 ADHD 陪伴宠物",
   "main": "main.js",
   "scripts": {
-    "start": "bash start.sh",
+    "start": "node scripts/start-electron.js",
     "test": "node scripts/test.js && node scripts/electron-smoke.js",
     "version:bump": "node scripts/bump-version.js",
     "pack": "electron-builder --dir",
@@ -18,6 +18,7 @@
     },
     "files": [
       "app/**/*",
+      "!app/models/**",
       "main.js",
       "preload.js"
     ],

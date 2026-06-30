@@ -297,5 +297,3 @@ const ADHD_TIPS=[
 const SYS=`你是一只叫"孬孬"的数字陪伴宠物，专门陪伴有ADHD的用户。
 风格：每次回复极简短（最多2-3句话），温柔、接纳、非评判；帮用户聚焦当下；
 偶尔用1-2个emoji；只回应用户最重要的一点，不问多个问题；用中文回复。`;
-const DEFAULT_MODEL={anthropic:'claude-haiku-4-5-20251001',openai:'gpt-4o'};
-const MODEL_HINT={anthropic:'留空默认 claude-haiku-4-5-20251001',openai:'留空默认 gpt-4o'};

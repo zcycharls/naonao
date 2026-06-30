@@ -1,47 +1,32 @@
 classDiagram
     class StatsStore {
-        +Object data
+        +read() Object
+        +write(data) void
         +init() void
-        +recordPomodoro(durationMinutes) void
-        +recordFridge(action, ideaId) void
-        +getPomoTotal() number
-        +getPomoToday() number
-        +getPomoStreak() number
-        +getPomoByDate(date) number
-        +getFridgeFrozen() number
-        +getFridgeRetrieved() number
-        +getFridgeTotal() number
-        +getPomoTrend(days) Array~date,count~
-        +getFridgeTrend(days) Array~date,count~
-        +getCalendarData(weeks) Array~date,hasCheckin~
-        +hasAnyData() boolean
-        -_load() Object
-        -_save() void
-        -_ensureInit() void
+        +recordPomo(durationSeconds) void
+        +todayPomos() number
+        +weekPomos() number
+        +totalFocusMin() number
+        +streakDays() number
+        +dailyMap(days) Object
+        +calendarWeeks() Array
     }
 
     class StatsRenderer {
         +renderAll() void
-        +renderPomoCard(data) void
-        +renderFridgeCard(data) void
-        +renderCalendar(data) void
-        +renderPomoChart(data) void
-        +renderFridgeChart(data) void
-        +renderEmptyState() void
-        -_makeCard(title, value, subtitle) HTMLElement
-        -_makeBar(value, max, label) HTMLElement
-        -_makeCalendarCell(date, checked) HTMLElement
+        +renderPomoCard() void
+        +renderFridgeCard() void
+        +renderCalendar() void
+        +renderTrend() void
+        +switchTrend(days) void
     }
 
-    class StatsDrawer {
-        +open() void
-        +close() void
-        +toggle() void
-        +refresh() void
-        -_bindEvents() void
-        -_bindOverlayClick() void
+    class Freezer {
+        +freezeIdea(text) void
+        +thawIdea(id) void
+        +useIdea(id) void
+        +renderFreezerList() void
     }
 
-    StatsDrawer --> StatsStore : reads
-    StatsDrawer --> StatsRenderer : calls
     StatsRenderer --> StatsStore : reads
+    StatsRenderer --> Freezer : reads freezerItems

@@ -75,175 +75,287 @@
       <button id="s-close" aria-label="关闭" title="关闭" class="danger">✕</button>
     </div>
   </div>
-  <div class="sh-body">
-    <div class="seg-lbl">API 提供商</div>
-    <div class="seg" role="group">
-      <button class="seg-b on" data-p="anthropic">Anthropic</button>
-      <button class="seg-b" data-p="openai">OpenAI 兼容</button>
-    </div>
-    <div id="st-row"></div>
-    <div class="fgrp">
-      <div class="frow">
-        <label for="f-key">API KEY</label>
-        <input type="password" id="f-key" placeholder="粘贴你的 API Key…" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="frow">
-        <label for="f-model">模型名称</label>
-        <input type="text" id="f-model" placeholder="留空则使用默认模型" autocomplete="off" spellcheck="false">
-        <span id="model-hint" class="hint"></span>
-      </div>
-      <div class="frow" id="fr-base" style="display:none">
-        <label for="f-base">Base URL</label>
-        <input type="url" id="f-base" placeholder="https://api.openai.com/v1" autocomplete="off" spellcheck="false">
-        <span class="hint">带不带 /v1 都可以，会自动拼接 /chat/completions。</span>
-      </div>
-      <div class="frow" id="fr-proxy">
-        <label class="chk-row">
-          <input type="checkbox" id="f-proxy">
-          <span>通过 CORS 代理转发（corsproxy.io）</span>
-        </label>
-        <span class="hint">⚠️ 仅浏览器版本（file://）需要勾选；勾选后 API Key 会经过第三方代理，谨慎使用。桌面版无需此项。</span>
-      </div>
-      <div class="frow">
-        <span class="hint">🔒 桌面版 Key 由系统加密存储，AI 请求由主进程代发；网页版仍仅存本设备浏览器。</span>
-      </div>
-    </div>
-    <div class="seg-lbl" style="margin-top:22px">主动打招呼频率</div>
-    <div class="seg" role="group" id="freq-seg">
-      <button class="seg-b" data-freq="off">关闭</button>
-      <button class="seg-b" data-freq="low">低 (~5分钟)</button>
-      <button class="seg-b on" data-freq="mid">中 (~3分钟)</button>
-      <button class="seg-b" data-freq="high">高 (~90秒)</button>
-    </div>
-    <span class="hint" style="margin-top:6px;display:block">专注时建议选"低"或"关闭"</span>
+  <div class="sh-body settings-layout">
+    <aside class="settings-nav" aria-label="设置分类">
+      <button class="settings-tab active" type="button" data-settings-tab="model"><span class="settings-tab-icon">▣</span><span>模型</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="conversation"><span class="settings-tab-icon">◌</span><span>对话</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="appearance"><span class="settings-tab-icon">◒</span><span>外观</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="workspace"><span class="settings-tab-icon">□</span><span>工作区</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="security"><span class="settings-tab-icon">⌂</span><span>安全</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="memory"><span class="settings-tab-icon">✣</span><span>记忆与上下文</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="providers"><span class="settings-tab-icon">↯</span><span>提供方</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="tools"><span class="settings-tab-icon">⌘</span><span>工具与密钥</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="advanced"><span class="settings-tab-icon">⚙</span><span>高级</span></button>
+      <button class="settings-tab" type="button" data-settings-tab="about"><span class="settings-tab-icon">ⓘ</span><span>关于</span></button>
+    </aside>
 
-    <div class="seg-lbl" style="margin-top:22px">飞书监督</div>
-    <div class="fgrp">
-      <div class="frow">
-        <label class="chk-row">
-          <input type="checkbox" id="feishu-enabled">
-          <span>开启飞书自动监督</span>
-        </label>
-        <span class="hint">启用后，孬孬会按下面的间隔自动发送消息；已连接应用机器人时优先发到最近会话，否则使用 Webhook。</span>
-      </div>
-      <div class="frow">
-        <label for="feishu-webhook">Webhook</label>
-        <input type="password" id="feishu-webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." autocomplete="off" spellcheck="false">
-      </div>
-      <div class="frow">
-        <label for="feishu-interval">每隔多少分钟提醒一次</label>
-        <input type="number" id="feishu-interval" min="1" max="240" step="1" value="30" inputmode="numeric">
-        <span class="hint">可设 1-240 分钟；测试可用 1 分钟，日常建议 25-45 分钟。</span>
-      </div>
-      <button id="feishu-test-btn" style="margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">发送测试提醒</button>
-      <span id="feishu-status" class="hint" style="margin-top:6px;display:block"></span>
-    </div>
+    <main class="settings-content">
+      <section class="settings-section" data-settings-section="model">
+        <div class="settings-section-head">
+          <h2>模型</h2>
+          <p>应用于新会话。可在输入框的模型选择器中临时切换当前对话。</p>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">API 提供商</div>
+          <div class="seg" role="group">
+            <button class="seg-b on" data-p="anthropic">Anthropic</button>
+            <button class="seg-b" data-p="openai">OpenAI 兼容</button>
+          </div>
+          <div id="st-row"></div>
+          <div class="fgrp">
+            <div class="frow">
+              <label for="f-key">API KEY</label>
+              <input type="password" id="f-key" placeholder="粘贴你的 API Key…" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="frow">
+              <label for="f-model">模型名称</label>
+              <input type="text" id="f-model" placeholder="留空则使用默认模型" autocomplete="off" spellcheck="false">
+              <span id="model-hint" class="hint"></span>
+            </div>
+            <div class="frow" id="fr-base" style="display:none">
+              <label for="f-base">Base URL</label>
+              <input type="url" id="f-base" placeholder="https://api.openai.com/v1" autocomplete="off" spellcheck="false">
+              <span class="hint">带不带 /v1 都可以，会自动拼接 /chat/completions。</span>
+            </div>
+          </div>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">本地 AI 模型（免费离线）</div>
+          <div id="local-model-status" class="hint">检测中…</div>
+          <div id="download-progress" class="download-progress">
+            <div class="download-head">
+              <span id="download-status">准备下载…</span>
+              <span id="download-pct">0%</span>
+            </div>
+            <div class="download-track">
+              <div id="download-bar"></div>
+            </div>
+            <button id="download-cancel" class="settings-action danger" type="button">取消</button>
+          </div>
+          <div class="settings-actions">
+            <button id="local-model-btn" class="settings-action" type="button">下载并加载模型</button>
+            <button id="local-model-delete-btn" class="settings-action danger" type="button">删除本地模型</button>
+          </div>
+          <span class="hint">模型约 460MB，首次使用需下载。下载后完全离线使用，无需 API Key。</span>
+        </div>
+      </section>
 
-    <div class="seg-lbl" style="margin-top:22px">飞书应用机器人（可读取回复）</div>
-    <div class="fgrp">
-      <div class="frow">
-        <label class="chk-row">
-          <input type="checkbox" id="feishu-app-enabled">
-          <span>启用飞书应用长连接</span>
-        </label>
-        <span class="hint">在飞书开放平台创建自建应用，启用机器人能力，并订阅 im.message.receive_v1。启用后，孬孬能收到你发给机器人的汇报。</span>
-      </div>
-      <div class="frow">
-        <label for="feishu-app-id">App ID</label>
-        <input type="text" id="feishu-app-id" placeholder="cli_xxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="frow">
-        <label for="feishu-app-secret">App Secret</label>
-        <input type="password" id="feishu-app-secret" placeholder="飞书开放平台 App Secret" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="frow">
-        <label for="feishu-chat-id">最近会话</label>
-        <input type="text" id="feishu-chat-id" placeholder="给机器人发一句话后自动填入" autocomplete="off" spellcheck="false">
-        <span class="hint">定时监督会发到这个会话。你可以先在飞书里给机器人发送“我开始了”。</span>
-      </div>
-      <button id="feishu-connect-btn" style="margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">连接飞书应用</button>
-      <span id="feishu-app-status" class="hint" style="margin-top:6px;display:block"></span>
-    </div>
+      <section class="settings-section" data-settings-section="conversation" hidden>
+        <div class="settings-section-head">
+          <h2>对话</h2>
+          <p>控制孬孬主动打招呼和提醒你的节奏。</p>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">主动打招呼频率</div>
+          <div class="seg" role="group" id="freq-seg">
+            <button class="seg-b" data-freq="off">关闭</button>
+            <button class="seg-b" data-freq="low">低 (~20分钟)</button>
+            <button class="seg-b on" data-freq="mid">中 (~10分钟)</button>
+            <button class="seg-b" data-freq="high">高 (~5分钟)</button>
+          </div>
+          <span class="hint">专注时建议选"低"或"关闭"</span>
+        </div>
+      </section>
 
-    <div class="seg-lbl" style="margin-top:22px">宠物模式</div>
-    <div class="seg" role="group" id="pet-mode-seg">
-      <button class="seg-b on" data-pet="lively">活泼模式</button>
-      <button class="seg-b" data-pet="quiet">安静模式</button>
-    </div>
-    <span class="hint" style="margin-top:6px;display:block">安静模式关掉所有空闲动画，只保留点击反馈；适合容易被余光晃动分心的人，也适合需要长时间专注的时候。</span>
+      <section class="settings-section" data-settings-section="appearance" hidden>
+        <div class="settings-section-head">
+          <h2>外观</h2>
+          <p>切换宠物动画密度，让桌面陪伴更适合当前任务。</p>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">宠物模式</div>
+          <div class="seg" role="group" id="pet-mode-seg">
+            <button class="seg-b on" data-pet="lively">活泼模式</button>
+            <button class="seg-b" data-pet="quiet">安静模式</button>
+          </div>
+          <span class="hint">安静模式关掉所有空闲动画，只保留点击反馈；适合容易被余光晃动分心的人，也适合需要长时间专注的时候。</span>
+        </div>
+      </section>
 
-    <div class="seg-lbl" style="margin-top:22px">Hermes Agent（官方 sidecar）</div>
-    <div class="fgrp">
-      <div class="frow">
-        <label class="chk-row">
-          <input type="checkbox" id="hermes-agent-enabled">
-          <span>连接官方 Hermes Agent API Server</span>
-        </label>
-        <span class="hint">需要你先在本机运行官方 Hermes Agent，并开启 API Server。启用后，孬孬聊天和飞书汇报回复会优先交给 Hermes Agent。</span>
-      </div>
-      <div class="frow">
-        <label for="hermes-agent-base">API Base URL</label>
-        <input type="url" id="hermes-agent-base" placeholder="http://127.0.0.1:8642/v1" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="frow">
-        <label for="hermes-agent-key">API Key</label>
-        <input type="password" id="hermes-agent-key" placeholder="API_SERVER_KEY" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="frow">
-        <label for="hermes-agent-model">模型名</label>
-        <input type="text" id="hermes-agent-model" placeholder="留空使用 hermes-agent" autocomplete="off" spellcheck="false">
-      </div>
-      <button id="hermes-agent-test-btn" style="margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">测试 Hermes 连接</button>
-      <span id="hermes-agent-status" class="hint" style="margin-top:6px;display:block"></span>
-    </div>
+      <section class="settings-section" data-settings-section="workspace" hidden>
+        <div class="settings-section-head">
+          <h2>工作区</h2>
+          <p>把长期目标和当前专注任务分开管理。</p>
+        </div>
+        <div class="settings-block settings-row-block">
+          <div>
+            <div class="settings-row-title">长远任务监督</div>
+            <span class="hint">每个长远任务绑定一个独立飞书机器人 Webhook。</span>
+          </div>
+          <button class="settings-action compact" type="button" data-settings-open="long-tasks">打开</button>
+        </div>
+      </section>
 
-    <div class="seg-lbl" style="margin-top:22px">本地记忆 fallback</div>
-    <div class="fgrp">
-      <div class="frow">
-        <label class="chk-row">
-          <input type="checkbox" id="hermes-enabled">
-          <span>启用本地长期记忆和自我学习</span>
-        </label>
-        <span class="hint">孬孬会从聊天和飞书汇报里学习你的偏好、工作模式和复盘结论，并在之后的对话中带入；敏感字段不会写入记忆。</span>
-      </div>
-      <span id="hermes-status" class="hint" style="display:block"></span>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button id="hermes-review-btn" style="flex:1;padding:8px 12px;border-radius:8px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;">查看记忆摘要</button>
-        <button id="hermes-clear-btn" style="flex:1;padding:8px 12px;border-radius:8px;border:1.5px solid #e8c4c4;background:transparent;font-family:var(--font-body);font-size:12px;font-weight:700;color:#c44;cursor:pointer;">清空记忆</button>
-      </div>
-    </div>
+      <section class="settings-section" data-settings-section="security" hidden>
+        <div class="settings-section-head">
+          <h2>安全</h2>
+          <p>密钥由系统加密存储，渲染进程只负责写入新值和检查是否已保存。</p>
+        </div>
+        <div class="settings-block">
+          <div class="settings-note">API Key 由系统加密存储，AI 请求由主进程代发。</div>
+        </div>
+      </section>
 
-    <div class="seg-lbl" style="margin-top:22px">🤖 本地 AI 模型（免费离线）</div>
-    <div id="local-model-status" class="hint" style="margin-top:4px;display:block">检测中…</div>
-    <!-- 下载进度条（默认隐藏）-->
-    <div id="download-progress" style="margin-top:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <span id="download-status" style="font-size:11px;font-weight:700;color:var(--text-main);">准备下载…</span>
-        <span id="download-pct" style="font-size:11px;font-weight:800;color:var(--accent);">0%</span>
-      </div>
-      <div style="width:100%;height:6px;background:rgba(200,185,245,.25);border-radius:3px;overflow:hidden;">
-        <div id="download-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#b39ddb,#7c5cbf);border-radius:3px;transition:width .3s ease;"></div>
-      </div>
-      <div style="display:flex;gap:6px;margin-top:6px;">
-        <button id="download-cancel" style="flex:1;padding:5px 0;border-radius:8px;border:1.5px solid rgba(220,140,140,.5);background:rgba(255,240,240,.7);font-size:11px;font-weight:700;color:#c44;cursor:pointer;">✕ 取消</button>
-      </div>
-    </div>
-    <button id="local-model-btn" style="margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">📥 下载并加载模型</button>
-    <button id="local-model-delete-btn" style="margin-top:6px;width:100%;padding:8px 12px;border-radius:10px;border:1.5px solid #e8c4c4;background:transparent;font-family:var(--font-body);font-size:12px;font-weight:700;color:#c44;cursor:pointer;transition:all .15s;">🗑 删除本地模型</button>
-    <span class="hint" style="margin-top:6px;display:block">模型约 460MB，首次使用需下载。下载后完全离线使用，无需 API Key。</span>
+      <section class="settings-section" data-settings-section="memory" hidden>
+        <div class="settings-section-head">
+          <h2>记忆与上下文</h2>
+          <p>配置 Hermes Agent 和本地长期记忆。</p>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">Hermes Agent（官方 sidecar）</div>
+          <div class="fgrp">
+            <div class="frow">
+              <label class="chk-row">
+                <input type="checkbox" id="hermes-agent-enabled">
+                <span>连接官方 Hermes Agent API Server</span>
+              </label>
+              <span class="hint">需要你先在本机运行官方 Hermes Agent，并开启 API Server。启用后，孬孬聊天和飞书汇报回复会优先交给 Hermes Agent。</span>
+            </div>
+            <div class="frow">
+              <label for="hermes-agent-base">API Base URL</label>
+              <input type="url" id="hermes-agent-base" placeholder="http://127.0.0.1:8642/v1" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="frow">
+              <label for="hermes-agent-key">API Key</label>
+              <input type="password" id="hermes-agent-key" placeholder="API_SERVER_KEY" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="frow">
+              <label for="hermes-agent-model">模型名</label>
+              <input type="text" id="hermes-agent-model" placeholder="留空使用 hermes-agent" autocomplete="off" spellcheck="false">
+            </div>
+            <button id="hermes-agent-test-btn" class="settings-action" type="button">测试 Hermes 连接</button>
+            <span id="hermes-agent-status" class="hint"></span>
+          </div>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">本地记忆 fallback</div>
+          <div class="fgrp">
+            <div class="frow">
+              <label class="chk-row">
+                <input type="checkbox" id="hermes-enabled">
+                <span>启用本地长期记忆和自我学习</span>
+              </label>
+              <span class="hint">孬孬会从聊天和飞书汇报里学习你的偏好、工作模式和复盘结论，并在之后的对话中带入；敏感字段不会写入记忆。</span>
+            </div>
+            <span id="hermes-status" class="hint"></span>
+            <div class="settings-actions">
+              <button id="hermes-review-btn" class="settings-action" type="button">查看记忆摘要</button>
+              <button id="hermes-clear-btn" class="settings-action danger" type="button">清空记忆</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    <button id="save-btn">保存并连接 ✦</button>
+      <section class="settings-section" data-settings-section="providers" hidden>
+        <div class="settings-section-head">
+          <h2>提供方</h2>
+          <p>配置飞书监督、应用机器人和汇报回流。</p>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">飞书监督</div>
+          <div class="fgrp">
+            <div class="frow">
+              <label class="chk-row">
+                <input type="checkbox" id="feishu-enabled">
+                <span>开启飞书自动监督</span>
+              </label>
+              <span class="hint">启用后，孬孬会按下面的间隔自动发送消息；已连接应用机器人时优先发到最近会话，否则使用 Webhook。</span>
+            </div>
+            <div class="frow">
+              <label for="feishu-webhook">Webhook</label>
+              <input type="password" id="feishu-webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." autocomplete="off" spellcheck="false">
+            </div>
+            <div class="frow">
+              <label for="feishu-interval">每隔多少分钟提醒一次</label>
+              <input type="number" id="feishu-interval" min="1" max="240" step="1" value="30" inputmode="numeric">
+              <span class="hint">可设 1-240 分钟；测试可用 1 分钟，日常建议 25-45 分钟。</span>
+            </div>
+            <button id="feishu-test-btn" class="settings-action" type="button">发送测试提醒</button>
+            <span id="feishu-status" class="hint"></span>
+          </div>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">飞书应用机器人（可读取回复）</div>
+          <div class="fgrp">
+            <div class="frow">
+              <label class="chk-row">
+                <input type="checkbox" id="feishu-app-enabled">
+                <span>启用飞书应用长连接</span>
+              </label>
+              <span class="hint">在飞书开放平台创建自建应用，启用机器人能力，并订阅 im.message.receive_v1。启用后，孬孬能收到你发给机器人的汇报。</span>
+            </div>
+            <div class="frow">
+              <label for="feishu-app-id">App ID</label>
+              <input type="text" id="feishu-app-id" placeholder="cli_xxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="frow">
+              <label for="feishu-app-secret">App Secret</label>
+              <input type="password" id="feishu-app-secret" placeholder="飞书开放平台 App Secret" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="frow">
+              <label for="feishu-chat-id">最近会话</label>
+              <input type="text" id="feishu-chat-id" placeholder="给机器人发一句话后自动填入" autocomplete="off" spellcheck="false">
+              <span class="hint">定时监督会发到这个会话。你可以先在飞书里给机器人发送“我开始了”。</span>
+            </div>
+            <button id="feishu-connect-btn" class="settings-action" type="button">连接飞书应用</button>
+            <span id="feishu-app-status" class="hint"></span>
+          </div>
+        </div>
+      </section>
 
-    <div class="seg-lbl" style="margin-top:22px">📝 日志</div>
-    <div id="log-container" style="background:#1a1a2e;border-radius:12px;padding:12px;height:150px;overflow-y:auto;font-family:monospace;font-size:11px;color:#a0a0b0;white-space:pre-wrap;word-break:break-all;">暂无日志</div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button id="log-copy" style="flex:1;padding:8px 12px;border-radius:8px;border:none;background:rgba(240,235,255,.8);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;color:#9b8cc0;cursor:pointer;">复制日志</button>
-      <button id="log-clear" style="flex:1;padding:8px 12px;border-radius:8px;border:none;background:rgba(240,235,255,.8);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;color:#9b8cc0;cursor:pointer;">清除日志</button>
-    </div>
+      <section class="settings-section" data-settings-section="tools" hidden>
+        <div class="settings-section-head">
+          <h2>工具与密钥</h2>
+          <p>集中查看需要外部凭据的工具入口。</p>
+        </div>
+        <div class="settings-block settings-row-block">
+          <div>
+            <div class="settings-row-title">飞书 Webhook</div>
+            <span class="hint">在“提供方”中写入或替换。</span>
+          </div>
+          <button class="settings-action compact" type="button" data-settings-tab="providers">更改</button>
+        </div>
+        <div class="settings-block settings-row-block">
+          <div>
+            <div class="settings-row-title">Hermes Agent Key</div>
+            <span class="hint">在“记忆与上下文”中写入或替换。</span>
+          </div>
+          <button class="settings-action compact" type="button" data-settings-tab="memory">更改</button>
+        </div>
+      </section>
 
-    <div class="seg-lbl" style="margin-top:22px">🔄 重新引导</div>
-    <button id="reset-onboarding-btn" style="margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--btn-bd);background:var(--btn-bg);font-family:var(--font-body);font-size:13px;font-weight:700;color:var(--text-main);cursor:pointer;transition:all .15s;">重新引导（重新显示首次欢迎）</button>
-    <span class="hint" style="margin-top:6px;display:block">清除引导标记，下次启动时会重新显示引导。</span>
+      <section class="settings-section" data-settings-section="advanced" hidden>
+        <div class="settings-section-head">
+          <h2>高级</h2>
+          <p>诊断日志和初始化状态。</p>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">日志</div>
+          <div id="log-container" class="settings-log">暂无日志</div>
+          <div class="settings-actions">
+            <button id="log-copy" class="settings-action" type="button">复制日志</button>
+            <button id="log-clear" class="settings-action" type="button">清除日志</button>
+          </div>
+        </div>
+        <div class="settings-block">
+          <div class="seg-lbl">重新引导</div>
+          <button id="reset-onboarding-btn" class="settings-action" type="button">重新引导（重新显示首次欢迎）</button>
+          <span class="hint">清除引导标记，下次启动时会重新显示引导。</span>
+        </div>
+      </section>
+
+      <section class="settings-section" data-settings-section="about" hidden>
+        <div class="settings-section-head">
+          <h2>关于</h2>
+          <p>孬孬桌面客户端。</p>
+        </div>
+        <div class="settings-block">
+          <div class="settings-note">当前是客户端模式，设置会保存在本机。</div>
+        </div>
+      </section>
+
+      <button id="save-btn">保存并连接 ✦</button>
+    </main>
   </div>
 </div>
 
@@ -455,6 +567,7 @@
 </div>
 
 <script src="js/pet-dialog.js"></script>
+<script src="js/provider-defaults.js"></script>
 <script src="js/fallback-data.js"></script>
 <script src="js/local-model.js"></script>
 <script src="app.js"></script>

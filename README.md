@@ -2,6 +2,7 @@
 
 > 一只桌面宠物，陪伴 ADHD 用户聚焦当下、减少焦虑。
 > 支持**本地 AI 模型**（免费离线），模型按需下载，不内置到安装包。
+> 当前只维护 **Electron 桌面客户端**；根目录旧版 `index.html` 和 GitHub Pages 产物不再作为产品入口维护。
 
 ---
 
@@ -49,12 +50,12 @@ npm start
 
 **原因**：`ELECTRON_RUN_AS_NODE=1` 环境变量被设置，导致 Electron 以 Node.js 模式运行（而不是主进程模式）。
 
-**解决**：项目已包含 `start.sh` 包装脚本，会自动 `unset` 这个变量。直接用 `npm start` 即可。
+**解决**：`npm start` 会通过 Node 启动器删除这个环境变量后再启动 Electron。直接用 `npm start` 即可。
 
 如果问题仍存在，手动取消变量：
 
-```bash
-unset ELECTRON_RUN_AS_NODE
+```powershell
+Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 npm start
 ```
 
@@ -99,7 +100,7 @@ npm run build
 
 输出文件：`dist/孬孬-Setup-<版本号>.exe`
 
-**注意**：`extraResources` 已设为 `[]`，模型不会打包进安装包。
+**注意**：打包配置显式排除 `app/models/**`，模型不会打包进安装包。
 
 ---
 
@@ -114,7 +115,7 @@ NAONAO/
 ├── main.js                 # Electron 主进程
 ├── preload.js              # 预加载脚本（暴露 API 到前端）
 ├── package.json
-├── start.sh                # 启动包装脚本（解决 ELECTRON_RUN_AS_NODE 问题）
+├── scripts/start-electron.js # 跨平台启动包装脚本
 └── dist/                  # 打包输出目录
 ```
 
@@ -169,6 +170,7 @@ git push origin main
 3. **本地 AI 模型**需要手动下载（点击设置里的按钮），或者把 `app/models/` 目录复制过来
 4. **推送代码前**确保已配置 SSH key（参考上方"GitHub"章节）
 5. **打包前**先测试 `npm start` 能正常运行
+6. **只维护桌面客户端**：功能入口在 `app/index.html`，业务代码在 `app/app.js` 和 `app/styles.css`；不要再同步修改根目录旧版 `index.html`。
 
 ---
 

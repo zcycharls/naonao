@@ -6,7 +6,7 @@
   var _m={
     'apk':'nono_config',
     'naonao_bodydouble':'nono_bd',
-    'naonao_freezer':'nono_fz',
+    'naonao_freezer':'nono_freezer',
     'naonao_mood':'nono_mood',
     'zt_task':'nono_task',
     'zt_lastActivity':'nono_last_activity',
@@ -28,6 +28,12 @@
       localStorage.setItem('nono_migrated_v1','1');
     }catch(e){console.error('key migration failed:',e)}
   }
+  try{
+    var legacyFreezer=localStorage.getItem('nono_fz');
+    if(legacyFreezer!==null&&localStorage.getItem('nono_freezer')===null){
+      localStorage.setItem('nono_freezer',legacyFreezer);
+    }
+  }catch(e){console.error('freezer migration failed:',e)}
 })();
 
 
@@ -93,8 +99,7 @@ function normalizeLongTasks(value){
 }
 
 let cfg=load();
-// Desktop never uses the third-party CORS proxy
-if(IS_ELECTRON) cfg.proxy=false;
+cfg.proxy=false;
 let history=[];
 let busy=false;
 
@@ -226,8 +231,33 @@ const hermesStatusEl=document.getElementById('hermes-status');
 const hermesReviewBtn=document.getElementById('hermes-review-btn');
 const hermesClearBtn=document.getElementById('hermes-clear-btn');
 const longTaskWebhookDrafts={};
+const longTaskWebhookSaved={};
 const removedLongTaskIds=new Set();
 let curP=cfg.p;
+
+function selectSettingsTab(tab){
+  const name=String(tab||'model');
+  const tabs=[...document.querySelectorAll('.settings-tab')];
+  const sections=[...document.querySelectorAll('.settings-section')];
+  const hasTarget=sections.some(section=>section.dataset.settingsSection===name);
+  const target=hasTarget?name:'model';
+  tabs.forEach(btn=>btn.classList.toggle('active',btn.dataset.settingsTab===target));
+  sections.forEach(section=>{
+    section.hidden=section.dataset.settingsSection!==target;
+  });
+}
+
+document.querySelectorAll('[data-settings-tab]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    selectSettingsTab(btn.dataset.settingsTab);
+  });
+});
+
+document.querySelectorAll('[data-settings-open="long-tasks"]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    window.petBridge?.openLongTasks?.();
+  });
+});
 
 function isValidFeishuWebhook(value){
   try{
@@ -281,7 +311,6 @@ function hermesAgentModelName(){
 }
 
 async function readHermesAgentApiKey(){
-  if(window.petBridge?.getHermesApiKey) return String(await window.petBridge.getHermesApiKey()||'').trim();
   return hermesAgentKeyEl?.value.trim()||'';
 }
 
@@ -460,14 +489,17 @@ function createLongTaskDraft(){
 }
 
 async function refreshLongTaskWebhooks(){
-  if(!IS_ELECTRON||!window.petBridge?.getLongTaskWebhook||!longTaskListEl) return;
+  if(!IS_ELECTRON||!window.petBridge?.hasLongTaskWebhook||!longTaskListEl) return;
   await Promise.all((cfg.longTasks||[]).map(async task=>{
     try{
-      const value=await window.petBridge.getLongTaskWebhook(task.id);
-      longTaskWebhookDrafts[task.id]=value||'';
+      const saved=!!(await window.petBridge.hasLongTaskWebhook(task.id));
+      longTaskWebhookSaved[task.id]=saved;
       const input=longTaskListEl.querySelector(`[data-long-task-id="${task.id}"] [data-field="webhook"]`);
-      if(input&&!input.matches(':focus')) input.value=value||'';
-    }catch(e){console.error('getLongTaskWebhook:',e)}
+      if(input&&!input.matches(':focus')){
+        input.value=longTaskWebhookDrafts[task.id]||'';
+        input.placeholder=saved?'已保存，留空继续使用当前 Webhook':'https://open.feishu.cn/open-apis/bot/v2/hook/...';
+      }
+    }catch(e){console.error('hasLongTaskWebhook:',e)}
   }));
 }
 
@@ -506,7 +538,7 @@ function renderLongTaskSettings(){
         </div>
         <div class="frow">
           <label>任务机器人 Webhook</label>
-          <input type="password" data-field="webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." autocomplete="off" spellcheck="false" value="${escapeHTML(longTaskWebhookDrafts[task.id]||'')}">
+          <input type="password" data-field="webhook" placeholder="${longTaskWebhookSaved[task.id]?'已保存，留空继续使用当前 Webhook':'https://open.feishu.cn/open-apis/bot/v2/hook/...'}" autocomplete="off" spellcheck="false" value="${escapeHTML(longTaskWebhookDrafts[task.id]||'')}">
         </div>
       </div>
       <span class="lt-status">${escapeHTML(longTaskStatusText(task))}</span>
@@ -554,7 +586,8 @@ async function saveLongTaskWebhooks(){
   removedLongTaskIds.clear();
   for(const task of cfg.longTasks||[]){
     const webhook=String(longTaskWebhookDrafts[task.id]||'').trim();
-    if(task.enabled&&!webhook){
+    const hasSaved=!!longTaskWebhookSaved[task.id];
+    if(task.enabled&&!webhook&&!hasSaved){
       if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」启用前需要填写任务机器人 Webhook`;
       return false;
     }
@@ -562,10 +595,14 @@ async function saveLongTaskWebhooks(){
       if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」的 Webhook 格式不正确`;
       return false;
     }
-    const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
-    if(!saved){
-      if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」的 Webhook 保存失败`;
-      return false;
+    if(webhook){
+      const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
+      if(!saved){
+        if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」的 Webhook 保存失败`;
+        return false;
+      }
+      longTaskWebhookSaved[task.id]=true;
+      longTaskWebhookDrafts[task.id]='';
     }
     ids.delete(task.id);
   }
@@ -597,17 +634,29 @@ async function syncFeishuSettingsFields(){
   updateHermesAgentStatus();
   if(hermesEnabledEl) hermesEnabledEl.checked=!!cfg.hermesEnabled;
   updateHermesStatus();
-  if(feishuWebhookEl && window.petBridge?.getFeishuWebhook){
-    try{feishuWebhookEl.value=await window.petBridge.getFeishuWebhook();}
-    catch(e){console.error('getFeishuWebhook failed:',e);feishuWebhookEl.value='';}
+  if(feishuWebhookEl && window.petBridge?.hasFeishuWebhook){
+    try{
+      const saved=!!(await window.petBridge.hasFeishuWebhook());
+      feishuWebhookEl.value='';
+      feishuWebhookEl.dataset.saved=saved?'1':'0';
+      feishuWebhookEl.placeholder=saved?'已保存，留空继续使用当前 Webhook':'https://open.feishu.cn/open-apis/bot/v2/hook/...';
+    }catch(e){console.error('hasFeishuWebhook failed:',e);feishuWebhookEl.value='';feishuWebhookEl.dataset.saved='0';}
   }
-  if(feishuAppSecretEl && window.petBridge?.getFeishuAppSecret){
-    try{feishuAppSecretEl.value=await window.petBridge.getFeishuAppSecret();}
-    catch(e){console.error('getFeishuAppSecret failed:',e);feishuAppSecretEl.value='';}
+  if(feishuAppSecretEl && window.petBridge?.hasFeishuAppSecret){
+    try{
+      const saved=!!(await window.petBridge.hasFeishuAppSecret());
+      feishuAppSecretEl.value='';
+      feishuAppSecretEl.dataset.saved=saved?'1':'0';
+      feishuAppSecretEl.placeholder=saved?'已保存，留空继续使用当前 App Secret':'App Secret';
+    }catch(e){console.error('hasFeishuAppSecret failed:',e);feishuAppSecretEl.value='';feishuAppSecretEl.dataset.saved='0';}
   }
-  if(hermesAgentKeyEl && window.petBridge?.getHermesApiKey){
-    try{hermesAgentKeyEl.value=await window.petBridge.getHermesApiKey();}
-    catch(e){console.error('getHermesApiKey failed:',e);hermesAgentKeyEl.value='';}
+  if(hermesAgentKeyEl && window.petBridge?.hasHermesApiKey){
+    try{
+      const saved=!!(await window.petBridge.hasHermesApiKey());
+      hermesAgentKeyEl.value='';
+      hermesAgentKeyEl.dataset.saved=saved?'1':'0';
+      hermesAgentKeyEl.placeholder=saved?'已保存，留空继续使用当前 Key':'可选 Bearer Token / API Key';
+    }catch(e){console.error('hasHermesApiKey failed:',e);hermesAgentKeyEl.value='';hermesAgentKeyEl.dataset.saved='0';}
   }
 }
 
@@ -636,7 +685,7 @@ async function applyExternalConfigUpdate(){
     syncApiKeyField();
     fModel.value=cfg.m;
     fBase.value=cfg.b;
-    fProxy.checked=!!cfg.proxy;
+    if(fProxy) fProxy.checked=false;
     await syncFeishuSettingsFields();
   }
   if(IS_LONG_TASKS_WIN) renderLongTaskSettings();
@@ -673,12 +722,14 @@ hermesClearBtn?.addEventListener('click',async ()=>{
 
 hermesAgentTestBtn?.addEventListener('click',async ()=>{
   const key=hermesAgentKeyEl?.value.trim()||'';
-  if(window.petBridge?.setHermesApiKey){
+  if(key&&window.petBridge?.setHermesApiKey){
     const saved=await window.petBridge.setHermesApiKey(key);
     if(!saved){
       updateHermesAgentStatus('Hermes API Key 保存失败');
       return;
     }
+    hermesAgentKeyEl.dataset.saved='1';
+    hermesAgentKeyEl.value='';
   }
   await testHermesAgentConnection();
 });
@@ -716,6 +767,7 @@ longTaskListEl?.addEventListener('click',async e=>{
     removedLongTaskIds.add(id);
     cfg.longTasks=normalizeLongTasks(collectLongTasksFromUI().filter(task=>task.id!==id));
     delete longTaskWebhookDrafts[id];
+    delete longTaskWebhookSaved[id];
     renderLongTaskSettings();
     return;
   }
@@ -725,11 +777,16 @@ longTaskListEl?.addEventListener('click',async e=>{
     const status=card.querySelector('.lt-status');
     const webhook=card.querySelector('[data-field="webhook"]')?.value.trim()||'';
     longTaskWebhookDrafts[id]=webhook;
+    const hasSaved=!!longTaskWebhookSaved[id];
     if(!task){
       if(status) status.textContent='请先填写任务名称或目标说明';
       return;
     }
-    if(!isValidFeishuWebhook(webhook)){
+    if(!webhook&&!hasSaved){
+      if(status) status.textContent='请先填写任务机器人 Webhook';
+      return;
+    }
+    if(webhook&&!isValidFeishuWebhook(webhook)){
       if(status) status.textContent='Webhook 格式不正确';
       return;
     }
@@ -738,10 +795,14 @@ longTaskListEl?.addEventListener('click',async e=>{
       return;
     }
     if(status) status.textContent='正在发送测试提醒…';
-    const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
-    if(!saved){
-      if(status) status.textContent='Webhook 保存失败';
-      return;
+    if(webhook){
+      const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
+      if(!saved){
+        if(status) status.textContent='Webhook 保存失败';
+        return;
+      }
+      longTaskWebhookSaved[task.id]=true;
+      longTaskWebhookDrafts[task.id]='';
     }
     const result=await sendLongTaskCheckin(task,true);
     if(status) status.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
@@ -755,14 +816,7 @@ longTaskSaveBtn?.addEventListener('click',async ()=>{
 async function openSettings(){
   cfg.hasApiKey=await refreshProviderKeyState(cfg.hasApiKey);
   syncApiKeyField();fModel.value=cfg.m;fBase.value=cfg.b;
-  fProxy.checked=!!cfg.proxy;
-  // Desktop: hide CORS proxy row entirely — Electron doesn't need it and routing keys
-  // through corsproxy.io is a security risk.
-  if(IS_ELECTRON){
-    const fr=document.getElementById('fr-proxy');
-    if(fr) fr.style.display='none';
-    fProxy.checked=false;
-  }
+  if(fProxy) fProxy.checked=false;
   await syncFeishuSettingsFields();
   curP=cfg.p;syncSeg();syncFreq();syncPetMode();updateStatus();
   overlay.classList.add('open');panel.classList.add('open');
@@ -1129,19 +1183,28 @@ if(window.petBridge?.onLongTaskSupervisorStatus){
 
 document.getElementById('feishu-test-btn')?.addEventListener('click',async ()=>{
   const webhook=feishuWebhookEl?.value.trim()||'';
+  const hasSavedWebhook=feishuWebhookEl?.dataset.saved==='1';
   if(!window.petBridge?.setFeishuWebhook||!window.petBridge?.testFeishuSupervisor){
     if(feishuStatusEl) feishuStatusEl.textContent='当前环境不支持飞书发送';
     return;
   }
-  if(!feishuAppEnabledEl?.checked&&!isValidFeishuWebhook(webhook)){
+  if(!feishuAppEnabledEl?.checked&&!webhook&&!hasSavedWebhook){
+    if(feishuStatusEl) feishuStatusEl.textContent='请先填写 Webhook';
+    return;
+  }
+  if(webhook&&!isValidFeishuWebhook(webhook)){
     if(feishuStatusEl) feishuStatusEl.textContent='Webhook 格式不正确';
     return;
   }
   if(feishuStatusEl) feishuStatusEl.textContent='正在发送测试提醒...';
-  const saved=webhook ? await window.petBridge.setFeishuWebhook(webhook) : true;
-  if(!saved){
-    if(feishuStatusEl) feishuStatusEl.textContent='Webhook 保存失败';
-    return;
+  if(webhook){
+    const saved=await window.petBridge.setFeishuWebhook(webhook);
+    if(!saved){
+      if(feishuStatusEl) feishuStatusEl.textContent='Webhook 保存失败';
+      return;
+    }
+    feishuWebhookEl.dataset.saved='1';
+    feishuWebhookEl.value='';
   }
   const result=await sendFeishuSupervisorCheckin(true);
   if(feishuStatusEl) feishuStatusEl.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
@@ -1162,11 +1225,17 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   const hermesEnabled=!!hermesEnabledEl?.checked;
   const longTasks=normalizeLongTasks(cfg.longTasks);
   const providerApiKey=fKey.value.trim();
-  if(feishuEnabled&&!feishuAppEnabled&&!isValidFeishuWebhook(feishuWebhook)){
+  const hasSavedWebhook=feishuWebhookEl?.dataset.saved==='1';
+  const hasSavedAppSecret=feishuAppSecretEl?.dataset.saved==='1';
+  if(feishuEnabled&&!feishuAppEnabled&&!feishuWebhook&&!hasSavedWebhook){
     if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
     return;
   }
-  if(feishuAppEnabled&&(!isValidFeishuAppId(feishuAppId)||!feishuAppSecret)){
+  if(feishuWebhook&&!isValidFeishuWebhook(feishuWebhook)){
+    if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
+    return;
+  }
+  if(feishuAppEnabled&&(!isValidFeishuAppId(feishuAppId)||(!feishuAppSecret&&!hasSavedAppSecret))){
     if(feishuAppStatusEl) feishuAppStatusEl.textContent='启用飞书应用前，请填写 App ID 和 App Secret';
     return;
   }
@@ -1178,26 +1247,29 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
       return;
     }
   }
-  if(window.petBridge?.setFeishuWebhook){
+  if(feishuWebhook&&window.petBridge?.setFeishuWebhook){
     const saved=await window.petBridge.setFeishuWebhook(feishuWebhook);
     if(!saved){
       if(feishuStatusEl) feishuStatusEl.textContent='飞书 Webhook 保存失败';
       return;
     }
+    feishuWebhookEl.dataset.saved='1';
   }
-  if(window.petBridge?.setFeishuAppSecret){
+  if(feishuAppSecret&&window.petBridge?.setFeishuAppSecret){
     const saved=await window.petBridge.setFeishuAppSecret(feishuAppSecret);
     if(!saved){
       if(feishuAppStatusEl) feishuAppStatusEl.textContent='飞书 App Secret 保存失败';
       return;
     }
+    feishuAppSecretEl.dataset.saved='1';
   }
-  if(window.petBridge?.setHermesApiKey){
+  if(hermesAgentKey&&window.petBridge?.setHermesApiKey){
     const saved=await window.petBridge.setHermesApiKey(hermesAgentKey);
     if(!saved){
       updateHermesAgentStatus('Hermes API Key 保存失败');
       return;
     }
+    hermesAgentKeyEl.dataset.saved='1';
   }
   const providerKeySaved=await saveProviderApiKeyIfNeeded(providerApiKey);
   if(!providerKeySaved){
@@ -1206,7 +1278,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   }
   const hasProviderKey=IS_ELECTRON?await refreshProviderKeyState(cfg.hasApiKey):!!providerApiKey;
   cfg={p:curP,k:IS_ELECTRON?'':providerApiKey,hasApiKey:hasProviderKey,m:fModel.value.trim(),
-    b:fBase.value.trim().replace(/\/+$/,''),proxy:IS_ELECTRON?false:fProxy.checked,freq:cfg.freq||'mid',
+    b:fBase.value.trim().replace(/\/+$/,''),proxy:false,freq:cfg.freq||'mid',
     feishuEnabled,
     feishuInterval:normalizeFeishuInterval(feishuIntervalEl?.value),
     feishuAppEnabled,
@@ -1325,7 +1397,7 @@ document.getElementById('dlg-clear').addEventListener('click',()=>{
 
 /* ════════ API — STREAMING ════════ */
 function proxify(url){
-  return cfg.proxy?`https://corsproxy.io/?${encodeURIComponent(url)}`:url;
+  return url;
 }
 function buildChatURL(base){
   const t=base.replace(/\/+$/,'');
@@ -3197,7 +3269,8 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
 let petExpanded = false;
 const PET_SIZE_KEY='nono_pet_size';
 const PET_POS_KEY='nono_pet_pos';
-const PET_SIZE_MIN=.7;
+const PET_SIZE_MIN=.35;
+const PET_SIZE_OLD_MIN=.7;
 const PET_SIZE_MAX=1.4;
 const PET_SIZE_STEP=.1;
 let petSize=readPetSize();
@@ -3210,7 +3283,16 @@ function normalizePetSize(value){
 }
 
 function readPetSize(){
-  try{return normalizePetSize(localStorage.getItem(PET_SIZE_KEY)||1);}
+  try{
+    const raw=localStorage.getItem(PET_SIZE_KEY);
+    if(raw===null) return 1;
+    const saved=Number(raw);
+    if(Number.isFinite(saved)&&Math.abs(saved-PET_SIZE_OLD_MIN)<.001){
+      localStorage.setItem(PET_SIZE_KEY,String(PET_SIZE_MIN));
+      return PET_SIZE_MIN;
+    }
+    return normalizePetSize(saved);
+  }
   catch{return 1;}
 }
 
@@ -3540,8 +3622,8 @@ if(IS_CHAT_WIN){
     const scale=petSize||1;
     const trayLeft=body.right-wrapRect.left+10*scale;
     const trayTop=body.top-wrapRect.top+body.height*.56;
-    const sizeLeft=body.right-wrapRect.left-6*scale;
-    const sizeTop=body.bottom-wrapRect.top-18*scale;
+    let sizeLeft=body.right-wrapRect.left-6*scale;
+    let sizeTop=body.bottom-wrapRect.top-18*scale;
     const bubbleWidth=200;
     const bubbleGap=Math.max(124, Math.round(126*scale));
     let bubbleLeft=trayLeft+bubbleGap;
@@ -3551,6 +3633,29 @@ if(IS_CHAT_WIN){
       bubbleSide='left';
     }
     if(miniBubbleNode) miniBubbleNode.classList.toggle('left-side', bubbleSide==='left');
+    if(petSizeHandle&&petTray){
+      const trayWidth=petTray.offsetWidth||24;
+      const trayHeight=petTray.offsetHeight||152;
+      const handleSize=petSizeHandle.offsetWidth||24;
+      const trayRect={
+        left:trayLeft,
+        right:trayLeft+trayWidth,
+        top:trayTop-trayHeight/2,
+        bottom:trayTop+trayHeight/2,
+      };
+      const handleRect={
+        left:sizeLeft,
+        right:sizeLeft+handleSize,
+        top:sizeTop,
+        bottom:sizeTop+handleSize,
+      };
+      const overlaps=handleRect.left<trayRect.right&&handleRect.right>trayRect.left&&
+        handleRect.top<trayRect.bottom&&handleRect.bottom>trayRect.top;
+      if(overlaps){
+        sizeLeft=Math.max(0,body.left-wrapRect.left+4*scale);
+        sizeTop=body.bottom-wrapRect.top-handleSize-6*scale;
+      }
+    }
     document.documentElement.style.setProperty('--pet-tray-left', `${Math.round(trayLeft)}px`);
     document.documentElement.style.setProperty('--pet-tray-top', `${Math.round(trayTop)}px`);
     document.documentElement.style.setProperty('--pet-size-left', `${Math.round(sizeLeft)}px`);
@@ -3626,6 +3731,7 @@ if(IS_CHAT_WIN){
       return;
     }
     if(dragging){
+      if(e.buttons===0) return;
       const dx=e.clientX-startX, dy=e.clientY-startY;
       if(Math.abs(dx)>1||Math.abs(dy)>1) dragMoved=true;
       applyPetPosition({x:dragStartPos.x+dx,y:dragStartPos.y+dy},{persist:false});

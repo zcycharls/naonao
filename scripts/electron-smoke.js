@@ -136,10 +136,44 @@ async function main() {
       let petClickJumps = false;
       let petHeartNearBody = false;
       let petBubbleAvoidsTray = false;
+      let petMinScaleClamp = false;
+      let petSizeHandleAvoidsTray = false;
       let petBubbleTrayRects = null;
       let miniBubbleRects = null;
       let petPressLayoutDelta = {};
       if (pw && petImg) {
+        const petSizeHandleForClamp = document.getElementById('pet-size-handle');
+        if (petSizeHandleForClamp) {
+          const previousPetSize = localStorage.getItem('nono_pet_size');
+          localStorage.setItem('nono_pet_size', '1');
+          window.dispatchEvent(new StorageEvent('storage', { key: 'nono_pet_size', newValue: '1' }));
+          const handleRect = petSizeHandleForClamp.getBoundingClientRect();
+          const startX = handleRect.left + handleRect.width / 2;
+          const startY = handleRect.top + handleRect.height / 2;
+          petSizeHandleForClamp.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: startX, clientY: startY, screenX: 420, screenY: 420 }));
+          window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, buttons: 1, clientX: startX - 400, clientY: startY - 400, screenX: 20, screenY: 20 }));
+          window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: startX - 400, clientY: startY - 400, screenX: 20, screenY: 20 }));
+          await new Promise(requestAnimationFrame);
+          petMinScaleClamp = getComputedStyle(document.documentElement).getPropertyValue('--pet-size-scale').trim() === '0.35';
+          window.syncPetAnchors?.();
+          await new Promise(requestAnimationFrame);
+          const trayAtMin = tray ? tray.getBoundingClientRect() : null;
+          const handleAtMin = petSizeHandleForClamp.getBoundingClientRect();
+          petSizeHandleAvoidsTray = !trayAtMin ||
+            trayAtMin.right < handleAtMin.left ||
+            handleAtMin.right < trayAtMin.left ||
+            trayAtMin.bottom < handleAtMin.top ||
+            handleAtMin.bottom < trayAtMin.top;
+          petSizeHandleForClamp.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: handleAtMin.left + handleAtMin.width / 2, clientY: handleAtMin.top + handleAtMin.height / 2, screenX: 420, screenY: 420 }));
+          window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: handleAtMin.left + handleAtMin.width / 2, clientY: handleAtMin.top + handleAtMin.height / 2, screenX: 420, screenY: 420 }));
+          await new Promise(requestAnimationFrame);
+          if (previousPetSize === null) {
+            localStorage.removeItem('nono_pet_size');
+          } else {
+            localStorage.setItem('nono_pet_size', previousPetSize);
+          }
+          await new Promise(requestAnimationFrame);
+        }
         pw.style.left = '0px';
         pw.style.top = '0px';
         const testPetPos = {
@@ -273,10 +307,10 @@ async function main() {
         localModelApi: typeof refreshLocalModelStatus === 'function' && typeof loadLocalModel === 'function' && typeof localInference === 'function',
         petSizeApi: !!window.petBridge && typeof window.petBridge.setPetSize === 'function' && typeof window.petBridge.setPetShape === 'function' && typeof window.petBridge.startPetDrag === 'function' && typeof window.petBridge.movePetDrag === 'function' && typeof window.petBridge.endPetDrag === 'function',
         longTaskOpenApi: !!window.petBridge && typeof window.petBridge.openLongTasks === 'function',
-        feishuApi: !!window.petBridge && typeof window.petBridge.getFeishuWebhook === 'function' && typeof window.petBridge.setFeishuWebhook === 'function' && typeof window.petBridge.sendFeishu === 'function',
+        feishuApi: !!window.petBridge && typeof window.petBridge.hasFeishuWebhook === 'function' && typeof window.petBridge.setFeishuWebhook === 'function' && typeof window.petBridge.sendFeishu === 'function',
         feishuAppApi: !!window.petBridge && typeof window.petBridge.startFeishuApp === 'function' && typeof window.petBridge.sendFeishuApp === 'function' && typeof window.petBridge.onFeishuMessage === 'function',
-        longTaskFeishuApi: !!window.petBridge && typeof window.petBridge.getLongTaskWebhook === 'function' && typeof window.petBridge.setLongTaskWebhook === 'function' && typeof window.petBridge.sendLongTaskFeishu === 'function',
-        hermesAgentApi: !!window.petBridge && typeof window.petBridge.getHermesApiKey === 'function' && typeof window.petBridge.setHermesApiKey === 'function' && typeof window.petBridge.testHermesAgent === 'function' && typeof window.petBridge.chatHermesAgent === 'function',
+        longTaskFeishuApi: !!window.petBridge && typeof window.petBridge.hasLongTaskWebhook === 'function' && typeof window.petBridge.setLongTaskWebhook === 'function' && typeof window.petBridge.sendLongTaskFeishu === 'function',
+        hermesAgentApi: !!window.petBridge && typeof window.petBridge.hasHermesApiKey === 'function' && typeof window.petBridge.setHermesApiKey === 'function' && typeof window.petBridge.testHermesAgent === 'function' && typeof window.petBridge.chatHermesAgent === 'function',
         configSyncApi: !!window.petBridge && typeof window.petBridge.notifyConfigChanged === 'function' && typeof window.petBridge.onConfigChanged === 'function',
         feishuSettings: !!document.getElementById('feishu-enabled') && !!document.getElementById('feishu-webhook') && !!document.getElementById('feishu-interval') && !!document.getElementById('feishu-app-id') && !!document.getElementById('feishu-app-secret'),
         longTaskSettings: !!document.getElementById('long-task-add-btn') && !!document.getElementById('long-task-list') && !!document.getElementById('long-task-status'),
@@ -292,6 +326,8 @@ async function main() {
         petClickJumps,
         petHeartNearBody,
         petBubbleAvoidsTray,
+        petMinScaleClamp,
+        petSizeHandleAvoidsTray,
         petBubbleTrayRects,
         miniBubbleRects,
         petPressLayoutDelta,
@@ -310,8 +346,9 @@ async function main() {
 
   assert.deepStrictEqual(errors, [], `runtime exceptions: ${JSON.stringify(errors, null, 2)}`)
   assert.deepStrictEqual(logs, [], `browser error logs: ${JSON.stringify(logs, null, 2)}`)
-  assert.deepStrictEqual(smoke.scripts.slice(-4), [
+  assert.deepStrictEqual(smoke.scripts.slice(-5), [
     'js/pet-dialog.js',
+    'js/provider-defaults.js',
     'js/fallback-data.js',
     'js/local-model.js',
     'app.js',
@@ -340,6 +377,8 @@ async function main() {
   assert.strictEqual(smoke.petClickJumps, true)
   assert.strictEqual(smoke.petHeartNearBody, true)
   assert.strictEqual(smoke.petBubbleAvoidsTray, true, `pet bubble overlaps tray: ${JSON.stringify(smoke.petBubbleTrayRects)}`)
+  assert.strictEqual(smoke.petMinScaleClamp, true)
+  assert.strictEqual(smoke.petSizeHandleAvoidsTray, true)
   assert.strictEqual(smoke.petTrayNearBody, true)
   assert.strictEqual(smoke.miniBubbleNearBody, true, `mini bubble is not near body: ${JSON.stringify(smoke.miniBubbleRects)}`)
   assert.strictEqual(smoke.taskRows, true)
