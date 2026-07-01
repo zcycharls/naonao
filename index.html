@@ -855,7 +855,7 @@
   </div>
 
   <div class="theme-cell">
-    <span class="top">v1.529.1626</span>
+    <span class="top">v1.701.0</span>
     <div class="lamp" aria-hidden="true"></div>
   </div>
 </header>
@@ -887,8 +887,8 @@
             <span class="sc">下载安装包</span>
           </div>
           <div class="step-body">
-            <a class="dl-btn" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
-              <span class="file">&#9660; 孬孬-Setup-1.529.1626.exe</span>
+            <a class="dl-btn" href="https://github.com/zcycharls/naonao/releases/download/v1.701.0/naonao-setup-1.701.0.exe" target="_blank" rel="noopener">
+              <span class="file">&#9660; naonao-setup-1.701.0.exe</span>
               <span class="arrow">&#8595;</span>
             </a>
             <span class="meta">~ 100 MB &middot; WIN10 / WIN11</span>
@@ -1073,7 +1073,7 @@
     </h2>
     <p>An open-source desktop companion. <em>MIT licensed.</em> No accounts, no telemetry, your API key and Feishu webhooks encrypted on your machine. Feishu supervision, long-term goal check-ins, Hermes Agent, pet resizing and local model are optional; supervisor schedules persist locally and resume after restart.</p>
     <div class="actions">
-      <a class="primary" href="https://github.com/zcycharls/naonao/releases" target="_blank" rel="noopener">
+      <a class="primary" href="https://github.com/zcycharls/naonao/releases/download/v1.701.0/naonao-setup-1.701.0.exe" target="_blank" rel="noopener">
         <span>DOWNLOAD .EXE</span>
       </a>
       <a href="https://github.com/zcycharls/naonao" target="_blank" rel="noopener">
@@ -1108,11 +1108,22 @@
 
     <div style="border-left:2px solid var(--ink-line);padding-left:24px;">
       <div style="margin-bottom:32px;">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-07-01 &nbsp; <span style="color:var(--gold);">v1.701.0</span></div>
+        <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">桌面客户端隐私边界加固</h3>
+        <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
+          <li><strong>桌面客户端</strong>：功能入口收敛到 Electron 客户端，naonao.help 只保留介绍和下载</li>
+          <li><strong>加密存储</strong>：任务、统计、心情、想法冰箱和 Hermes 记忆写入系统加密存储</li>
+          <li><strong>Base URL 确认</strong>：第三方 OpenAI 兼容接口和 Hermes 地址发送前要求确认</li>
+          <li><strong>请求边界</strong>：AI 和 Hermes 请求统一由主进程代发，渲染进程不再直连外部 AI 服务</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom:32px;">
         <div style="font-family:var(--mono);font-size:12px;color:var(--lavender);margin-bottom:6px;">2026-06-30 &nbsp; <span style="color:var(--gold);">v1.529.1626</span></div>
         <h3 style="font-family:var(--serif);font-size:17px;font-weight:500;color:var(--ink);margin:0 0 10px;">桌面客户端设置重组 + 桌宠缩放修复</h3>
         <ul style="font-size:14px;line-height:1.7;color:var(--ink-dim);padding-left:20px;margin:0;">
           <li><strong>设置页</strong>：按模型、监督、长期任务、外观和高级能力重组，降低配置时的来回查找成本</li>
-          <li><strong>桌面优先</strong>：项目入口收敛到 Electron 客户端，旧网页版不再作为产品入口维护</li>
+          <li><strong>桌面优先</strong>：项目入口收敛到 Electron 客户端，旧网页入口不再作为产品入口维护</li>
           <li><strong>隐私边界</strong>：渲染进程只读取密钥是否已保存，不再回显 AI Key、飞书 Webhook 或 Hermes Key 明文</li>
           <li><strong>桌宠缩放</strong>：最小尺寸降到 35%，并在小尺寸下避开右侧关闭按钮和托盘按钮</li>
           <li><strong>启动体验</strong>：`npm start` 改为跨平台启动器，默认隐藏多余控制台窗口</li>
