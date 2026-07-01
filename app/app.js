@@ -28,12 +28,6 @@
       localStorage.setItem('nono_migrated_v1','1');
     }catch(e){console.error('key migration failed:',e)}
   }
-  try{
-    var legacyFreezer=localStorage.getItem('nono_fz');
-    if(legacyFreezer!==null&&localStorage.getItem('nono_freezer')===null){
-      localStorage.setItem('nono_freezer',legacyFreezer);
-    }
-  }catch(e){console.error('freezer migration failed:',e)}
 })();
 
 
@@ -103,10 +97,94 @@ cfg.proxy=false;
 let history=[];
 let busy=false;
 
+const PRIVATE_CONTENT_KEYS=new Set([
+  'nono_hermes_memory_v1',
+  'nono_tasks',
+  'nono_task',
+  'nono_stats',
+  'nono_freezer',
+  'nono_mood',
+  'nono_last_activity',
+]);
+const privateCache=new Map();
+
+function initPrivateStore(){
+  if(!IS_ELECTRON||!window.petBridge?.privateStoreGetSync) return;
+  const legacySources={
+    nono_freezer:['nono_fz','naonao_freezer'],
+    nono_mood:['naonao_mood'],
+    nono_task:['zt_task'],
+    nono_last_activity:['zt_lastActivity'],
+    nono_tasks:['zt_tasks_v1'],
+    nono_stats:['naonao_stats'],
+  };
+  [...PRIVATE_CONTENT_KEYS].forEach(key=>{
+    let fallback=null;
+    try{fallback=localStorage.getItem(key);}catch{}
+    if(fallback===null){
+      for(const legacyKey of legacySources[key]||[]){
+        try{
+          fallback=localStorage.getItem(legacyKey);
+          if(fallback!==null) break;
+        }catch{}
+      }
+    }
+    try{
+      const value=window.petBridge.privateStoreGetSync(key,null);
+      if(value!==null&&value!==undefined){
+        privateCache.set(key,String(value));
+      }else if(fallback!==null&&window.petBridge?.privateStoreSet){
+        window.petBridge.privateStoreSet(key,fallback).then(saved=>{
+          if(!saved) return;
+          try{localStorage.removeItem(key);}catch{}
+          for(const legacyKey of legacySources[key]||[]){
+            try{localStorage.removeItem(legacyKey);}catch{}
+          }
+        }).catch(e=>console.error('private store migrate:',key,e));
+        privateCache.set(key,String(fallback));
+        return;
+      }
+      if(fallback!==null) localStorage.removeItem(key);
+      for(const legacyKey of legacySources[key]||[]){
+        try{localStorage.removeItem(legacyKey);}catch{}
+      }
+    }catch(e){console.error('private store init:',key,e)}
+  });
+}
+
+function privateGet(key,fallback=''){
+  if(IS_ELECTRON&&PRIVATE_CONTENT_KEYS.has(key)) return privateCache.has(key)?privateCache.get(key):fallback;
+  try{const value=localStorage.getItem(key);return value===null?fallback:value;}catch{return fallback;}
+}
+
+function privateSet(key,value){
+  const normalized=String(value);
+  if(IS_ELECTRON&&PRIVATE_CONTENT_KEYS.has(key)){
+    privateCache.set(key,normalized);
+    window.petBridge?.privateStoreSet?.(key,normalized).catch(e=>console.error('private store set:',key,e));
+    try{localStorage.removeItem(key);}catch{}
+    return;
+  }
+  localStorage.setItem(key,normalized);
+}
+
+function privateRemove(key){
+  if(IS_ELECTRON&&PRIVATE_CONTENT_KEYS.has(key)){
+    privateCache.delete(key);
+    window.petBridge?.privateStoreRemove?.(key).catch(e=>console.error('private store remove:',key,e));
+    try{localStorage.removeItem(key);}catch{}
+    return;
+  }
+  localStorage.removeItem(key);
+}
+
+initPrivateStore();
+
 function load(){
   try{const s=JSON.parse(localStorage.getItem('nono_config')||'{}');
     return{
       p:s.p||'anthropic',k:s.k||'',hasApiKey:!!s.hasApiKey,m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid',
+      confirmedOpenAIBaseUrl:s.confirmedOpenAIBaseUrl||'',
       feishuEnabled:!!s.feishuEnabled,
       feishuInterval:normalizeFeishuInterval(s.feishuInterval),
       feishuAppEnabled:!!s.feishuAppEnabled,
@@ -114,21 +192,22 @@ function load(){
       feishuAppChatId:s.feishuAppChatId||'',
       hermesAgentEnabled:!!s.hermesAgentEnabled,
       hermesAgentBaseUrl:s.hermesAgentBaseUrl||'http://127.0.0.1:8642/v1',
+      confirmedHermesBaseUrl:s.confirmedHermesBaseUrl||'',
       hermesAgentModel:s.hermesAgentModel||'',
       hermesEnabled:s.hermesEnabled!==false,
       longTasks:normalizeLongTasks(s.longTasks),
     };}
-  catch{return{p:'anthropic',k:'',hasApiKey:false,m:'',b:'',proxy:false,freq:'mid',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:'',hermesAgentEnabled:false,hermesAgentBaseUrl:'http://127.0.0.1:8642/v1',hermesAgentModel:'',hermesEnabled:true,longTasks:[]};}
+  catch{return{p:'anthropic',k:'',hasApiKey:false,m:'',b:'',proxy:false,freq:'mid',confirmedOpenAIBaseUrl:'',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:'',hermesAgentEnabled:false,hermesAgentBaseUrl:'http://127.0.0.1:8642/v1',confirmedHermesBaseUrl:'',hermesAgentModel:'',hermesEnabled:true,longTasks:[]};}
 }
 function save(){
-  // On desktop the API key lives in OS-encrypted storage (DPAPI / Keychain); never persist it
-  // to localStorage. On the web we still fall back to localStorage.
+  // Desktop-only product: never persist API keys to localStorage.
   if(IS_ELECTRON){
     const {k, ...rest}=cfg;
     localStorage.setItem('nono_config',JSON.stringify(rest));
     window.petBridge.notifyConfigChanged?.();
   } else {
-    localStorage.setItem('nono_config',JSON.stringify(cfg));
+    const {k, ...rest}=cfg;
+    localStorage.setItem('nono_config',JSON.stringify(rest));
   }
 }
 function hasKey(){return!!(cfg.k||cfg.hasApiKey);}
@@ -142,9 +221,9 @@ async function refreshProviderKeyState(fallback){
 async function saveProviderApiKeyIfNeeded(value){
   const key=String(value||'').trim();
   if(!IS_ELECTRON){
-    if(key) cfg.k=key;
-    cfg.hasApiKey=!!cfg.k;
-    return true;
+    cfg.k='';
+    cfg.hasApiKey=false;
+    return false;
   }
   if(!key) return true;
   if(!window.petBridge?.setSecret) return false;
@@ -296,29 +375,54 @@ function normalizeHermesAgentBaseUrl(value){
   return url.toString().replace(/\/+$/,'');
 }
 
-function hermesAgentEndpoint(path){
-  return `${normalizeHermesAgentBaseUrl(cfg.hermesAgentBaseUrl).replace(/\/+$/,'')}/${String(path||'').replace(/^\/+/,'')}`;
+function isLoopbackHost(hostname){
+  return ['localhost','127.0.0.1','::1','[::1]'].includes(String(hostname||'').toLowerCase());
 }
 
-function hermesAgentHealthUrl(){
-  const url=new URL(normalizeHermesAgentBaseUrl(cfg.hermesAgentBaseUrl));
-  url.pathname=url.pathname.replace(/\/v\d+$/,'').replace(/\/+$/,'')+'/health';
-  return url.toString();
+function normalizeOpenAICompatibleBaseUrl(value){
+  const raw=String(value||'').trim()||'https://api.openai.com/v1';
+  const url=new URL(raw);
+  const localHttp=url.protocol==='http:'&&isLoopbackHost(url.hostname);
+  if(url.protocol!=='https:'&&!localHttp) throw new Error('OpenAI 兼容 Base URL 必须使用 https，或本机 http');
+  url.username='';
+  url.password='';
+  url.hash='';
+  url.search='';
+  url.pathname=(url.pathname||'/v1').replace(/\/+$/,'')||'/v1';
+  return url.toString().replace(/\/+$/,'');
+}
+
+function needsOpenAIBaseUrlConsent(value){
+  const url=new URL(normalizeOpenAICompatibleBaseUrl(value));
+  return url.hostname!=='api.openai.com'&&!isLoopbackHost(url.hostname);
+}
+
+function needsHermesBaseUrlConsent(value){
+  const url=new URL(normalizeHermesAgentBaseUrl(value));
+  if(isLoopbackHost(url.hostname)) return false;
+  return url.protocol!=='https:'||!/(^|\.)hermes\.help$/i.test(url.hostname);
+}
+
+function isConfirmedOpenAIBaseUrl(value){
+  try{
+    const normalized=normalizeOpenAICompatibleBaseUrl(value);
+    return !needsOpenAIBaseUrlConsent(normalized)||cfg.confirmedOpenAIBaseUrl===normalized;
+  }catch{return false;}
+}
+
+function isConfirmedHermesBaseUrl(value){
+  try{
+    const normalized=normalizeHermesAgentBaseUrl(value);
+    return !needsHermesBaseUrlConsent(normalized)||cfg.confirmedHermesBaseUrl===normalized;
+  }catch{return false;}
+}
+
+async function confirmThirdPartyBaseUrl(kind,url){
+  return petDialog.confirm(`${kind} 将把你的消息和已保存的 API Key 发送到：\n${url}\n\n只在你信任这个服务时继续。`,{title:'确认第三方 Base URL'});
 }
 
 function hermesAgentModelName(){
   return String(cfg.hermesAgentModel||'').trim()||'hermes-agent';
-}
-
-async function readHermesAgentApiKey(){
-  return hermesAgentKeyEl?.value.trim()||'';
-}
-
-async function hermesAgentHeaders(){
-  const headers={'content-type':'application/json'};
-  const key=await readHermesAgentApiKey();
-  if(key) headers.Authorization=`Bearer ${key}`;
-  return headers;
 }
 
 function updateHermesAgentStatus(text){
@@ -334,26 +438,29 @@ async function testHermesAgentConnection(){
   if(!hermesAgentStatusEl) return false;
   try{
     cfg.hermesAgentBaseUrl=normalizeHermesAgentBaseUrl(hermesAgentBaseEl?.value||cfg.hermesAgentBaseUrl);
+    if(needsHermesBaseUrlConsent(cfg.hermesAgentBaseUrl)){
+      if(cfg.confirmedHermesBaseUrl!==cfg.hermesAgentBaseUrl){
+        const ok=await confirmThirdPartyBaseUrl('Hermes Agent',cfg.hermesAgentBaseUrl);
+        if(!ok) return false;
+      }
+      cfg.confirmedHermesBaseUrl=cfg.hermesAgentBaseUrl;
+    }else{
+      cfg.confirmedHermesBaseUrl='';
+    }
   }catch(e){
     updateHermesAgentStatus(e.message||'Hermes API Base URL 不正确');
     return false;
   }
   updateHermesAgentStatus('正在测试 Hermes 连接…');
-  const headers=await hermesAgentHeaders();
   try{
     if(window.petBridge?.testHermesAgent){
-      const result=await window.petBridge.testHermesAgent({baseUrl:cfg.hermesAgentBaseUrl});
+      const result=await window.petBridge.testHermesAgent({baseUrl:cfg.hermesAgentBaseUrl,allowThirdPartyBaseUrl:isConfirmedHermesBaseUrl(cfg.hermesAgentBaseUrl)});
       if(!result?.success) throw new Error(result?.error||'连接失败');
       updateHermesAgentStatus('Hermes Agent 连接正常');
+      save();
       return true;
     }
-    let response=await fetch(hermesAgentHealthUrl(),{headers});
-    if(!response.ok){
-      response=await fetch(hermesAgentEndpoint('models'),{headers});
-    }
-    if(!response.ok) throw new Error(`HTTP ${response.status}`);
-    updateHermesAgentStatus('Hermes Agent 连接正常');
-    return true;
+    throw new Error('当前客户端不支持主进程 Hermes 请求通道，请重新启动应用。');
   }catch(e){
     updateHermesAgentStatus(`Hermes Agent 连接失败：${e.message||'未知错误'}`);
     return false;
@@ -366,7 +473,7 @@ function createHermesMemory(){
 
 function readHermesMemory(){
   try{
-    const data=JSON.parse(localStorage.getItem(HERMES_MEMORY_KEY)||'null');
+    const data=JSON.parse(privateGet(HERMES_MEMORY_KEY,'null'));
     if(data&&data.version===1) return {...createHermesMemory(),...data};
   }catch(e){console.error('readHermesMemory:',e)}
   return createHermesMemory();
@@ -374,7 +481,7 @@ function readHermesMemory(){
 
 function writeHermesMemory(memory){
   memory.updatedAt=new Date().toISOString();
-  localStorage.setItem(HERMES_MEMORY_KEY,JSON.stringify(memory));
+  privateSet(HERMES_MEMORY_KEY,JSON.stringify(memory));
   updateHermesStatus();
 }
 
@@ -715,7 +822,7 @@ hermesReviewBtn?.addEventListener('click',async ()=>{
 hermesClearBtn?.addEventListener('click',async ()=>{
   const ok=await petDialog.confirm('确定要清空 Hermes 本地记忆吗？\n\n这不会删除聊天记录、任务、统计或飞书配置。',{title:'清空 Hermes 记忆'});
   if(!ok) return;
-  localStorage.removeItem(HERMES_MEMORY_KEY);
+  privateRemove(HERMES_MEMORY_KEY);
   updateHermesStatus();
   addLog('Hermes 记忆已清空');
 });
@@ -1225,6 +1332,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   const hermesEnabled=!!hermesEnabledEl?.checked;
   const longTasks=normalizeLongTasks(cfg.longTasks);
   const providerApiKey=fKey.value.trim();
+  let providerBaseUrl=fBase.value.trim().replace(/\/+$/,'');
   const hasSavedWebhook=feishuWebhookEl?.dataset.saved==='1';
   const hasSavedAppSecret=feishuAppSecretEl?.dataset.saved==='1';
   if(feishuEnabled&&!feishuAppEnabled&&!feishuWebhook&&!hasSavedWebhook){
@@ -1242,8 +1350,32 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   if(hermesAgentEnabled){
     try{
       hermesAgentBaseUrl=normalizeHermesAgentBaseUrl(hermesAgentBaseUrl);
+      if(needsHermesBaseUrlConsent(hermesAgentBaseUrl)){
+        if(cfg.confirmedHermesBaseUrl!==hermesAgentBaseUrl){
+          const ok=await confirmThirdPartyBaseUrl('Hermes Agent',hermesAgentBaseUrl);
+          if(!ok) return;
+        }
+      }else{
+        cfg.confirmedHermesBaseUrl='';
+      }
     }catch(e){
       updateHermesAgentStatus(e.message||'Hermes API Base URL 不正确');
+      return;
+    }
+  }
+  if(curP==='openai'&&providerBaseUrl){
+    try{
+      providerBaseUrl=normalizeOpenAICompatibleBaseUrl(providerBaseUrl);
+      if(needsOpenAIBaseUrlConsent(providerBaseUrl)){
+        if(cfg.confirmedOpenAIBaseUrl!==providerBaseUrl){
+          const ok=await confirmThirdPartyBaseUrl('OpenAI 兼容接口',providerBaseUrl);
+          if(!ok) return;
+        }
+      }else{
+        cfg.confirmedOpenAIBaseUrl='';
+      }
+    }catch(e){
+      appendErrorMsg(e.message||'OpenAI Base URL 不正确');
       return;
     }
   }
@@ -1277,8 +1409,10 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
     return;
   }
   const hasProviderKey=IS_ELECTRON?await refreshProviderKeyState(cfg.hasApiKey):!!providerApiKey;
+  const confirmedOpenAIBaseUrl=curP==='openai'&&providerBaseUrl&&needsOpenAIBaseUrlConsent(providerBaseUrl)?providerBaseUrl:'';
+  const confirmedHermesBaseUrl=hermesAgentEnabled&&needsHermesBaseUrlConsent(hermesAgentBaseUrl)?hermesAgentBaseUrl:'';
   cfg={p:curP,k:IS_ELECTRON?'':providerApiKey,hasApiKey:hasProviderKey,m:fModel.value.trim(),
-    b:fBase.value.trim().replace(/\/+$/,''),proxy:false,freq:cfg.freq||'mid',
+    b:providerBaseUrl,proxy:false,freq:cfg.freq||'mid',confirmedOpenAIBaseUrl,
     feishuEnabled,
     feishuInterval:normalizeFeishuInterval(feishuIntervalEl?.value),
     feishuAppEnabled,
@@ -1286,6 +1420,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
     feishuAppChatId,
     hermesAgentEnabled,
     hermesAgentBaseUrl,
+    confirmedHermesBaseUrl,
     hermesAgentModel,
     hermesEnabled,
     longTasks};
@@ -1396,14 +1531,6 @@ document.getElementById('dlg-clear').addEventListener('click',()=>{
 });
 
 /* ════════ API — STREAMING ════════ */
-function proxify(url){
-  return url;
-}
-function buildChatURL(base){
-  const t=base.replace(/\/+$/,'');
-  return /\/v\d+$/.test(t)?`${t}/chat/completions`:`${t}/v1/chat/completions`;
-}
-
 function hermesAgentMessages(userText, source='chat'){
   const label=source==='feishu'?'飞书监督汇报':'桌面聊天';
   return [
@@ -1418,6 +1545,7 @@ async function requestHermesAgentReply(userText, source='chat'){
   if(window.petBridge?.chatHermesAgent){
     const result=await window.petBridge.chatHermesAgent({
       baseUrl:cfg.hermesAgentBaseUrl,
+      allowThirdPartyBaseUrl:isConfirmedHermesBaseUrl(cfg.hermesAgentBaseUrl),
       model:hermesAgentModelName(),
       messages,
       maxTokens:220,
@@ -1425,22 +1553,7 @@ async function requestHermesAgentReply(userText, source='chat'){
     if(!result?.success) throw new Error(result?.error||'Hermes Agent 请求失败');
     return String(result.text||'').trim()||summarizeFeishuReport(userText);
   }
-  const response=await fetch(hermesAgentEndpoint('chat/completions'),{
-    method:'POST',
-    headers:await hermesAgentHeaders(),
-    body:JSON.stringify({
-      model:hermesAgentModelName(),
-      messages,
-      max_tokens:220,
-      stream:false,
-    }),
-  });
-  if(!response.ok){
-    const err=await response.json().catch(()=>({}));
-    throw new Error(err?.error?.message||`Hermes Agent HTTP ${response.status}`);
-  }
-  const data=await response.json();
-  return String(data?.choices?.[0]?.message?.content||'').trim()||summarizeFeishuReport(userText);
+  throw new Error('当前客户端不支持主进程 Hermes 请求通道，请重新启动应用。');
 }
 
 async function streamHermesAgent(msg){
@@ -1450,6 +1563,7 @@ async function streamHermesAgent(msg){
   if(window.petBridge?.chatHermesAgent){
     const result=await window.petBridge.chatHermesAgent({
       baseUrl:cfg.hermesAgentBaseUrl,
+      allowThirdPartyBaseUrl:isConfirmedHermesBaseUrl(cfg.hermesAgentBaseUrl),
       model:hermesAgentModelName(),
       messages,
       maxTokens:240,
@@ -1464,46 +1578,7 @@ async function streamHermesAgent(msg){
     }
     return;
   }
-  const response=await fetch(hermesAgentEndpoint('chat/completions'),{
-    method:'POST',
-    headers:await hermesAgentHeaders(),
-    body:JSON.stringify({
-      model:hermesAgentModelName(),
-      messages,
-      max_tokens:240,
-      stream:true,
-    }),
-  });
-  if(!response.ok){
-    const err=await response.json().catch(()=>({}));
-    throw new Error(err?.error?.message||`Hermes Agent HTTP ${response.status}`);
-  }
-  const reader=response.body.getReader();
-  const dec=new TextDecoder();
-  let buf='',full='';
-  while(true){
-    const {done,value}=await reader.read();
-    if(done) break;
-    buf+=dec.decode(value,{stream:true});
-    const lines=buf.split('\n');buf=lines.pop();
-    for(const line of lines){
-      if(!line.startsWith('data:')) continue;
-      const raw=line.slice(5).trim();
-      if(raw==='[DONE]') break;
-      try{
-        const chunk=JSON.parse(raw)?.choices?.[0]?.delta?.content||null;
-        if(chunk){
-          full+=chunk;
-          const fn=window._streamPatch||onStreamChunk;
-          fn(chunk);
-        }
-      }catch(e){console.error('Hermes stream chunk parse:',e)}
-    }
-  }
-  history.push({role:'assistant',content:full||'…'});
-  if(full&&/(下次|以后|适合你|你可以|建议你|next|later|suggest|advice)/i.test(full)){
-    addHermesMemory('reflection',`Hermes Agent 建议：${full.slice(0,120)}`,'chat',.45);
-  }
+  throw new Error('当前客户端不支持主进程 Hermes 请求通道，请重新启动应用。');
 }
 
 /* ── streaming bubble state ── */
@@ -1555,7 +1630,7 @@ async function send(){
   appendMsg('user',msg,img);
   learnHermesFromText(msg,'chat');
   clearAttachment();
-  localStorage.setItem('nono_last_activity', Date.now());
+  privateSet('nono_last_activity', Date.now());
 
   if(!hasKey() && !(cfg.hermesAgentEnabled&&!img)){
     // 没有 API key，确保本地模型已加载
@@ -1631,6 +1706,9 @@ async function streamAPIPatched(msg,img){
     await streamHermesAgent(msg);
     return;
   }
+  if(!IS_ELECTRON){
+    throw new Error('孬孬只维护 Electron 桌面客户端，请使用 npm start 或安装包启动。');
+  }
   const isAnthropic=cfg.p==='anthropic';
   let userContent;
   if(img){
@@ -1659,6 +1737,7 @@ async function streamAPIPatched(msg,img){
     const result=await window.petBridge.chatProvider({
       provider:cfg.p,
       baseUrl:cfg.b,
+      allowThirdPartyBaseUrl:cfg.p==='openai'&&!!cfg.b&&isConfirmedOpenAIBaseUrl(cfg.b),
       model,
       system:systemPrompt,
       messages:isAnthropic?history:[{role:'system',content:systemPrompt},...history],
@@ -1677,55 +1756,7 @@ async function streamAPIPatched(msg,img){
     }
     return;
   }
-  const url=isAnthropic
-    ?proxify('https://api.anthropic.com/v1/messages')
-    :proxify(buildChatURL(cfg.b||'https://api.openai.com'));
-
-  const headers=isAnthropic
-    ?{'content-type':'application/json','x-api-key':cfg.k,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'}
-    :{'content-type':'application/json','Authorization':`Bearer ${cfg.k}`};
-
-  const body=isAnthropic
-    ?JSON.stringify({model,max_tokens:200,stream:true,system:systemPrompt,messages:history})
-    :JSON.stringify({model,messages:[{role:'system',content:systemPrompt},...history],max_tokens:200,stream:true});
-
-  let r;
-  try{r=await fetch(url,{method:'POST',headers,body});}
-  catch(e){throw new Error(`网络连接失败，请在 ⚙️ 设置中勾选"通过 CORS 代理"后重试。`);}
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${r.status}`);}
-
-  const extractChunk=isAnthropic
-    ?(d=>d?.delta?.type==='text_delta'?d.delta.text:null)
-    :(d=>d?.choices?.[0]?.delta?.content||null);
-
-  const reader=r.body.getReader();
-  const dec=new TextDecoder();
-  let buf='',full='';
-  while(true){
-    const {done,value}=await reader.read();
-    if(done) break;
-    buf+=dec.decode(value,{stream:true});
-    const lines=buf.split('\n');buf=lines.pop();
-    for(const line of lines){
-      if(!line.startsWith('data:')) continue;
-      const raw=line.slice(5).trim();
-      if(raw==='[DONE]') break;
-      try{
-        const chunk=extractChunk(JSON.parse(raw));
-        if(chunk){
-          full+=chunk;
-          const fn=window._streamPatch||onStreamChunk;
-          fn(chunk);
-        }
-      }catch(e){console.error('stream chunk parse:',e)}
-    }
-  }
-  history.push({role:'assistant',content:full||'…'});
-  if(full&&/(下次|以后|适合你|你可以|建议你|next|later|suggest|advice)/i.test(full)){
-    addHermesMemory('reflection',`孬孬建议：${full.slice(0,120)}`,'chat',.45);
-  }
+  throw new Error('当前客户端不支持主进程 AI 请求通道，请重新启动应用。');
 }
 
 function appendErrorMsg(txt){
@@ -1744,17 +1775,11 @@ function appendErrorMsg(txt){
 
 /* ════════ NON-STREAMING JSON REQUEST (for AI 拆解) ════════ */
 async function requestJSON(userPrompt, systemPrompt, opt={}){
-  const timeoutMs=opt.timeoutMs||120000;
+  if(!IS_ELECTRON){
+    throw new Error('孬孬只维护 Electron 桌面客户端，请使用 npm start 或安装包启动。');
+  }
   const isAnthropic=cfg.p==='anthropic';
   const model=cfg.m||(isAnthropic?DEFAULT_MODEL.anthropic:DEFAULT_MODEL.openai);
-  const url=isAnthropic
-    ?proxify('https://api.anthropic.com/v1/messages')
-    :proxify(buildChatURL(cfg.b||'https://api.openai.com'));
-  const headers=isAnthropic
-    ?{'content-type':'application/json','x-api-key':cfg.k,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'}
-    :{'content-type':'application/json','Authorization':`Bearer ${cfg.k}`};
   const body=isAnthropic
     ? {model,max_tokens:800,system:systemPrompt,messages:[{role:'user',content:userPrompt}]}
     : {model,messages:[
@@ -1766,6 +1791,7 @@ async function requestJSON(userPrompt, systemPrompt, opt={}){
     const result=await window.petBridge.chatProvider({
       provider:cfg.p,
       baseUrl:cfg.b,
+      allowThirdPartyBaseUrl:cfg.p==='openai'&&!!cfg.b&&isConfirmedOpenAIBaseUrl(cfg.b),
       model,
       system:systemPrompt,
       messages:body.messages,
@@ -1774,27 +1800,7 @@ async function requestJSON(userPrompt, systemPrompt, opt={}){
     if(!result?.success) throw new Error(result?.error||'AI request failed');
     return String(result.text||'');
   }
-  
-  const ctrl=new AbortController();
-  const tid=setTimeout(()=>ctrl.abort(),timeoutMs);
-  let r;
-  
-  try{
-    r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:ctrl.signal});
-  }catch(e){
-    clearTimeout(tid);
-    if(e.name==='AbortError') throw new Error('请求超时');
-    throw new Error('网络连接失败');
-  }
-  clearTimeout(tid);
-  
-  if(!r.ok){
-    const e=await r.json().catch(()=>({}));
-    throw new Error(e?.error?.message||`HTTP ${r.status}`);
-  }
-  const data=await r.json();
-  if(isAnthropic) return data?.content?.[0]?.text || '';
-  return data?.choices?.[0]?.message?.content || '';
+  throw new Error('当前客户端不支持主进程 AI 请求通道，请重新启动应用。');
 }
 
 function parseStepsLoose(s){
@@ -1929,20 +1935,20 @@ const TaskStore = (()=>{
   function scheduleSave(){
     if(saveTimer) clearTimeout(saveTimer);
     saveTimer=setTimeout(()=>{
-      try{localStorage.setItem(TASKS_KEY,JSON.stringify(state));}catch(e){console.error(e);}
+      try{privateSet(TASKS_KEY,JSON.stringify(state));}catch(e){console.error(e);}
       // 镜像写回 zt_task：active 任务的 title（兼容已发布的气泡逻辑）
       const a=getActive();
-      localStorage.setItem('nono_task', a?a.title:'');
+      privateSet('nono_task', a?a.title:'');
     },200);
   }
   function getActive(){return state.tasks.find(t=>t.id===state.activeId)||null;}
   function load(){
     try{
-      const raw=localStorage.getItem(TASKS_KEY);
+      const raw=privateGet(TASKS_KEY,'');
       if(raw){state=JSON.parse(raw); if(!state.tasks)state.tasks=[]; return;}
     }catch(e){console.warn('TaskStore load failed',e);}
     // 迁移：旧 zt_task 字符串 → 第一条任务
-    const old=(localStorage.getItem('nono_task')||'').trim();
+    const old=(privateGet('nono_task','')||'').trim();
     if(old){
       const t={id:genId('t'),title:old.slice(0,MAX_TITLE),subtasks:[],createdAt:Date.now(),done:false};
       state={version:1,activeId:t.id,tasks:[t]};
@@ -2023,15 +2029,6 @@ const TaskStore = (()=>{
   function onChange(fn){subs.push(fn);return ()=>{const i=subs.indexOf(fn);if(i>=0)subs.splice(i,1);};}
 
   load();
-  // 跨窗口同步：另一个窗口写了 zt_tasks_v1 时，本窗口刷新
-  window.addEventListener('storage', e=>{
-    if(e.key===TASKS_KEY){
-      try{
-        const next=e.newValue?JSON.parse(e.newValue):{version:1,activeId:null,tasks:[]};
-        if(next && Array.isArray(next.tasks)){state=next; notify();}
-      }catch(e){console.error('storage event parse:',e)}
-    }
-  });
   return {get state(){return state;}, getActive, addTask, removeTask, renameTask,
     setActive, setTaskDone, setSubtasks, addSub, renameSub, toggleSub, removeSub,
     nextUnchecked, onChange};
@@ -2062,7 +2059,7 @@ if(taskAddInput){
         return;
       }
       taskAddInput.value='';
-      localStorage.setItem('nono_last_activity', Date.now());
+      privateSet('nono_last_activity', Date.now());
     }
   });
 }
@@ -2153,7 +2150,7 @@ if(taskRowsEl){
     if(act==='toggle'){
       const subId=e.target.closest('.tl-sub')?.dataset.subId;
       if(subId) TaskStore.toggleSub(taskId,subId);
-      localStorage.setItem('nono_last_activity', Date.now());
+      privateSet('nono_last_activity', Date.now());
       return;
     }
     if(act==='sub-del'){
@@ -2204,7 +2201,7 @@ if(taskRowsEl){
       } else {
         _expandedTaskId=null; // 让新 active 默认展开
         TaskStore.setActive(taskId);
-        localStorage.setItem('nono_last_activity', Date.now());
+        privateSet('nono_last_activity', Date.now());
       }
     }
   });
@@ -2345,8 +2342,8 @@ function localDateKey(date=new Date()){
   return d.toISOString().slice(0,10);
 }
 const StatsStore={
-  read(){try{let d=JSON.parse(localStorage.getItem(STATS_KEY));return d&&d.version===STATS_VERSION?d:null}catch(e){return null}},
-  write(data){data.version=STATS_VERSION;localStorage.setItem(STATS_KEY,JSON.stringify(data))},
+  read(){try{let d=JSON.parse(privateGet(STATS_KEY,'null'));return d&&d.version===STATS_VERSION?d:null}catch(e){return null}},
+  write(data){data.version=STATS_VERSION;privateSet(STATS_KEY,JSON.stringify(data))},
   init(){const d=this.read();if(d)return d;const n={version:STATS_VERSION,pomodoro:{records:[]},fridge:{frozen:0,retrieved:0,records:[]}};this.write(n);return n},
   recordPomo(durationSeconds=POMO_WORK){const d=this.init();const now=new Date();d.pomodoro.records.push({date:localDateKey(now),duration:durationSeconds,completedAt:now.toISOString()});this.write(d)},
   todayPomos(){const d=this.init();const td=localDateKey();return d.pomodoro.records.filter(r=>r.date===td).length},
@@ -2471,7 +2468,7 @@ window.addEventListener('storage',e=>{
 updateBD();
 
 /* ════════ FREEZER ════════ */
-let freezerItems=JSON.parse(localStorage.getItem('nono_freezer')||'[]');
+let freezerItems=JSON.parse(privateGet('nono_freezer','[]'));
 const fzDrawer=document.getElementById('freezer-drawer');
 const fzOverlay=document.getElementById('freezer-overlay');
 const fzList=document.getElementById('freezer-list');
@@ -2479,7 +2476,7 @@ const fzEmpty=document.getElementById('freezer-empty');
 const fzInput=document.getElementById('freezer-input');
 const fzBtn=document.getElementById('freezer-btn');
 
-const updateFreezer=()=>{localStorage.setItem('nono_freezer',JSON.stringify(freezerItems));fzBtn.setAttribute('data-count',freezerItems.length);renderFreezerList()};
+const updateFreezer=()=>{privateSet('nono_freezer',JSON.stringify(freezerItems));fzBtn.setAttribute('data-count',freezerItems.length);renderFreezerList()};
 const freezeIdea=(text)=>{if(!text.trim())return;freezerItems.unshift({id:'fz_'+Date.now(),text:text.trim(),frozenAt:new Date().toISOString()});updateFreezer();fzInput.value=''};
 const thawIdea=(id)=>{freezerItems=freezerItems.filter(i=>i.id!==id);updateFreezer()};
 const useIdea=(id)=>{const item=freezerItems.find(i=>i.id===id);if(!item)return;const taskInput=document.getElementById('task-add-input');if(taskInput){taskInput.value=item.text;taskInput.focus();taskInput.dispatchEvent(new Event('input',{bubbles:true}))}thawIdea(id);closeFreezer()};
@@ -2496,8 +2493,8 @@ updateFreezer();
 
 /* ════════ MOOD JOURNAL ════════ */
 const MOOD_KEY='nono_mood';
-let moodJournal=JSON.parse(localStorage.getItem(MOOD_KEY)||'[]');
-const saveMood=()=>localStorage.setItem(MOOD_KEY,JSON.stringify(moodJournal));
+let moodJournal=JSON.parse(privateGet(MOOD_KEY,'[]'));
+const saveMood=()=>privateSet(MOOD_KEY,JSON.stringify(moodJournal));
 const promptMood=()=>{
   const row=document.createElement('div');row.className='mood-prompt';
   row.innerHTML='<span>刚才感觉怎么样？</span><button data-m="great">😊</button><button data-m="ok">😐</button><button data-m="😣">😣</button>';
@@ -3203,14 +3200,13 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
     }else if(action==='done'){
       const task=document.getElementById('onboard-task').value.trim();
       if(task){
-        // Use TaskStore if available, fallback to localStorage
+        // Use TaskStore if available, fallback to the private task key.
         if(typeof TaskStore !== 'undefined' && TaskStore.addTask){
           TaskStore.addTask(task);
         } else {
-          // Fallback: set zt_task directly
-          localStorage.setItem('nono_task', task);
+          privateSet('nono_task', task);
         }
-        localStorage.setItem('nono_last_activity', Date.now());
+        privateSet('nono_last_activity', Date.now());
       }
       finish();
     }
@@ -3251,9 +3247,9 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
           if(typeof TaskStore !== 'undefined' && TaskStore.addTask){
             TaskStore.addTask(task);
           } else {
-            localStorage.setItem('nono_task', task);
+            privateSet('nono_task', task);
           }
-          localStorage.setItem('nono_last_activity', Date.now());
+          privateSet('nono_last_activity', Date.now());
         }
         finish();
       }
@@ -3530,7 +3526,7 @@ if(IS_CHAT_WIN){
   _bubblePush = (msg)=>{
     if(!msg) return;
     showMini(String(msg));
-    localStorage.setItem('nono_last_activity', Date.now());
+    privateSet('nono_last_activity', Date.now());
   };
   // 上线问候——让用户立刻确认气泡能弹出
   setTimeout(()=>showMini('你好呀，我是孬孬'), 4000);
@@ -3836,8 +3832,8 @@ if(IS_CHAT_WIN){
     '休息够了就继续「{t}」吧～',
   ];
   // 初始化活跃时间（冷启动时不立刻提醒）
-  if(!localStorage.getItem('nono_last_activity')){
-    localStorage.setItem('nono_last_activity', Date.now());
+  if(!privateGet('nono_last_activity','')){
+    privateSet('nono_last_activity', Date.now());
   }
 
   // 启动时：自动检测并加载内置本地模型
@@ -3853,7 +3849,7 @@ if(IS_CHAT_WIN){
   // 点击宠物也算活跃
   const _origShowMini = showMini;
   showMini = function(msg){
-    localStorage.setItem('nono_last_activity', Date.now());
+    privateSet('nono_last_activity', Date.now());
     _origShowMini(msg);
   };
 
@@ -3863,7 +3859,7 @@ if(IS_CHAT_WIN){
     if(threshold === null) return; // 关闭提醒
     const act = TaskStore.getActive();
     if(!act) return; // 没有设置任务
-    const lastAct = parseInt(localStorage.getItem('nono_last_activity') || '0');
+    const lastAct = parseInt(privateGet('nono_last_activity','0') || '0');
     const idle = Date.now() - lastAct;
     if(idle >= threshold){
       const next = TaskStore.nextUnchecked(act.id);
@@ -3881,7 +3877,7 @@ if(IS_CHAT_WIN){
         msg = tpl.replace('{t}', act.title);
       }
       showMini(msg);
-      localStorage.setItem('nono_last_activity', Date.now());
+      privateSet('nono_last_activity', Date.now());
     }
   }, 60*1000);
 }

@@ -254,6 +254,7 @@ const PET_BASE_WIDTH = 335
 const PET_BASE_HEIGHT = 320
 const PET_MIN_SCALE = 0.35
 const PET_MAX_SCALE = 1.4
+const REQUEST_TIMEOUT_MS = 45000
 let petDragAnchor = null
 let petDragTimer = null
 let petWindowShape = null
@@ -589,6 +590,7 @@ function createWindow() {
 
 // ── Encrypted storage for the API key (DPAPI on Windows / Keychain on macOS) ──
 const SECRET_FILE = () => path.join(app.getPath('userData'), 'apk.bin')
+const PRIVATE_STORE_FILE = () => path.join(app.getPath('userData'), 'private-store.bin')
 const FEISHU_WEBHOOK_FILE = () => path.join(app.getPath('userData'), 'feishu-webhook.bin')
 const FEISHU_APP_SECRET_FILE = () => path.join(app.getPath('userData'), 'feishu-app-secret.bin')
 const HERMES_API_KEY_FILE = () => path.join(app.getPath('userData'), 'hermes-api-key.bin')
@@ -604,6 +606,17 @@ let feishuSupervisorTimer = null
 let feishuSupervisorSending = false
 let longTaskSupervisorTimer = null
 const longTaskSupervisorSending = new Set()
+
+function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer))
+}
+
+function isLoopbackHost(hostname) {
+  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(String(hostname || '').toLowerCase())
+}
 
 ipcMain.handle('secret:has', () => {
   return !!readEncryptedString(SECRET_FILE())
@@ -696,6 +709,72 @@ function writeEncryptedJSON(filePath, value, maxLength) {
   }
 }
 
+const PRIVATE_STORE_KEYS = new Set([
+  'nono_hermes_memory_v1',
+  'nono_tasks',
+  'nono_task',
+  'nono_stats',
+  'nono_freezer',
+  'nono_mood',
+  'nono_last_activity',
+])
+const PRIVATE_STORE_MAX_STRING = 30000
+const PRIVATE_STORE_MAX_TOTAL = 120000
+
+function readPrivateStore() {
+  return readEncryptedJSON(PRIVATE_STORE_FILE(), {})
+}
+
+function writePrivateStore(store) {
+  return writeEncryptedJSON(PRIVATE_STORE_FILE(), store, PRIVATE_STORE_MAX_TOTAL)
+}
+
+function isPrivateStoreKey(value) {
+  return PRIVATE_STORE_KEYS.has(String(value || ''))
+}
+
+function sanitizePrivateStoreValue(value) {
+  if (typeof value === 'string') return value.slice(0, PRIVATE_STORE_MAX_STRING)
+  if (value === null || typeof value === 'number' || typeof value === 'boolean') return value
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    const raw = JSON.stringify(value)
+    if (raw.length > PRIVATE_STORE_MAX_STRING) return null
+    return JSON.parse(raw)
+  }
+  return null
+}
+
+ipcMain.handle('private-store:get', (_evt, key, fallback = null) => {
+  if (!isPrivateStoreKey(key)) return fallback
+  const store = readPrivateStore()
+  return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : fallback
+})
+
+ipcMain.on('private-store:get-sync', (event, key, fallback = null) => {
+  if (!isPrivateStoreKey(key)) {
+    event.returnValue = fallback
+    return
+  }
+  const store = readPrivateStore()
+  event.returnValue = Object.prototype.hasOwnProperty.call(store, key) ? store[key] : fallback
+})
+
+ipcMain.handle('private-store:set', (_evt, key, value) => {
+  if (!isPrivateStoreKey(key)) return false
+  const safeValue = sanitizePrivateStoreValue(value)
+  if (safeValue === null) return false
+  const store = readPrivateStore()
+  store[key] = safeValue
+  return writePrivateStore(store)
+})
+
+ipcMain.handle('private-store:remove', (_evt, key) => {
+  if (!isPrivateStoreKey(key)) return false
+  const store = readPrivateStore()
+  delete store[key]
+  return writePrivateStore(store)
+})
+
 const PROVIDER_MAX_MESSAGES = 24
 const PROVIDER_MAX_TEXT = 12000
 
@@ -710,7 +789,7 @@ function normalizeProviderModel(provider, value) {
 function normalizeOpenAIBaseUrl(value) {
   const raw = String(value || '').trim() || 'https://api.openai.com'
   const url = new URL(raw)
-  const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
+  const localHttp = url.protocol === 'http:' && isLoopbackHost(url.hostname)
   if (url.protocol !== 'https:' && !localHttp) {
     throw new Error('OpenAI-compatible Base URL must use https or local http')
   }
@@ -722,6 +801,11 @@ function normalizeOpenAIBaseUrl(value) {
   if (!/\/chat\/completions$/.test(pathname)) pathname += '/chat/completions'
   url.pathname = pathname
   return url.toString()
+}
+
+function needsOpenAIBaseUrlConsent(value) {
+  const url = new URL(normalizeOpenAIBaseUrl(value))
+  return url.hostname !== 'api.openai.com' && !isLoopbackHost(url.hostname)
 }
 
 function normalizeProviderContent(content) {
@@ -794,10 +878,13 @@ ipcMain.handle('ai:chat', async (_evt, config) => {
       body = { model, max_tokens: maxTokens, stream: false, system: systemPrompt, messages }
     } else {
       url = normalizeOpenAIBaseUrl(config?.baseUrl)
+      if (needsOpenAIBaseUrlConsent(config?.baseUrl) && config?.allowThirdPartyBaseUrl !== true) {
+        return { success: false, error: 'Custom Base URL must be explicitly confirmed before sending the API key' }
+      }
       body = { model, messages, max_tokens: maxTokens, stream: false }
     }
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: providerHeaders(provider, apiKey),
       body: JSON.stringify(body),
@@ -1254,7 +1341,7 @@ async function sendFeishuWebhookMessage(webhook, text) {
   }
 
   try {
-    const response = await fetch(webhook, {
+    const response = await fetchWithTimeout(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify({
@@ -1348,6 +1435,12 @@ function normalizeHermesBaseUrl(value) {
   return url.toString().replace(/\/+$/, '')
 }
 
+function needsHermesBaseUrlConsent(value) {
+  const url = new URL(normalizeHermesBaseUrl(value))
+  if (isLoopbackHost(url.hostname)) return false
+  return url.protocol !== 'https:' || !/(^|\.)hermes\.help$/i.test(url.hostname)
+}
+
 function hermesEndpoint(baseUrl, pathName) {
   return `${normalizeHermesBaseUrl(baseUrl).replace(/\/+$/, '')}/${String(pathName || '').replace(/^\/+/, '')}`
 }
@@ -1368,8 +1461,11 @@ function hermesHeaders() {
 ipcMain.handle('hermes:test', async (_evt, config) => {
   try {
     const baseUrl = normalizeHermesBaseUrl(config?.baseUrl)
-    let response = await fetch(hermesHealthUrl(baseUrl), { headers: hermesHeaders() })
-    if (!response.ok) response = await fetch(hermesEndpoint(baseUrl, 'models'), { headers: hermesHeaders() })
+    if (needsHermesBaseUrlConsent(baseUrl) && config?.allowThirdPartyBaseUrl !== true) {
+      return { success: false, error: 'Hermes Base URL must be explicitly confirmed before sending the API key' }
+    }
+    let response = await fetchWithTimeout(hermesHealthUrl(baseUrl), { headers: hermesHeaders() })
+    if (!response.ok) response = await fetchWithTimeout(hermesEndpoint(baseUrl, 'models'), { headers: hermesHeaders() })
     if (!response.ok) return { success: false, error: `HTTP ${response.status}` }
     return { success: true }
   } catch (e) {
@@ -1380,9 +1476,12 @@ ipcMain.handle('hermes:test', async (_evt, config) => {
 ipcMain.handle('hermes:chat', async (_evt, config) => {
   try {
     const baseUrl = normalizeHermesBaseUrl(config?.baseUrl)
+    if (needsHermesBaseUrlConsent(baseUrl) && config?.allowThirdPartyBaseUrl !== true) {
+      return { success: false, error: 'Hermes Base URL must be explicitly confirmed before sending the API key' }
+    }
     const model = String(config?.model || '').trim() || 'hermes-agent'
     const messages = Array.isArray(config?.messages) ? config.messages : []
-    const response = await fetch(hermesEndpoint(baseUrl, 'chat/completions'), {
+    const response = await fetchWithTimeout(hermesEndpoint(baseUrl, 'chat/completions'), {
       method: 'POST',
       headers: hermesHeaders(),
       body: JSON.stringify({

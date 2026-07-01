@@ -115,6 +115,7 @@
             <div class="frow" id="fr-base" style="display:none">
               <label for="f-base">Base URL</label>
               <input type="url" id="f-base" placeholder="https://api.openai.com/v1" autocomplete="off" spellcheck="false">
+              <span class="hint">自定义 Base URL 会接收你的消息和 API Key；只填写你信任的服务。</span>
               <span class="hint">带不带 /v1 都可以，会自动拼接 /chat/completions。</span>
             </div>
           </div>
@@ -214,6 +215,7 @@
             <div class="frow">
               <label for="hermes-agent-base">API Base URL</label>
               <input type="url" id="hermes-agent-base" placeholder="http://127.0.0.1:8642/v1" autocomplete="off" spellcheck="false">
+              <span class="hint">推荐使用本机 Hermes Agent。非本机地址会在发送 Key 前要求确认。</span>
             </div>
             <div class="frow">
               <label for="hermes-agent-key">API Key</label>
@@ -350,7 +352,7 @@
           <p>孬孬桌面客户端。</p>
         </div>
         <div class="settings-block">
-          <div class="settings-note">当前是客户端模式，设置会保存在本机。</div>
+          <div class="settings-note">当前是客户端模式，设置会保存在本机；任务、统计、心情、想法冰箱和 Hermes 记忆会写入系统加密存储。</div>
         </div>
       </section>
 

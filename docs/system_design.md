@@ -16,7 +16,7 @@
 | 挑战 | 说明 |
 |------|------|
 | **纯 CSS/SVG 图表** | 不引入 Chart.js 等第三方库，用 div+CSS 实现柱状图、CSS Grid 实现打卡日历 |
-| **客户端入口** | 只维护 Electron 客户端入口 `app/index.html`；根目录旧版 `index.html` 不再作为产品入口同步 |
+| **客户端入口** | 只维护 Electron 客户端入口 `app/index.html`；`naonao.help` 只作为介绍和下载页 |
 | **数据钩子注入** | 在现有 `pomoComplete()` 函数中插入统计写入逻辑，最小化侵入性 |
 | **右侧抽屉** | 现有系统只有底部 Sheet（设置面板），需从零构建右侧滑出 Drawer |
 | **首次引导** | 统计面板空数据时需引导文案，与现有 onboarding 系统协调 |
@@ -40,7 +40,7 @@
 │               └────────┬────────┘                   │
 │                        │                            │
 │               ┌────────▼────────┐                   │
-│               │  localStorage   │                   │
+│               │  private store  │                   │
 │               │ nono_stats      │                   │
 │               └─────────────────┘                   │
 │                                                     │
@@ -51,7 +51,7 @@
 │  └──────────────┘    └──────────────────────┘       │
 │                                                     │
 │  ┌──────────────┐    ┌───────────────────────┐      │
-│  │  Freezer     │───▶│      nono_freezer       │      │
+│  │  Freezer     │───▶│ privateStore nono_freezer│      │
 │  │  current UI  │    │  (current item list)    │      │
 │  └──────────────┘    └───────────────────────┘      │
 └─────────────────────────────────────────────────────┘
@@ -66,7 +66,7 @@
 | 渲染 | 纯 DOM API | 与现有代码风格一致（无框架） |
 | 图表 | CSS div 柱状 + CSS Grid 日历 | 零依赖，轻量，足够表达趋势 |
 | 动画 | CSS transition + animation | 与现有 drawer/sheet 动画一致 |
-| 存储 | `localStorage`，键名 `nono_stats` | 与现有 `nono_*` key 命名保持一致 |
+| 存储 | Electron 私密存储，键名 `nono_stats` | 与现有 `nono_*` key 命名保持一致，落盘经系统加密存储 |
 | 样式 | CSS 自定义属性（复用 `:root` 变量） | 与现有设计系统无缝集成 |
 
 ---
@@ -85,13 +85,13 @@ naonao/
     └── sequence-diagram.mermaid ← [新建] 时序图
 ```
 
-> **注意**：这是客户端-only 项目。后续统计面板维护只改 `app/index.html`、`app/app.js`、`app/styles.css`；根目录旧版 `index.html` 是历史产物，不再同步。
+> **注意**：这是客户端-only 项目。后续统计面板维护只改 `app/index.html`、`app/app.js`、`app/styles.css`；`naonao.help` 只放介绍和下载链接，不承载产品功能。
 
 ---
 
 ### 3. 数据结构和接口
 
-#### 3.1 数据模型（localStorage `nono_stats`）
+#### 3.1 数据模型（私密存储 `nono_stats`）
 
 ```json
 {
@@ -153,7 +153,7 @@ classDiagram
 ```javascript
 // ===== StatsStore — 数据层 =====
 const StatsStore = {
-  // 初始化：从 localStorage 读取或创建空数据结构
+  // 初始化：从 privateGet('nono_stats') 读取或创建空数据结构
   init() { /* 返回 void */ },
 
   // 记录一次番茄完成（在 pomoComplete 中调用）
@@ -172,8 +172,8 @@ const StatsStore = {
   calendarWeeks()           → Array            // 4周日历热力图数据
 
   // ── 内部方法 ──
-  read()                    → Object           // 从 localStorage 读取
-  write(data)               → void             // 写入 localStorage
+  read()                    → Object           // 从私密存储读取
+  write(data)               → void             // 写入私密存储
 };
 
 // ===== StatsRenderer — 渲染层 =====
@@ -241,7 +241,8 @@ sequenceDiagram
 sequenceDiagram
     participant Timer as pomoComplete()
     participant Store as StatsStore
-    participant LS as localStorage
+    participant Main as Electron 主进程
+    participant Safe as 系统加密存储
 
     Note over Timer: 现有逻辑：pomoCount++
 
@@ -258,8 +259,9 @@ sequenceDiagram
         Store->>Store: 创建新日期条目
     end
 
-    Store->>LS: write() → localStorage.setItem('nono_stats', JSON)
-    Note over LS: 写入完成
+    Store->>Main: privateStoreSet('nono_stats', JSON)
+    Main->>Safe: 写入系统加密存储
+    Note over Safe: 写入完成
 ```
 
 #### 4.3 冰箱操作 → 当前列表写入
@@ -267,9 +269,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Freezer as Freezer 逻辑
-    participant LS as localStorage
+    participant Main as Electron 主进程
+    participant Safe as 系统加密存储
 
-    Freezer->>LS: localStorage.setItem('nono_freezer', JSON)
+    Freezer->>Main: privateStoreSet('nono_freezer', JSON)
+    Main->>Safe: 写入系统加密存储
     Note over Freezer: 统计卡片读取 freezerItems.length 和最新想法
 ```
 
@@ -279,7 +283,7 @@ sequenceDiagram
 
 | # | 问题 | 假设 | 影响 |
 |---|------|------|------|
-| 1 | **冰箱功能是否已实现？** 当前客户端已实现想法冰箱，存储键为 `nono_freezer` | 统计面板读取当前冰箱列表，不记录冷冻/取用历史事件 | 若未来需要历史趋势，需要新增事件表 |
+| 1 | **冰箱功能是否已实现？** 当前客户端已实现想法冰箱，私密存储键为 `nono_freezer` | 统计面板读取当前冰箱列表，不记录冷冻/取用历史事件 | 若未来需要历史趋势，需要新增事件表 |
 | 2 | **BodyDoubling 统计是否纳入？** | 根据 Q7 回答：**暂不纳入**。统计面板只关注番茄 + 冰箱 | BodyDoubling 数据不写入 `nono_stats` |
 | 3 | **抽屉遮罩是否复用现有 `#s-overlay`？** 现有 overlay 绑定到设置面板 | **新建独立 `#stats-overlay`**，避免与设置面板事件冲突 | 两个 overlay 不会同时出现，但独立管理更安全 |
 | 4 | **POMO_WORK 时长可变吗？** 用户可在设置中调整番茄时长 | `recordPomo(durationSeconds)` 接受动态时长参数 | 若时长固定 25 分钟，硬编码即可 |
@@ -337,7 +341,7 @@ sequenceDiagram
 **目标**：实现 `StatsStore` 对象，包含完整的 CRUD + 聚合计算。
 
 **具体工作**：
-1. `init()` — 页面加载时调用，从 `localStorage.getItem('nono_stats')` 读取
+1. `init()` — 页面加载时调用，从 `privateGet('nono_stats')` 读取
 2. `recordPomo(durationSeconds)` — 写入番茄记录
 3. 冰箱卡片读取 `nono_freezer` 当前列表；历史冷冻/取用事件尚未实现
 4. 聚合查询函数（见 3.3 节签名）
@@ -411,9 +415,9 @@ sequenceDiagram
 3. **入口按钮事件**：`#stats-toggle` 打开/关闭 `#stats-drawer`
 4. **初始化**：在页面 JS 初始化阶段调用 `StatsStore.init()`
 5. **首次引导联动**：无番茄/冰箱数据时，各卡片显示空数据引导
-6. **客户端验证**：只测试 `app/index.html` 入口和 Electron smoke，不再验证根目录旧版 `index.html`
+6. **客户端验证**：只测试 `app/index.html` 入口和 Electron smoke；`naonao.help` 只验证下载链接和介绍页内容
 7. **边界测试**：
-   - 无 localStorage 数据时首次打开
+   - 无私密存储数据时首次打开
    - 番茄完成后立即打开面板验证数据
    - 跨日期打卡连续性
    - 抽屉打开时切换番茄状态不闪退
@@ -430,7 +434,7 @@ sequenceDiagram
 - 字体：数字用 var(--font-display)（Fraunces），标签用 var(--font-body)（Nunito）
 
 【数据约定】
-- localStorage 键名：nono_stats
+- 私密存储键名：nono_stats
 - 日期格式：YYYY-MM-DD（与现有 zt_lastActivity 等时间戳格式不同，这里用日期字符串）
 - 时间戳格式：ISO 8601 UTC
 - version 字段用于未来数据迁移
@@ -439,7 +443,7 @@ sequenceDiagram
 - 产品入口：app/index.html
 - 业务逻辑：app/app.js
 - 样式：app/styles.css
-- 根目录旧版 index.html 不再同步，不作为测试或发布入口
+- `naonao.help` / GitHub Pages 只作为介绍和下载页，不实现网页端
 - CSS 变量定义放在 app/styles.css 的现有变量块末尾
 - HTML 结构放在 app/index.html 的对应面板区域
 - JS 代码放在 app/app.js 的对应功能区
@@ -450,14 +454,14 @@ sequenceDiagram
 - CSS 类以 .stats- 为前缀
 
 【冰箱功能状态】
-- 当前代码库中已实现冰箱功能，数据键为 nono_freezer
+- 当前代码库中已实现冰箱功能，私密存储数据键为 nono_freezer
 - 统计面板的冰箱卡片读取当前冰箱列表，需继续做"数据为空"处理
 - 旧设计里的 recordFridge() 接口未落地；如需冷冻/取用历史统计，应另行实现历史事件表
 - 冰箱卡片无数据时显示温和占位文案
 
 【隐私与性能】
-- 所有数据存储在本地 localStorage，不上传
-- 统计数据写入在 pomoComplete 中同步执行，不增加异步延迟
+- 用户内容数据存储在本机系统加密存储，不上传
+- 统计数据写入在 pomoComplete 中通过 renderer cache 即时生效，并异步落盘到私密存储
 - 面板渲染仅在打开时触发，无后台轮询
 ```
 
