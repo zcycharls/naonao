@@ -1,18 +1,18 @@
 ﻿ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
 Display #0 (activities from top to bottom):
-  * Task{a74291a #13 type=standard A=10138:com.naonao.app.android U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+  * Task{f50a4db #14 type=standard A=10138:com.naonao.app.android U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
     mLastNonFullscreenBounds=Rect(237, 420 - 844, 1500)
     isSleeping=false
-    topResumedActivity=ActivityRecord{4ae9628 u0 com.naonao.app.android/.MainActivity t13}
-    * Hist  #0: ActivityRecord{4ae9628 u0 com.naonao.app.android/.MainActivity t13}
+    topResumedActivity=ActivityRecord{7b17251 u0 com.naonao.app.android/.MainActivity t14}
+    * Hist  #0: ActivityRecord{7b17251 u0 com.naonao.app.android/.MainActivity t14}
       packageName=com.naonao.app.android processName=com.naonao.app.android
       launchedFromUid=2000 launchedFromPackage=com.android.shell launchedFromFeature=null userId=0
-      app=ProcessRecord{b1bbce6 3343:com.naonao.app.android/u0a138}
+      app=ProcessRecord{3aab3b7 3510:com.naonao.app.android/u0a138}
       Intent { flg=0x10000000 cmp=com.naonao.app.android/.MainActivity }
-      rootOfTask=true task=Task{a74291a #13 type=standard A=10138:com.naonao.app.android}
+      rootOfTask=true task=Task{f50a4db #14 type=standard A=10138:com.naonao.app.android}
       taskAffinity=10138:com.naonao.app.android
       mActivityComponent=com.naonao.app.android/.MainActivity
-      baseDir=/data/app/~~yunErvamgv2QSaxcuBUfVA==/com.naonao.app.android-R-FUvjg6ofmsLZbjjZ-9SA==/base.apk
+      baseDir=/data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/base.apk
       dataDir=/data/user/0/com.naonao.app.android
       stateNotNeeded=false componentSpecified=true mActivityType=standard
       compat={420dpi} theme=0x7f040000
@@ -26,14 +26,14 @@ Display #0 (activities from top to bottom):
       taskDescription: label="null" icon=null iconResource=/0 iconFilename=null primaryColor=fff5f5f5
         backgroundColor=fffafafa statusBarColor=fff3efe6 navigationBarColor=fff3efe6
        backgroundColorFloating=ffffffff
-      launchFailed=false launchCount=1 lastLaunchTime=-4s39ms
+      launchFailed=false launchCount=1 lastLaunchTime=-4s67ms
       mHaveState=false mIcicle=null
       state=RESUMED delayedResume=false finishing=false
       keysPaused=false inHistory=true idle=true
       occludesParent=true noDisplay=false immersive=false launchMode=0
       mActivityType=standard
       mImeInsetsFrozenUntilStartInput=false
-      windows=[Window{3de903d u0 com.naonao.app.android/com.naonao.app.android.MainActivity}]
+      windows=[Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}]
       windowType=2
       mOccludesParent=true
       overrideOrientation=SCREEN_ORIENTATION_UNSPECIFIED
@@ -41,7 +41,7 @@ Display #0 (activities from top to bottom):
       mVisibleRequested=true mVisible=true mClientVisible=true reportedDrawn=true reportedVisible=true
       mNumInterestingWindows=1 mNumDrawnWindows=1 allDrawn=true lastAllDrawn=true)
       startingData=null firstWindowDrawn=true mIsExiting=false
-      nowVisible=true lastVisibleTime=-3s336ms
+      nowVisible=true lastVisibleTime=-3s353ms
       resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
       mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
       supportsSizeChanges=SIZE_CHANGES_UNSUPPORTED_METADATA
@@ -79,7 +79,7 @@ Display #0 (activities from top to bottom):
         taskDescription: label="null" icon=null iconResource=/0 iconFilename=null primaryColor=ff1a1b20
           backgroundColor=fff1f0f7 statusBarColor=ff1a1b20 navigationBarColor=808080
          backgroundColorFloating=fff1f0f7
-        launchFailed=false launchCount=0 lastLaunchTime=-36m13s101ms
+        launchFailed=false launchCount=0 lastLaunchTime=-48m36s303ms
         mHaveState=true mIcicle=Bundle[mParcelledData.dataSize=816]
         state=STOPPED delayedResume=false finishing=false
         keysPaused=false inHistory=true idle=true
@@ -94,7 +94,7 @@ Display #0 (activities from top to bottom):
         mVisibleRequested=false mVisible=false mClientVisible=false reportedDrawn=false reportedVisible=false
         mAppStopped=true
         mNumInterestingWindows=1 mNumDrawnWindows=1 allDrawn=true lastAllDrawn=true)
-        nowVisible=false lastVisibleTime=-5s312ms
+        nowVisible=false lastVisibleTime=-5s553ms
         resizeMode=RESIZE_MODE_UNRESIZEABLE
         mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
         supportsSizeChanges=SIZE_CHANGES_UNSUPPORTED_METADATA
@@ -106,24 +106,24 @@ Display #0 (activities from top to bottom):
         mCameraCompatControlEnabled=false
 
   Resumed activities in task display areas (from top to bottom):
-    Resumed: ActivityRecord{4ae9628 u0 com.naonao.app.android/.MainActivity t13}
+    Resumed: ActivityRecord{7b17251 u0 com.naonao.app.android/.MainActivity t14}
 
-  ResumedActivity: ActivityRecord{4ae9628 u0 com.naonao.app.android/.MainActivity t13}
+  ResumedActivity: ActivityRecord{7b17251 u0 com.naonao.app.android/.MainActivity t14}
 
 ActivityTaskSupervisor state:
-  topDisplayFocusedRootTask=Task{a74291a #13 type=standard A=10138:com.naonao.app.android}
+  topDisplayFocusedRootTask=Task{f50a4db #14 type=standard A=10138:com.naonao.app.android}
   Display: mDisplayId=0
     init=1080x1920 420dpi mMinSizeOfResizeableTaskDp=220 cur=1080x1920 app=1080x1920 rng=1080x1080-1920x1920
     deferred=false mLayoutNeeded=true
   mLastOrientationSource=WindowedMagnification:0:31@20361097
-  deepestLastOrientationSource=ActivityRecord{4ae9628 u0 com.naonao.app.android/.MainActivity t13}
+  deepestLastOrientationSource=ActivityRecord{7b17251 u0 com.naonao.app.android/.MainActivity t14}
   overrideConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} s.8 fontWeightAdjustment=0}
-  mLayoutSeq=124
-  mCurrentFocus=Window{3de903d u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
-  mFocusedApp=ActivityRecord{4ae9628 u0 com.naonao.app.android/.MainActivity t13}
+  mLayoutSeq=138
+  mCurrentFocus=Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
+  mFocusedApp=ActivityRecord{7b17251 u0 com.naonao.app.android/.MainActivity t14}
 
   mHoldScreenWindow=null
-  mObscuringWindow=Window{3de903d u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
+  mObscuringWindow=Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
   mLastWakeLockHoldingWindow=null
   mLastWakeLockObscuringWindow=null
 
@@ -176,12 +176,12 @@ ActivityTaskSupervisor state:
   Task display areas in top down Z order:
     TaskDisplayArea DefaultTaskDisplayArea
       overrideConfig={0.0 ?mcc0mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mMaxBounds=Rect(0, 0 - 0, 0) mDisplayRotation=undefined mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=undefined} ?fontWeightAdjustment}
-      mPreferredTopFocusableRootTask=Task{a74291a #13 type=standard A=10138:com.naonao.app.android}
-      mLastFocusedRootTask=Task{a74291a #13 type=standard A=10138:com.naonao.app.android}
+      mPreferredTopFocusableRootTask=Task{f50a4db #14 type=standard A=10138:com.naonao.app.android}
+      mLastFocusedRootTask=Task{f50a4db #14 type=standard A=10138:com.naonao.app.android}
       Application tokens in top down Z order:
-      * Task{a74291a #13 type=standard A=10138:com.naonao.app.android U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+      * Task{f50a4db #14 type=standard A=10138:com.naonao.app.android U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
         bounds=[0,0][1080,1920]
-        * ActivityRecord{4ae9628 u0 com.naonao.app.android/.MainActivity t13}
+        * ActivityRecord{7b17251 u0 com.naonao.app.android/.MainActivity t14}
       * Task{f947faf #1 type=home U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
         bounds=[0,0][1080,1920]
         * Task{e96bf60 #4 type=home A=10114:com.android.fakesystemapp U=0 rootTaskId=1 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
@@ -210,8 +210,8 @@ ActivityTaskSupervisor state:
     mLastBehavior=DEFAULT
     mShowingDream=false mDreamingLockscreen=false
     isKeyguardShowing=false
-    mFocusedWindow=Window{3de903d u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
-    mTopFullscreenOpaqueWindowState=Window{3de903d u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
+    mFocusedWindow=Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
+    mTopFullscreenOpaqueWindowState=Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
     mLastStatusBarAppearanceRegions=
     mLastLetterboxDetails=
     mTopIsFullscreen=false
@@ -247,7 +247,7 @@ ActivityTaskSupervisor state:
         mLastFilteredX=0.0
         mLastFilteredY=9.776321
         mLastFilteredZ=0.812345
-        mLastFilteredTimestampNanos=2195547591700 (10.7761ms ago)
+        mLastFilteredTimestampNanos=2938751307700 (10.189ms ago)
         mTiltHistory={last: 5.0}
         mFlat=false
         mSwinging=false
@@ -270,7 +270,6 @@ ActivityTaskSupervisor state:
     mDeviceState=FOLDED
 
     RotationLockHistory
-      07-02 19:32:10.035: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=DisplayRotationReversionController#revertOverride
       07-02 19:35:17.981: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=DisplayRotationReversionController#revertOverride
       07-02 19:47:12.070: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
       07-02 19:51:21.991: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=DisplayRotationReversionController#revertOverride
@@ -278,6 +277,7 @@ ActivityTaskSupervisor state:
       07-02 19:57:02.307: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=DisplayRotationReversionController#revertOverride
       07-02 19:59:22.309: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=DisplayRotationReversionController#revertOverride
       07-02 20:01:26.518: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=DisplayRotationReversionController#revertOverride
+      07-02 20:13:49.691: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=DisplayRotationReversionController#revertOverride
 
 
   WindowInsetsStateController
@@ -290,18 +290,18 @@ ActivityTaskSupervisor state:
       mDisplayShape=DisplayShape{ spec=1673867177 displayWidth=1080 displayHeight=1920 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}
         InsetsSource id=3 type=ime frame=[0,0][0,0] visible=false flags= sideHint=NONE boundingRects=null
     Control map:
-      Window{3de903d u0 com.naonao.app.android/com.naonao.app.android.MainActivity}:
+      Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}:
         InsetsSourceControl: {3 mType=ime mSurfacePosition=Point(540, 1920) mInsetsHint=Insets{left=0, top=0, right=0, bottom=0}}
     InsetsSourceProviders:
       ImeInsetsSourceProvider
         mSource=InsetsSource id=3 type=ime frame=[0,0][0,0] visible=false flags= sideHint=NONE boundingRects=null
         mSourceFrame=Rect(540, 1920 - 540, 1920)
-        mControl=InsetsSourceControl mId=3 mType=ime mLeash=Surface(name=Surface(name=371a46b InputMethod)/@0x77c659d - animation-leash of insets_animation)/@0xae4ed60 mInitiallyVisible=false mSurfacePosition=Point(540, 1920) mInsetsHint=Insets{left=0, top=0, right=0, bottom=0} mSkipAnimationOnce=false
+        mControl=InsetsSourceControl mId=3 mType=ime mLeash=Surface(name=Surface(name=371a46b InputMethod)/@0x77c659d - animation-leash of insets_animation)/@0x26c84b0 mInitiallyVisible=false mSurfacePosition=Point(540, 1920) mInsetsHint=Insets{left=0, top=0, right=0, bottom=0} mSkipAnimationOnce=false
         mInsetsHint=Insets{left=0, top=0, right=0, bottom=0} stale
         mIsLeashReadyForDispatching=true mHasPendingPosition=false
         mWindowContainer=Window{371a46b u0 InputMethod}
-        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=371a46b InputMethod)/@0x77c659d - animation-leash of insets_animation)/@0xae4ed60
-        mControlTarget=Window{3de903d u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
+        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=371a46b InputMethod)/@0x77c659d - animation-leash of insets_animation)/@0x26c84b0
+        mControlTarget=Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}
         mImeShowing=false        showImePostLayout not scheduled, mImeRequester=null
 
   InsetsPolicy
@@ -320,7 +320,7 @@ ActivityTaskSupervisor state:
     mLockTaskModeTasks=
     mLockTaskPackages (userId:packages)=
 
-  mCurTaskIdForUser={0=13}
+  mCurTaskIdForUser={0=14}
   mUserRootTaskInFront={}
   mVisibilityTransactionDepth=0
   isHomeRecentsComponent=false
@@ -328,5 +328,5 @@ ActivityTaskSupervisor state:
 
   TaskOrganizerController:
 
-  VisibleActivityProcess:[ ProcessRecord{b1bbce6 3343:com.naonao.app.android/u0a138}]
+  VisibleActivityProcess:[ ProcessRecord{3aab3b7 3510:com.naonao.app.android/u0a138}]
   NumNonAppVisibleWindowUidMap:[]

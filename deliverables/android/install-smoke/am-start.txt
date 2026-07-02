@@ -2,6 +2,6 @@
 Status: ok
 LaunchState: COLD
 Activity: com.naonao.app.android/.MainActivity
-TotalTime: 264
-WaitTime: 266
+TotalTime: 287
+WaitTime: 289
 Complete
