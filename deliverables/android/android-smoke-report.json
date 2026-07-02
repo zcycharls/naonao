@@ -1,0 +1,165 @@
+{
+  "screenshotBytes": 111380,
+  "screenshotWidth": 390,
+  "screenshotHeight": 844,
+  "expectedWidth": 390,
+  "expectedHeight": 844,
+  "innerWidth": 390,
+  "innerHeight": 844,
+  "devicePixelRatio": 1,
+  "docScrollWidth": 390,
+  "bodyScrollWidth": 390,
+  "overflowingCount": 0,
+  "hasBottomNav": true,
+  "visibleNavButtons": 5,
+  "appInitialized": true,
+  "activeView": "home",
+  "timerText": "13:25",
+  "bottomNavPosition": "fixed",
+  "checkedViews": [
+    "home",
+    "tasks",
+    "focus",
+    "freezer",
+    "stats",
+    "settings"
+  ],
+  "viewResults": [
+    {
+      "view": "home",
+      "activeView": "home",
+      "innerWidth": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflowingCount": 0,
+      "overflowing": [],
+      "visibleNavButtons": 5,
+      "keyControlsPresent": true,
+      "failures": []
+    },
+    {
+      "view": "tasks",
+      "activeView": "tasks",
+      "innerWidth": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflowingCount": 0,
+      "overflowing": [],
+      "visibleNavButtons": 5,
+      "keyControlsPresent": true,
+      "failures": []
+    },
+    {
+      "view": "focus",
+      "activeView": "focus",
+      "innerWidth": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflowingCount": 0,
+      "overflowing": [],
+      "visibleNavButtons": 5,
+      "keyControlsPresent": true,
+      "failures": []
+    },
+    {
+      "view": "freezer",
+      "activeView": "freezer",
+      "innerWidth": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflowingCount": 0,
+      "overflowing": [],
+      "visibleNavButtons": 5,
+      "keyControlsPresent": true,
+      "failures": []
+    },
+    {
+      "view": "stats",
+      "activeView": "stats",
+      "innerWidth": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflowingCount": 0,
+      "overflowing": [],
+      "visibleNavButtons": 5,
+      "keyControlsPresent": true,
+      "failures": []
+    },
+    {
+      "view": "settings",
+      "activeView": "settings",
+      "innerWidth": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflowingCount": 0,
+      "overflowing": [],
+      "visibleNavButtons": 5,
+      "keyControlsPresent": true,
+      "failures": []
+    },
+    {
+      "view": "home",
+      "activeView": "home",
+      "innerWidth": 390,
+      "docScrollWidth": 390,
+      "bodyScrollWidth": 390,
+      "overflowingCount": 0,
+      "overflowing": [],
+      "visibleNavButtons": 5,
+      "keyControlsPresent": true,
+      "failures": []
+    }
+  ],
+  "screenshots": [
+    {
+      "view": "home",
+      "file": "deliverables/android/screens/home.png",
+      "bytes": 111380,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "view": "tasks",
+      "file": "deliverables/android/screens/tasks.png",
+      "bytes": 86033,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "view": "focus",
+      "file": "deliverables/android/screens/focus.png",
+      "bytes": 106213,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "view": "freezer",
+      "file": "deliverables/android/screens/freezer.png",
+      "bytes": 83097,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "view": "stats",
+      "file": "deliverables/android/screens/stats.png",
+      "bytes": 102083,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "view": "settings",
+      "file": "deliverables/android/screens/settings.png",
+      "bytes": 88199,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "view": "home-final",
+      "file": "deliverables/android/android-smoke.png",
+      "bytes": 111380,
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "checkedAt": "2026-07-02T16:51:57.837Z"
+}

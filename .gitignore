@@ -3,6 +3,10 @@ node_modules/
 
 # Build output
 dist/
+android/build/
+android/.keystore/
+.tmp/
+deliverables/android/*.idsig
 
 # Logs
 *.log

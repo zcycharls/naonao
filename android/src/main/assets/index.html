@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: file:; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
+  <title>孬孬 Android</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app-shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">孬</div>
+      <div class="top-copy">
+        <div class="eyebrow">NAONAO Android</div>
+        <h1>孬孬</h1>
+      </div>
+      <button id="settings-shortcut" class="icon-btn" aria-label="设置" title="设置">⚙</button>
+    </header>
+
+    <main id="view-home" class="view active" data-view="home">
+      <section class="hero">
+        <div class="pet-stage">
+          <div class="pet-card">
+            <div class="pet-ear left"></div>
+            <div class="pet-ear right"></div>
+            <div class="pet-face">
+              <span class="pet-eye"></span>
+              <span class="pet-eye"></span>
+              <span class="pet-nose">孬</span>
+            </div>
+            <div class="pet-badge" id="focus-badge">待命</div>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <p id="today-line">今天先抓住一件事。</p>
+          <button id="body-double-toggle" class="pill-toggle" type="button">◉ 一起专注</button>
+        </div>
+      </section>
+
+      <section class="panel current-panel">
+        <div class="panel-head">
+          <div>
+            <span class="panel-kicker">任务锚点</span>
+            <h2 id="active-task-title">还没有当前任务</h2>
+          </div>
+          <button id="task-done-btn" class="text-btn" type="button">完成</button>
+        </div>
+        <div id="next-step-text" class="next-step">写下一个具体任务，孬孬会帮你守住它。</div>
+        <div class="input-row">
+          <input id="quick-task-input" type="text" maxlength="60" placeholder="现在要做什么？">
+          <button id="quick-task-add" type="button">锚定</button>
+        </div>
+      </section>
+
+      <section class="panel chat-panel">
+        <div class="panel-head compact">
+          <div>
+            <span class="panel-kicker">和孬孬说</span>
+            <h2>简短陪伴</h2>
+          </div>
+          <button id="chat-clear" class="icon-btn small" aria-label="清空对话" type="button">⌫</button>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <textarea id="chat-input" rows="1" maxlength="400" placeholder="说一句就好…"></textarea>
+          <button id="chat-send" type="button">➤</button>
+        </div>
+      </section>
+    </main>
+
+    <main id="view-tasks" class="view" data-view="tasks">
+      <section class="screen-head">
+        <span class="panel-kicker">任务</span>
+        <h2>只看当下这一组</h2>
+      </section>
+      <section class="panel">
+        <div class="input-row">
+          <input id="task-input" type="text" maxlength="60" placeholder="新增任务锚点">
+          <button id="task-add" type="button">添加</button>
+        </div>
+        <div id="task-list" class="task-list"></div>
+      </section>
+    </main>
+
+    <main id="view-focus" class="view" data-view="focus">
+      <section class="screen-head">
+        <span class="panel-kicker">番茄钟</span>
+        <h2>一段时间只推进一件事</h2>
+      </section>
+      <section class="focus-panel">
+        <div class="timer-ring" id="timer-ring">
+          <div class="timer-mode" id="timer-mode">专注</div>
+          <div class="timer-time" id="timer-time">25:00</div>
+          <div class="timer-sub" id="timer-sub">完成 0 个番茄</div>
+        </div>
+        <div class="timer-actions">
+          <button id="timer-start" class="primary" type="button">开始</button>
+          <button id="timer-reset" class="secondary" type="button">重置</button>
+        </div>
+        <div class="focus-intent">
+          <label for="focus-intent-input">这一段的目标</label>
+          <input id="focus-intent-input" type="text" maxlength="60" placeholder="比如：写完周报第一段">
+        </div>
+      </section>
+      <section class="panel mood-panel">
+        <div class="panel-head compact">
+          <div>
+            <span class="panel-kicker">结束复盘</span>
+            <h2>刚才感觉怎么样？</h2>
+          </div>
+        </div>
+        <div class="mood-row" id="mood-row">
+          <button data-mood="稳住了" type="button">稳住了</button>
+          <button data-mood="有点乱" type="button">有点乱</button>
+          <button data-mood="很累" type="button">很累</button>
+        </div>
+      </section>
+    </main>
+
+    <main id="view-freezer" class="view" data-view="freezer">
+      <section class="screen-head">
+        <span class="panel-kicker">想法冰箱</span>
+        <h2>先冻起来，不让它劫走当前任务</h2>
+      </section>
+      <section class="panel freezer-panel">
+        <div class="input-row">
+          <input id="freezer-input" type="text" maxlength="80" placeholder="突然想到什么？">
+          <button id="freezer-add" type="button">冷冻</button>
+        </div>
+        <div id="freezer-list" class="freezer-list"></div>
+      </section>
+    </main>
+
+    <main id="view-stats" class="view" data-view="stats">
+      <section class="screen-head">
+        <span class="panel-kicker">统计</span>
+        <h2>只用来复盘，不用来责备自己</h2>
+      </section>
+      <section class="stats-grid">
+        <div class="stat-tile">
+          <span>今日番茄</span>
+          <strong id="stat-today">0</strong>
+        </div>
+        <div class="stat-tile">
+          <span>本周番茄</span>
+          <strong id="stat-week">0</strong>
+        </div>
+        <div class="stat-tile">
+          <span>连续打卡</span>
+          <strong id="stat-streak">0</strong>
+        </div>
+        <div class="stat-tile">
+          <span>冷冻想法</span>
+          <strong id="stat-freezer">0</strong>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head compact">
+          <div>
+            <span class="panel-kicker">近 14 天</span>
+            <h2>专注趋势</h2>
+          </div>
+        </div>
+        <div id="trend-bars" class="trend-bars"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head compact">
+          <div>
+            <span class="panel-kicker">心情记录</span>
+            <h2>最近反馈</h2>
+          </div>
+        </div>
+        <div id="mood-list" class="mood-list"></div>
+      </section>
+    </main>
+
+    <main id="view-settings" class="view" data-view="settings">
+      <section class="screen-head">
+        <span class="panel-kicker">设置</span>
+        <h2>移动端能力按逻辑分组</h2>
+      </section>
+      <section class="settings-stack">
+        <details open>
+          <summary>模型与对话</summary>
+          <div class="settings-body">
+            <label>API 提供商</label>
+            <div class="segmented" id="provider-segment">
+              <button data-provider="anthropic" type="button">Anthropic</button>
+              <button data-provider="openai" type="button">OpenAI 兼容</button>
+            </div>
+            <label for="api-key-input">API Key</label>
+            <input id="api-key-input" type="password" placeholder="已用 Android Keystore 加密保存">
+            <label for="model-input">模型名</label>
+            <input id="model-input" type="text" placeholder="留空用默认模型">
+            <label for="base-url-input">OpenAI 兼容 Base URL</label>
+            <input id="base-url-input" type="url" placeholder="https://api.openai.com/v1">
+            <label class="checkline">
+              <input id="confirm-base-url" type="checkbox">
+              <span>确认信任自定义 Base URL</span>
+            </label>
+            <button id="save-model-settings" class="wide-btn" type="button">保存模型设置</button>
+          </div>
+        </details>
+
+        <details>
+          <summary>Hermes Agent 与记忆</summary>
+          <div class="settings-body">
+            <label class="checkline">
+              <input id="hermes-enabled" type="checkbox">
+              <span>连接 Hermes Agent API Server</span>
+            </label>
+             <label for="hermes-base-input">Hermes Base URL</label>
+             <input id="hermes-base-input" type="url" placeholder="http://127.0.0.1:8642/v1">
+             <div class="settings-note">Android 里的 127.0.0.1 是手机本机；如果 Hermes 在电脑上，请使用 HTTPS/隧道地址。局域网 HTTP 可能会被 Android 安全策略拦截。</div>
+             <label for="hermes-key-input">Hermes API Key</label>
+             <input id="hermes-key-input" type="password" placeholder="可选">
+            <label for="hermes-model-input">Hermes 模型名</label>
+            <input id="hermes-model-input" type="text" placeholder="hermes-agent">
+            <label class="checkline">
+              <input id="confirm-hermes-url" type="checkbox">
+              <span>确认信任非本机 Hermes 地址</span>
+            </label>
+            <label class="checkline">
+              <input id="memory-enabled" type="checkbox">
+              <span>启用本地长期记忆 fallback</span>
+            </label>
+            <div class="button-pair data-actions">
+              <button id="save-hermes-settings" type="button">保存</button>
+              <button id="review-memory" type="button">查看记忆</button>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>提醒与飞书</summary>
+          <div class="settings-body">
+            <label class="checkline">
+              <input id="notifications-enabled" type="checkbox">
+              <span>番茄结束后发送系统通知</span>
+            </label>
+            <label for="idle-frequency">主动提醒频率</label>
+            <select id="idle-frequency">
+              <option value="off">关闭</option>
+              <option value="low">低（20 分钟）</option>
+              <option value="mid">中（10 分钟）</option>
+              <option value="high">高（5 分钟）</option>
+            </select>
+            <label for="feishu-webhook-input">飞书 Webhook</label>
+            <input id="feishu-webhook-input" type="password" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+            <div class="button-pair">
+              <button id="save-feishu" type="button">保存 Webhook</button>
+              <button id="test-feishu" type="button">发送测试</button>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>长远任务监督</summary>
+          <div class="settings-body">
+            <div class="input-row">
+              <input id="long-title-input" type="text" maxlength="60" placeholder="长远任务名称">
+              <button id="long-add" type="button">添加</button>
+            </div>
+            <div id="long-task-list" class="long-task-list"></div>
+          </div>
+        </details>
+
+        <details>
+          <summary>数据与关于</summary>
+          <div class="settings-body">
+            <div class="settings-note">Android 端数据保存在本机 WebView 存储；API Key、Webhook、Hermes Key 通过 Android Keystore 加密后由原生桥代发请求。</div>
+            <div class="button-pair">
+              <button id="export-data" type="button">导出数据</button>
+              <button id="import-data" type="button">导入数据</button>
+              <button id="clear-data" class="danger" type="button">清空本地数据</button>
+            </div>
+            <textarea id="data-export" placeholder="导出的 JSON 会显示在这里；也可以粘贴旧导出后点“导入数据”恢复"></textarea>
+          </div>
+        </details>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="主导航">
+      <button class="active" data-target="home" type="button"><span>⌂</span>首页</button>
+      <button data-target="tasks" type="button"><span>⌖</span>任务</button>
+      <button data-target="focus" type="button"><span>●</span>专注</button>
+      <button data-target="freezer" type="button"><span>◇</span>冰箱</button>
+      <button data-target="stats" type="button"><span>▥</span>统计</button>
+    </nav>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="app-dialog" class="dialog-backdrop" hidden>
+    <div class="dialog-sheet" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <h2 id="dialog-title"></h2>
+      <p id="dialog-message"></p>
+      <div class="dialog-actions">
+        <button id="dialog-cancel" type="button" class="text-btn">取消</button>
+        <button id="dialog-ok" type="button">确定</button>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
