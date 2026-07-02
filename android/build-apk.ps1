@@ -71,16 +71,20 @@ $AlignedApk = Join-Path $BuildDir "naonao-aligned.apk"
 $DeliverableDir = Join-Path $RepoRoot "deliverables\android"
 $KeystoreDir = Join-Path $PSScriptRoot ".keystore"
 if ($Configuration -eq "release") {
-  $Keystore = Join-Path $KeystoreDir "naonao-release-local.jks"
-  $KeyAlias = "naonaorelease"
-  $KeyPassword = "naonao-release"
+  $Keystore = if ($env:NAONAO_ANDROID_KEYSTORE_PATH) { [System.IO.Path]::GetFullPath($env:NAONAO_ANDROID_KEYSTORE_PATH) } else { Join-Path $KeystoreDir "naonao-release-local.jks" }
+  $KeyAlias = if ($env:NAONAO_ANDROID_KEY_ALIAS) { $env:NAONAO_ANDROID_KEY_ALIAS } else { "naonaorelease" }
+  $KeyPassword = if ($env:NAONAO_ANDROID_KEY_PASSWORD) { $env:NAONAO_ANDROID_KEY_PASSWORD } else { "naonao-release" }
+  $StorePassword = if ($env:NAONAO_ANDROID_STORE_PASSWORD) { $env:NAONAO_ANDROID_STORE_PASSWORD } else { $KeyPassword }
   $KeyDname = "CN=NAONAO Android Local Release,O=NAONAO,C=CN"
+  $AutoGenerateKeystore = -not $env:NAONAO_ANDROID_KEYSTORE_PATH
   $FinalApk = Join-Path $DeliverableDir "naonao-android-$VersionName.apk"
 } else {
   $Keystore = Join-Path $KeystoreDir "naonao-debug.jks"
   $KeyAlias = "androiddebugkey"
   $KeyPassword = "android"
+  $StorePassword = $KeyPassword
   $KeyDname = "CN=NAONAO Android Debug,O=NAONAO,C=CN"
+  $AutoGenerateKeystore = $true
   $FinalApk = Join-Path $DeliverableDir "naonao-android-debug.apk"
 }
 
@@ -152,9 +156,12 @@ try {
   }
 
   if (-not (Test-Path $Keystore)) {
+    if (-not $AutoGenerateKeystore) {
+      throw "Configured release keystore does not exist: $Keystore"
+    }
     & $Keytool -genkeypair `
       -keystore $Keystore `
-      -storepass $KeyPassword `
+      -storepass $StorePassword `
       -keypass $KeyPassword `
       -alias $KeyAlias `
       -keyalg RSA `
@@ -169,7 +176,7 @@ try {
 
   & $Apksigner sign `
     --ks $Keystore `
-    --ks-pass "pass:$KeyPassword" `
+    --ks-pass "pass:$StorePassword" `
     --key-pass "pass:$KeyPassword" `
     --out $FinalApk `
     $AlignedApk

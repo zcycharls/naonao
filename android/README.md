@@ -33,7 +33,19 @@ deliverables\android\naonao-android-1.701.0.apk
 .\android\build-apk.ps1 -Configuration debug
 ```
 
-`naonao-android-1.701.0.apk` 是给用户侧载安装的主交付；`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应替换为你自己保管的 release keystore。
+`naonao-android-1.701.0.apk` 是给用户侧载安装的主交付；`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
+
+正式签名可通过环境变量注入：
+
+```powershell
+$env:NAONAO_ANDROID_KEYSTORE_PATH = "D:\keys\naonao-release.jks"
+$env:NAONAO_ANDROID_KEY_ALIAS = "naonao"
+$env:NAONAO_ANDROID_STORE_PASSWORD = "..."
+$env:NAONAO_ANDROID_KEY_PASSWORD = "..."
+.\android\build-apk.ps1 -Configuration release
+```
+
+不要把正式 keystore 或密码提交进仓库。
 
 侧载安装说明见：
 

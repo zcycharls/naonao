@@ -7,8 +7,8 @@
 - 主交付：`deliverables/android/naonao-android-1.701.0.apk`
 - 调试包：`deliverables/android/naonao-android-debug.apk`
 - 安装说明：`deliverables/android/INSTALL.md`
-- 当前主交付 SHA256：`0AEADFE372503C3C17770C5FDD3137C36197E7AF34F623DDEBEC941AEE1A73E8`
-- 当前调试包 SHA256：`6171A7494AAE01029CB83492127CB0FF79793E782BC9E9255C11B447E240AB94`
+- 当前主交付 SHA256：`E4A7C0E99A8A989A0E8C016C0FC08AEEC125235418C3EB9AAF146AFF36C5E407`
+- 当前调试包 SHA256：`9A2A1E8CDEF83B34A95058EC73C46E9EE6109C49D8C41C054D0AD9875A7C9071`
 
 ## 已验证
 
@@ -72,13 +72,14 @@
 - 统计页 14 天趋势图已按移动端宽度压缩；无番茄数据时显示空态说明，避免零值柱误导和日期标签撑出横向裁切。
 - 任务页长标题卡片已防止被按钮挤压成竖排，烟测包含任务标题可读性门禁。
 - `scripts/android-release-check.ps1` 已作为统一发布门禁入口验证通过。它会串联 JS 语法检查、Android 状态测试、移动端页面 smoke、APK 签名/sourceDigest 门禁、本地环境诊断、文档 hash 一致性和 `git diff --check`；连接设备时可加 `-RequireDevice` 强制执行安装级 smoke。发布门禁会从当前 APK 内 `assets/build-info.json` 读取实际 `sourceDigest` 并校验文档同步，避免脚本硬编码源码摘要；默认跳过远端 SDK 包列表探测，避免网络或证书问题拖慢本地 APK 验证。需要完整环境诊断时单独运行 `scripts/android-env-check.ps1`。
-- `.github/workflows/android-apk.yml` 已提供远端 Android Emulator 安装验证入口：在 Ubuntu runner 上构建 release/debug APK，跑 APK/sourceDigest/状态/smoke 门禁，并通过 Android Emulator 安装、启动和扫描 logcat。这个工作流只验证 Android 客户端 APK，不发布或测试网页端。
+- 本地已有 `.github/workflows/android-apk.yml` 草案，可在 GitHub Actions 中构建 APK 并用 Android Emulator 跑安装启动 smoke；但当前 GitHub token 缺少 `workflow` scope，远端 `main` 尚未包含该工作流，所以不能把远端 Emulator 验证当作已完成证据。
+- `android/build-apk.ps1` 默认使用本机自签名 release keystore，适合侧载测试和私发安装；脚本也支持通过 `NAONAO_ANDROID_KEYSTORE_PATH`、`NAONAO_ANDROID_KEY_ALIAS`、`NAONAO_ANDROID_STORE_PASSWORD`、`NAONAO_ANDROID_KEY_PASSWORD` 注入长期保管的正式签名。若将来公开长期分发，应使用稳定正式签名，否则换签名会导致同包名覆盖升级失败。
 
 ## 未完成的验证
 
-真机或模拟器安装运行验证未完成。当前机器没有连接 Android 设备，`adb devices -l` 没有设备行；`scripts/android-env-check.ps1` 显示当前 SDK 没有现代 Android Emulator 组件和 system image。旧 `tools\emulator.exe` 存在但缺 Qt 运行库路径，不能直接启动；旧 `sdkmanager` 需要 Java 8 才能启动，但安装 `cmdline-tools;latest` / `emulator` 时在下载阶段超时。直接访问 `https://dl.google.com/android/repository/...` 暴露 TLS 主机名校验失败，强制官方解析 IP 又连接超时；本机 CPU 信息还显示虚拟化固件未开启。因此本机暂不能作为安装运行验收环境，已补 `.github/workflows/android-apk.yml` 用 GitHub Actions 的 Android Emulator 执行安装级 smoke。
+真机或模拟器安装运行验证未完成。当前机器没有连接 Android 设备，`adb devices -l` 没有设备行；`scripts/android-env-check.ps1` 显示当前 SDK 没有现代 Android Emulator 组件和 system image。旧 `tools\emulator.exe` 存在但缺 Qt 运行库路径，不能直接启动；旧 `sdkmanager` 需要 Java 8 才能启动，但安装 `cmdline-tools;latest` / `emulator` 时在下载阶段超时。直接访问 `https://dl.google.com/android/repository/...` 暴露 TLS 主机名校验失败，强制官方解析 IP 又连接超时；本机 CPU 信息还显示虚拟化固件未开启。已尝试用 QEMU + Android-x86 作为兜底，但未启动到可连接 ADB 的 Android 环境。因此本机暂不能作为安装运行验收环境。
 
-`scripts/android-install-smoke.ps1` 已提供安装级门禁。它会先调用 `scripts/android-verify-apk.ps1` 验证 APK，再安装、显式启动 `com.naonao.app.android/.MainActivity`，检查已安装包版本、应用进程、前台 Activity，并扫描本次启动后的 logcat。若发现本包 `FATAL EXCEPTION`、`AndroidRuntime`、`Fatal signal` 或关联 WebView/Chromium 崩溃信号会直接失败。当前无设备环境下它会明确失败为 `Expected exactly one connected Android device, found 0`，不会把未连接设备误报为通过。
+`scripts/android-install-smoke.ps1` 已提供安装级门禁。它会先调用 `scripts/android-verify-apk.ps1` 验证 APK，再安装、显式启动 `com.naonao.app.android/.MainActivity`，检查已安装包版本、应用进程、前台 Activity，并扫描本次启动后的 logcat。若发现本包 `FATAL EXCEPTION`、`AndroidRuntime`、`Fatal signal` 或关联 WebView/Chromium 崩溃信号会直接失败。通过时会把 `am start` 输出、`dumpsys package/window/activity`、本次启动后的 `logcat`、启动截图和 `install-smoke-report.json` 保存到 `deliverables/android/install-smoke/`。当前无设备环境下它会明确失败为 `Expected exactly one connected Android device, found 0`，不会把未连接设备误报为通过。
 
 要完成安装级验证，需要：
 

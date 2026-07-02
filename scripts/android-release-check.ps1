@@ -77,7 +77,7 @@ try {
 
   $InstallSmoke = "skipped: no connected Android device"
   if ($EnvInfo.ConnectedDevices -eq 1 -or $RequireDevice) {
-    & .\scripts\android-install-smoke.ps1 -ApkPath $ReleaseApk -SkipApkVerify
+    & .\scripts\android-install-smoke.ps1 -ApkPath $ReleaseApk -EvidenceDir "deliverables\android\install-smoke" -SkipApkVerify
     $InstallSmoke = "passed"
   }
 

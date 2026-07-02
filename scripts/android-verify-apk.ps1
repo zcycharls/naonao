@@ -167,6 +167,7 @@ try {
   $Manifest = Get-Content -LiteralPath (Join-Path $AndroidMain "AndroidManifest.xml") -Raw -Encoding UTF8
   $AssetHtml = Get-Content -LiteralPath (Join-Path $AndroidMain "assets\index.html") -Raw -Encoding UTF8
   $AssetJs = Get-Content -LiteralPath (Join-Path $AndroidMain "assets\app.js") -Raw -Encoding UTF8
+  $BuildScript = Get-Content -LiteralPath (Join-Path $RepoRoot "android\build-apk.ps1") -Raw -Encoding UTF8
   $SourceChecks = @(
     @{ Name = "manifest disables backup"; Text = $Manifest; Needle = 'android:allowBackup="false"' },
     @{ Name = "manifest disables debug"; Text = $Manifest; Needle = 'android:debuggable="false"' },
@@ -235,7 +236,12 @@ try {
     @{ Name = "app has local reminder cancellation helper"; Text = $AssetJs; Needle = "function cancelLocalReminders(tasks = state.longTasks)" },
     @{ Name = "app calls native cancel all reminders"; Text = $AssetJs; Needle = "bridge.cancelAllReminders()" },
     @{ Name = "app binds data import button"; Text = $AssetJs; Needle = '$(''import-data'').addEventListener(''click'', importData)' },
-    @{ Name = "app validates feishu cn"; Text = $AssetJs; Pattern = "feishu\\\.cn\|larksuite\\\.com" }
+    @{ Name = "app validates feishu cn"; Text = $AssetJs; Pattern = "feishu\\\.cn\|larksuite\\\.com" },
+    @{ Name = "release build supports external keystore path"; Text = $BuildScript; Needle = "NAONAO_ANDROID_KEYSTORE_PATH" },
+    @{ Name = "release build supports external key alias"; Text = $BuildScript; Needle = "NAONAO_ANDROID_KEY_ALIAS" },
+    @{ Name = "release build supports separate store password"; Text = $BuildScript; Needle = "NAONAO_ANDROID_STORE_PASSWORD" },
+    @{ Name = "release build supports external key password"; Text = $BuildScript; Needle = "NAONAO_ANDROID_KEY_PASSWORD" },
+    @{ Name = "release build refuses missing configured keystore"; Text = $BuildScript; Needle = "Configured release keystore does not exist" }
   )
   foreach ($Check in $SourceChecks) {
     if ($Check.ContainsKey("Pattern")) {

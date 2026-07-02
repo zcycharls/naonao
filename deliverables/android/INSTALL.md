@@ -9,7 +9,7 @@ deliverables/android/naonao-android-1.701.0.apk
 SHA256：
 
 ```text
-0AEADFE372503C3C17770C5FDD3137C36197E7AF34F623DDEBEC941AEE1A73E8
+E4A7C0E99A8A989A0E8C016C0FC08AEEC125235418C3EB9AAF146AFF36C5E407
 ```
 
 ## 手机安装
@@ -42,5 +42,6 @@ Android 里的 `127.0.0.1` / `localhost` 指手机本机，不是电脑。如果
 
 脚本会先跑 Android 状态测试、移动端页面 smoke、APK 包名/版本/签名/内置资源/sourceDigest 门禁和环境诊断，再通过 `adb install -r` 安装并启动 `com.naonao.app.android`。
 启动后还会确认已安装包版本、应用进程、前台 Activity，并扫描本次启动后的 logcat，若出现本包 `FATAL EXCEPTION`、`AndroidRuntime`、`Fatal signal` 或关联 WebView/Chromium 崩溃信号会直接失败。
+通过时会把 `am start` 输出、`dumpsys package/window/activity`、本次启动后的 `logcat`、启动截图和 `install-smoke-report.json` 保存到 `deliverables/android/install-smoke/`，用于复核真机或模拟器上的实际运行状态。
 
 当前开发机没有连接 Android 设备，所以安装级验证尚未完成；已有包体和界面验证见 `VERIFY.md`。

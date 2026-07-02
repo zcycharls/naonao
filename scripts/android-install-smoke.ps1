@@ -1,5 +1,6 @@
 param(
   [string]$ApkPath = "deliverables\android\naonao-android-1.701.0.apk",
+  [string]$EvidenceDir = "deliverables\android\install-smoke",
   [int]$LaunchWaitSeconds = 3,
   [switch]$SkipApkVerify
 )
@@ -32,6 +33,14 @@ if (-not (Test-Path $Adb)) { throw "Missing adb: $Adb" }
 $PackageName = "com.naonao.app.android"
 $ActivityName = "$PackageName/.MainActivity"
 $ResolvedApk = (Resolve-Path $ApkPath).Path
+$ResolvedEvidenceDir = [System.IO.Path]::GetFullPath($EvidenceDir)
+$RepoRoot = [System.IO.Path]::GetFullPath((Resolve-Path (Join-Path $PSScriptRoot "..")).Path)
+$AllowedEvidenceRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "deliverables\android"))
+$AllowedEvidencePrefix = $AllowedEvidenceRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+if ($ResolvedEvidenceDir -ne $AllowedEvidenceRoot -and -not $ResolvedEvidenceDir.StartsWith($AllowedEvidencePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw "Refusing to write install smoke evidence outside deliverables\android: $ResolvedEvidenceDir"
+}
+New-Item -ItemType Directory -Force -Path $ResolvedEvidenceDir | Out-Null
 if (-not $SkipApkVerify) {
   $Verifier = Join-Path $PSScriptRoot "android-verify-apk.ps1"
   if (-not (Test-Path $Verifier)) { throw "Missing APK verifier: $Verifier" }
@@ -94,12 +103,23 @@ function Test-PackageProcess {
   return (($PsResult.Output -join "`n") -match [regex]::Escape($PackageName))
 }
 
+function Write-EvidenceText {
+  param(
+    [string]$Name,
+    [string]$Text
+  )
+  $Path = Join-Path $ResolvedEvidenceDir $Name
+  Set-Content -LiteralPath $Path -Encoding UTF8 -Value $Text
+  return $Path
+}
+
 Invoke-DeviceAdb -AdbArgs @("install", "-r", $ResolvedApk) | Out-Null
 Invoke-DeviceAdb -AdbArgs @("shell", "am", "force-stop", $PackageName) | Out-Null
 Invoke-DeviceAdb -AdbArgs @("logcat", "-c") | Out-Null
 
 $StartResult = Invoke-DeviceAdb -AdbArgs @("shell", "am", "start", "-W", "-n", $ActivityName)
 $StartText = $StartResult.Output -join "`n"
+Write-EvidenceText -Name "am-start.txt" -Text $StartText | Out-Null
 if ($StartText -notmatch "Status:\s*ok") {
   throw "Activity launch did not report Status: ok.`n$StartText"
 }
@@ -108,6 +128,7 @@ Start-Sleep -Seconds ([Math]::Max(1, $LaunchWaitSeconds))
 
 $PackageInfo = Invoke-DeviceAdb -AdbArgs @("shell", "dumpsys", "package", $PackageName)
 $PackageText = $PackageInfo.Output -join "`n"
+Write-EvidenceText -Name "dumpsys-package.txt" -Text $PackageText | Out-Null
 if ($PackageText -notmatch "versionName=1\.701\.0" -or $PackageText -notmatch "versionCode=170100") {
   throw "Installed package version check failed"
 }
@@ -119,15 +140,53 @@ if (-not $ProcessConfirmed) {
 
 $WindowInfo = Invoke-DeviceAdb -AdbArgs @("shell", "dumpsys", "window")
 $FocusText = $WindowInfo.Output -join "`n"
+Write-EvidenceText -Name "dumpsys-window.txt" -Text $FocusText | Out-Null
 $ActivityInfo = Invoke-DeviceAdb -AdbArgs @("shell", "dumpsys", "activity", "activities") -AllowFailure
 $ActivityText = $ActivityInfo.Output -join "`n"
+Write-EvidenceText -Name "dumpsys-activities.txt" -Text $ActivityText | Out-Null
 $ForegroundConfirmed = ($FocusText -match [regex]::Escape($PackageName)) -or ($ActivityText -match [regex]::Escape($PackageName))
 if (-not $ForegroundConfirmed) {
   throw "APK installed and launch command ran, but foreground package could not be confirmed from dumpsys."
 }
 
 $Logcat = Invoke-DeviceAdb -AdbArgs @("logcat", "-d", "-v", "time") -AllowFailure
-Assert-NoLaunchCrash -LogText ($Logcat.Output -join "`n")
+$LogcatText = $Logcat.Output -join "`n"
+Write-EvidenceText -Name "logcat.txt" -Text $LogcatText | Out-Null
+Assert-NoLaunchCrash -LogText $LogcatText
+
+$ScreenshotPath = Join-Path $ResolvedEvidenceDir "launch.png"
+$RemoteScreenshot = "/sdcard/Download/naonao-install-smoke-launch.png"
+Invoke-DeviceAdb -AdbArgs @("shell", "screencap", "-p", $RemoteScreenshot) | Out-Null
+$PullOutput = & $Adb -s $DeviceSerial pull $RemoteScreenshot $ScreenshotPath 2>&1
+$PullExitCode = $LASTEXITCODE
+Invoke-DeviceAdb -AdbArgs @("shell", "rm", "-f", $RemoteScreenshot) -AllowFailure | Out-Null
+if ($PullExitCode -ne 0) {
+  Write-EvidenceText -Name "screencap-error.txt" -Text ($PullOutput -join "`n") | Out-Null
+  throw "adb pull launch screenshot failed; see screencap-error.txt"
+}
+if ((Get-Item -LiteralPath $ScreenshotPath).Length -lt 1000) {
+  throw "Launch screenshot is unexpectedly small: $ScreenshotPath"
+}
+
+$Report = [pscustomobject]@{
+  generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+  apk = $ResolvedApk
+  device = $DeviceRows[0].Trim()
+  package = $PackageName
+  versionName = "1.701.0"
+  versionCode = 170100
+  evidenceDir = $ResolvedEvidenceDir
+  files = @{
+    start = "am-start.txt"
+    package = "dumpsys-package.txt"
+    window = "dumpsys-window.txt"
+    activities = "dumpsys-activities.txt"
+    logcat = "logcat.txt"
+    screenshot = "launch.png"
+  }
+}
+$ReportPath = Join-Path $ResolvedEvidenceDir "install-smoke-report.json"
+$Report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding UTF8
 
 [pscustomobject]@{
   Apk = $ResolvedApk
@@ -140,4 +199,7 @@ Assert-NoLaunchCrash -LogText ($Logcat.Output -join "`n")
   Process = "passed"
   ForegroundConfirmed = $ForegroundConfirmed
   LaunchCrashScan = "passed"
+  Screenshot = $ScreenshotPath
+  EvidenceDir = $ResolvedEvidenceDir
+  Report = $ReportPath
 }
