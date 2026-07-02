@@ -28,7 +28,7 @@ async function loadLocalModel(onProgress) {
     const ok = await window.petBridge.localModelLoad();
     localModelReady = ok;
     localModelLoading = false;
-    if (ok && onProgress) onProgress(100, '✅ 模型已就绪');
+    if (ok && onProgress) onProgress(100, '模型已就绪');
     return ok;
   } catch (e) {
     console.error('[孬孬] 加载本地模型失败:', e);
@@ -45,7 +45,7 @@ async function localInference(text) {
     return response;
   } catch (e) {
     console.error('[孬孬] 推理失败:', e);
-    if (typeof addLog === 'function') addLog('❌ 推理异常: ' + (e?.message || e).slice(0, 100));
+    if (typeof addLog === 'function') addLog('推理异常: ' + (e?.message || e).slice(0, 100));
     return null;
   }
 }
@@ -56,8 +56,7 @@ function hasLocalModel() {
 
 function getLocalModelStatus() {
   if (localModelLoading) return '加载中…';
-  if (localModelReady) return '✅ 已就绪';
-  if (localModelHasFiles) return '⏸️ 已下载，点击加载';
-  return '❌ 未下载（约 460MB）';
+  if (localModelReady) return '已就绪';
+  if (localModelHasFiles) return '已下载，点击加载';
+  return '未下载（约 460MB）';
 }
-

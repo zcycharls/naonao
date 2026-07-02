@@ -314,6 +314,15 @@ const longTaskWebhookSaved={};
 const removedLongTaskIds=new Set();
 let curP=cfg.p;
 
+function syncSettingsWindowTitle(target){
+  const title=document.getElementById('settings-window-title');
+  if(!title) return;
+  const active=[...document.querySelectorAll('.settings-tab')]
+    .find(btn=>btn.dataset.settingsTab===target)
+    ?.querySelector('span:last-child');
+  title.textContent=active?.textContent?.trim()||'设置';
+}
+
 function selectSettingsTab(tab){
   const name=String(tab||'model');
   const tabs=[...document.querySelectorAll('.settings-tab')];
@@ -324,6 +333,7 @@ function selectSettingsTab(tab){
   sections.forEach(section=>{
     section.hidden=section.dataset.settingsSection!==target;
   });
+  syncSettingsWindowTitle(target);
 }
 
 document.querySelectorAll('[data-settings-tab]').forEach(btn=>{
@@ -971,28 +981,28 @@ async function updateStatus(){
   const downloadProgress = document.getElementById('download-progress');
   
   if (modelStatus) {
-    modelStatus.textContent = '🤖 本地模型：' + getLocalModelStatus();
+    modelStatus.textContent = '本地模型：' + getLocalModelStatus();
   }
   const modelBtn = document.getElementById('local-model-btn');
   if (modelBtn) {
     if (localModelLoading) {
       modelBtn.disabled = true;
-      modelBtn.textContent = '⏳ 加载中…';
+      modelBtn.textContent = '加载中…';
       if (downloadProgress) downloadProgress.style.display = 'none';
     } else if (localModelReady) {
       modelBtn.disabled = true;
-      modelBtn.textContent = '✅ 模型已就绪';
+      modelBtn.textContent = '模型已就绪';
       modelBtn.style.opacity = '0.6';
       if (downloadProgress) downloadProgress.style.display = 'none';
     } else if (localModelHasFiles) {
       modelBtn.disabled = false;
-      modelBtn.textContent = '🔁 加载本地模型';
+      modelBtn.textContent = '加载本地模型';
       modelBtn.style.opacity = '1';
       if (downloadProgress) downloadProgress.style.display = 'none';
     } else {
       // 模型未下载
       modelBtn.disabled = false;
-      modelBtn.textContent = '📥 下载并加载模型';
+      modelBtn.textContent = '下载并加载模型';
       modelBtn.style.opacity = '1';
       if (downloadProgress) downloadProgress.style.display = 'none';
     }
@@ -1012,7 +1022,7 @@ document.getElementById('download-cancel')?.addEventListener('click',async ()=>{
   await window.petBridge.localModelCancel();
   const btn=document.getElementById('local-model-btn');
   const dp=document.getElementById('download-progress');
-  if(btn){btn.disabled=false;btn.textContent='📥 下载并加载模型';btn.style.opacity='1'}
+  if(btn){btn.disabled=false;btn.textContent='下载并加载模型';btn.style.opacity='1'}
   if(dp)dp.style.display='none';
   addLog('⏹ 下载已取消');
 });
@@ -1033,20 +1043,20 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
   // 如果模型文件已存在，直接加载
   if (localModelHasFiles && !localModelLoading) {
     btn.disabled = true;
-    btn.textContent = '⏳ 加载中…';
-    if (status) status.textContent = '🤖 本地模型：加载中…';
+    btn.textContent = '加载中…';
+    if (status) status.textContent = '本地模型：加载中…';
     const ok = await loadLocalModel((pct, msg) => {
-      if (status) status.textContent = '🤖 本地模型：' + (msg || '加载中…');
-      if (btn && pct !== null && pct >= 0) btn.textContent = '⏳ ' + pct + '%';
+      if (status) status.textContent = '本地模型：' + (msg || '加载中…');
+      if (btn && pct !== null && pct >= 0) btn.textContent = pct + '%';
     });
     if (ok) {
-      addLog('本地 AI 模型加载完成 ✅');
+      addLog('本地 AI 模型加载完成');
       updateStatus();
     } else {
       btn.disabled = false;
-      btn.textContent = '🔁 加载本地模型';
-      addLog('❌ 模型加载失败。详情请看日志或开发者工具控制台');
-      if (status) status.textContent = '🤖 本地模型：加载失败';
+      btn.textContent = '加载本地模型';
+      addLog('模型加载失败。详情请看日志或开发者工具控制台');
+      if (status) status.textContent = '本地模型：加载失败';
     }
     return;
   }
@@ -1054,8 +1064,8 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
   // 模型文件不存在，需要下载
   downloadCancelled=false;
   btn.disabled = true;
-  btn.textContent = '⏳ 下载中…';
-  if (status) status.textContent = '🤖 本地模型：准备下载…';
+  btn.textContent = '下载中…';
+  if (status) status.textContent = '本地模型：准备下载…';
   if (downloadProgress) downloadProgress.style.display = 'block';
   if (downloadStatus) downloadStatus.textContent = '正在连接下载服务器…';
   if (downloadBar) downloadBar.style.width = '0%';
@@ -1071,22 +1081,22 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
       localModelReady = true;
       localModelHasFiles = true;
       localModelLoading = false;
-      addLog('本地 AI 模型下载并加载完成 ✅');
+      addLog('本地 AI 模型下载并加载完成');
       if (downloadProgress) downloadProgress.style.display = 'none';
       updateStatus();
     } else {
       btn.disabled = false;
-      btn.textContent = '📥 下载并加载模型';
-      if (status) status.textContent = '🤖 本地模型：下载失败';
+      btn.textContent = '下载并加载模型';
+      if (status) status.textContent = '本地模型：下载失败';
       if (downloadProgress) downloadProgress.style.display = 'none';
-      addLog('❌ 模型下载失败。请检查网络连接后重试。');
+      addLog('模型下载失败。请检查网络连接后重试。');
     }
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = '📥 下载并加载模型';
-    if (status) status.textContent = '🤖 本地模型：下载异常';
+    btn.textContent = '下载并加载模型';
+    if (status) status.textContent = '本地模型：下载异常';
     if (downloadProgress) downloadProgress.style.display = 'none';
-    addLog('❌ 模型下载异常: ' + (e?.message || e));
+    addLog('模型下载异常: ' + (e?.message || e));
   }
 });
 // 删除本地模型按钮
@@ -1095,20 +1105,20 @@ document.getElementById('local-model-delete-btn')?.addEventListener('click', asy
   if (!ok) return;
   const btn = document.getElementById('local-model-delete-btn');
   const status = document.getElementById('local-model-status');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 删除中…'; }
+  if (btn) { btn.disabled = true; btn.textContent = '删除中…'; }
   const result = await window.petBridge.localModelDelete();
   if (result.success) {
     localModelReady = false;
     localModelHasFiles = false;
     localModelLoading = false;
-    addLog('🗑 本地模型已删除');
+    addLog('本地模型已删除');
     updateStatus();
-    if (status) status.textContent = '🤖 本地模型：已删除';
+    if (status) status.textContent = '本地模型：已删除';
     // 恢复删除按钮
-    if (btn) { btn.disabled = false; btn.textContent = '🗑 删除本地模型'; }
+    if (btn) { btn.disabled = false; btn.textContent = '删除本地模型'; }
   } else {
-    addLog('❌ 删除模型失败: ' + (result.error || '未知错误'));
-    if (btn) { btn.disabled = false; btn.textContent = '🗑 删除本地模型'; }
+    addLog('删除模型失败: ' + (result.error || '未知错误'));
+    if (btn) { btn.disabled = false; btn.textContent = '删除本地模型'; }
   }
 });
 segBtns.forEach(b=>b.addEventListener('click',()=>{if(!b.dataset.p)return;curP=b.dataset.p;syncSeg();}));
@@ -1425,7 +1435,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
     hermesEnabled,
     longTasks};
   save();history=[];closeSettings();
-  appendMsg('pet',hasKey()?'设置好了 ✦\n快来跟我聊天吧！':'好的，我在这里呢~ 🌸');
+  appendMsg('pet',hasKey()?'设置好了。\n快来跟我聊天吧！':'好的，我在这里。');
   restartFeishuAppConnection();
   restartFeishuSupervisor();
   restartLongTaskSupervisor();
@@ -1477,7 +1487,7 @@ function appendMsg(role,text,img){
   const timeStr=escHtml(fmtTime(new Date()));
   if(role==='pet'){
     row.innerHTML=`
-      <div class="dlg-avatar">🐾</div>
+      <div class="dlg-avatar">孬</div>
       <div class="dlg-msg-wrap">
         <div class="dlg-bubble"></div>
         <div class="dlg-time">${timeStr}</div>
@@ -1493,7 +1503,7 @@ function appendMsg(role,text,img){
   if(img && typeof img==='string' && /^data:image\/(png|jpe?g|webp|gif);/i.test(img)){
     const im=document.createElement('img');
     im.src=img; im.alt='';
-    im.style.cssText='display:block;max-width:200px;max-height:200px;border-radius:10px;margin-bottom:6px;border:1.5px solid #e2d8ff';
+    im.style.cssText='display:block;max-width:200px;max-height:200px;border-radius:10px;margin-bottom:6px;border:1px solid rgba(74,69,57,.22)';
     bubble.appendChild(im);
   }
   if(text){
@@ -1509,7 +1519,7 @@ function showThinkingIndicator(){
   thinkingEl=document.createElement('div');
   thinkingEl.className='dlg-row pet thinking-row';
   thinkingEl.innerHTML=`
-    <div class="dlg-avatar">🐾</div>
+    <div class="dlg-avatar">孬</div>
     <div class="dlg-msg-wrap">
       <div class="dlg-bubble">
         <div class="tdots"><span></span><span></span><span></span></div>
@@ -1599,7 +1609,7 @@ function startStreamBubble(){
   const row=document.createElement('div');
   row.className='dlg-row pet';
   row.innerHTML=`
-    <div class="dlg-avatar">🐾</div>
+    <div class="dlg-avatar">孬</div>
     <div class="dlg-msg-wrap">
       <div class="dlg-bubble stream-bubble"></div>
       <div class="dlg-time stream-time">${fmtTime(new Date())}</div>
@@ -1640,7 +1650,7 @@ async function send(){
       });
       if (!loaded) {
         setTimeout(()=>{
-          appendMsg('pet', '⚠️ 本地模型加载失败，当前使用智能话术回复。\n\n你可以：\n1. 检查模型文件是否完整\n2. 设置里填入 Gemini API key 获得更好的体验');
+          appendMsg('pet', '本地模型加载失败，当前使用智能话术回复。\n\n你可以：\n1. 检查模型文件是否完整\n2. 设置里填入 API Key 获得更好的体验');
         }, 300);
         return;
       }
@@ -1764,9 +1774,9 @@ function appendErrorMsg(txt){
   const row=document.createElement('div');
   row.className='dlg-row pet';
   row.innerHTML=`
-    <div class="dlg-avatar">🐾</div>
+    <div class="dlg-avatar">孬</div>
     <div class="dlg-msg-wrap">
-      <div class="dlg-bubble" style="background:#fff0f0;border-color:#f4c0c0;color:#b54b4b;font-size:12px">⚠️ ${escHtml(txt)}</div>
+      <div class="dlg-bubble" style="background:#fff0f0;border-color:#d8aaa2;color:#8f3f38;font-size:12px">${escHtml(txt)}</div>
       <div class="dlg-time">${fmtTime(new Date())}</div>
     </div>`;
   dlgMsgs.appendChild(row);
@@ -2078,7 +2088,7 @@ function renderTasks(){
   if(!taskRowsEl) return;
   const {tasks,activeId}=TaskStore.state;
   if(!tasks.length){
-    taskRowsEl.innerHTML='<div id="task-empty">点 + 加第一个任务，让我陪你专注 🐨</div>';
+    taskRowsEl.innerHTML='<div id="task-empty">点 + 加第一个任务，让我陪你专注</div>';
     return;
   }
   // 排序：active 置顶，然后按 createdAt 倒序
@@ -2303,7 +2313,7 @@ function renderPomo(){
   const pct=100*(1-pomoLeft/pomoTotal);
   pomoFill.style.width=pct+'%';
   pomoModeEl.textContent=pomoMode==='work'?'专注中':'休息中';
-  pomoCountEl.textContent=`🍅 × ${pomoCount}`;
+  pomoCountEl.textContent=`● × ${pomoCount}`;
   pomoWidget.classList.toggle('break-mode',pomoMode==='break');
   pomoStartBtn.textContent=pomoRunning?'暂停':'开始';
   pomoStartBtn.classList.toggle('running',pomoRunning);
@@ -2319,7 +2329,7 @@ function pomoComplete(){
     pomoMode='break';pomoLeft=POMO_BREAK;pomoTotal=POMO_BREAK;
     spawnHeart(px+55,py+35);
     const act=TaskStore.getActive();
-    const head=act?`「${act.title}」专注完成！🌸`:'专注完成！🌸';
+    const head=act?`「${act.title}」专注完成。`:'专注完成。';
     const next=act?TaskStore.nextUnchecked(act.id):null;
     if(next){
       appendPomoNext(head, act.id, next.id, next.text);
@@ -2329,7 +2339,7 @@ function pomoComplete(){
     }
   } else {
     pomoMode='work';pomoLeft=POMO_WORK;pomoTotal=POMO_WORK;
-    appendMsg('pet','休息结束啦 💜\n准备好继续了吗？');
+    appendMsg('pet','休息结束了。\n准备好继续了吗？');
   }
   renderPomo();
 }
@@ -2369,9 +2379,9 @@ const StatsRenderer={
     const total=StatsStore.totalFocusMin();
     const streak=StatsStore.streakDays();
     el.innerHTML=today===0 && week===0
-      ?`<div class="stat-empty">🍅<br>还没有番茄记录<br>开一个试试吧～</div>`
-      :`<div class="stat-numbers"><div class="stat-big">🔥 ${streak}</div><div class="stat-label">连续打卡</div></div>
-         <div class="stat-row"><span>今日</span><strong>${today} 🍅</strong><span>本周</span><strong>${week} 🍅</strong></div>
+      ?`<div class="stat-empty">●<br>还没有番茄记录<br>开一个试试吧</div>`
+      :`<div class="stat-numbers"><div class="stat-big">◉ ${streak}</div><div class="stat-label">连续打卡</div></div>
+         <div class="stat-row"><span>今日</span><strong>${today} 次</strong><span>本周</span><strong>${week} 次</strong></div>
          <div class="stat-row">累计专注 <strong>${total} 分钟</strong></div>`;
   },
   renderCalendar(){
@@ -2387,7 +2397,7 @@ const StatsRenderer={
         else if(d.count>0) cls+=' cal-done';
         else cls+=' cal-empty';
         if(d.today) cls+=' cal-today';
-        return `<div class="${cls}" title="${d.date}: ${d.count}🍅">${d.count>0?'🍅':''}</div>`;
+        return `<div class="${cls}" title="${d.date}: ${d.count} 次">${d.count>0?'●':''}</div>`;
       }).join('')+'</div>';
     });
     h+='</div>';
@@ -2397,8 +2407,8 @@ const StatsRenderer={
     const el=document.getElementById('stats-fridge-card');
     const total=freezerItems.length;
     el.innerHTML=total===0
-      ?`<div class="stat-empty">🧊<br>还没有冷冻的想法<br><small>点击 💡 把闪现的想法冻起来</small></div>`
-      :`<div class="stat-numbers"><div class="stat-big">🧊 ${total}</div><div class="stat-label">已冷冻的想法</div></div>
+      ?`<div class="stat-empty">◇<br>还没有冷冻的想法<br><small>点击右下角按钮，把闪现的想法冻起来</small></div>`
+      :`<div class="stat-numbers"><div class="stat-big">◇ ${total}</div><div class="stat-label">已冷冻的想法</div></div>
          <div class="stat-row">最新：<strong>${escHtml((freezerItems[0]?.text||'').slice(0,20))}</strong></div>`;
   },
   renderTrend(){
@@ -2406,16 +2416,16 @@ const StatsRenderer={
     const m=StatsStore.dailyMap(this.trendDays);
     const days=Object.keys(m).sort();
     const max=Math.max(...Object.values(m),1);
-    let h=`<div class="trend-header">📈 近${this.trendDays}天趋势 <button class="trend-switch">${this.trendDays===7?'30天':'7天'}</button></div>
+    let h=`<div class="trend-header">▧ 近${this.trendDays}天趋势 <button class="trend-switch">${this.trendDays===7?'30天':'7天'}</button></div>
            <div class="trend-bars">`;
     days.forEach(d=>{
       const v=m[d];const pct=(v/max*100).toFixed(0);
       const label=d.slice(5);
-      h+=`<div class="trend-bar-wrap"><div class="trend-bar" style="height:${pct}%" title="${d}: ${v}🍅"></div><span class="trend-label">${label}</span></div>`;
+      h+=`<div class="trend-bar-wrap"><div class="trend-bar" style="height:${pct}%" title="${d}: ${v} 次"></div><span class="trend-label">${label}</span></div>`;
     });
     h+='</div>';
     const mm=getMoodTrend(this.trendDays);
-    const me={3:'😊',2:'😐',1:'😣'};
+    const me={3:'稳',2:'中',1:'低'};
     h+='<div class="mood-row">'+days.map(d=>`<span class="mood-dot">${mm[d]?me[mm[d]]:''}</span>`).join('')+'</div>';
     el.innerHTML=h;
     setTimeout(()=>{const btn=document.querySelector('#stats-trend .trend-switch');if(btn)btn.addEventListener('click',()=>StatsRenderer.switchTrend(StatsRenderer.trendDays===7?30:7));},0);
@@ -2457,7 +2467,7 @@ const updateBD=(persist=true)=>{
 };
 bdBtn.addEventListener('click',()=>{
   bdOn=!bdOn;updateBD();
-  if(bdOn)appendMsg('pet','🐨 孬孬也在认真陪你哦～');
+  if(bdOn)appendMsg('pet','孬孬也在认真陪你。');
 });
 window.addEventListener('storage',e=>{
   if(e.key==='nono_bd'){
@@ -2480,7 +2490,7 @@ const updateFreezer=()=>{privateSet('nono_freezer',JSON.stringify(freezerItems))
 const freezeIdea=(text)=>{if(!text.trim())return;freezerItems.unshift({id:'fz_'+Date.now(),text:text.trim(),frozenAt:new Date().toISOString()});updateFreezer();fzInput.value=''};
 const thawIdea=(id)=>{freezerItems=freezerItems.filter(i=>i.id!==id);updateFreezer()};
 const useIdea=(id)=>{const item=freezerItems.find(i=>i.id===id);if(!item)return;const taskInput=document.getElementById('task-add-input');if(taskInput){taskInput.value=item.text;taskInput.focus();taskInput.dispatchEvent(new Event('input',{bubbles:true}))}thawIdea(id);closeFreezer()};
-const renderFreezerList=()=>{fzList.innerHTML='';if(freezerItems.length===0){fzEmpty.style.display='block';fzList.style.display='none'}else{fzEmpty.style.display='none';fzList.style.display='flex';freezerItems.forEach(item=>{const el=document.createElement('div');el.className='fz-item';el.innerHTML=`<span class="fz-text"></span><button class="fz-use" title="取用为任务锚">📌</button><button class="fz-thaw" title="解冻删除">✕</button>`;el.querySelector('.fz-text').textContent=item.text;el.querySelector('.fz-use').addEventListener('click',()=>useIdea(item.id));el.querySelector('.fz-thaw').addEventListener('click',()=>thawIdea(item.id));fzList.appendChild(el)})}};
+const renderFreezerList=()=>{fzList.innerHTML='';if(freezerItems.length===0){fzEmpty.style.display='block';fzList.style.display='none'}else{fzEmpty.style.display='none';fzList.style.display='flex';freezerItems.forEach(item=>{const el=document.createElement('div');el.className='fz-item';el.innerHTML=`<span class="fz-text"></span><button class="fz-use" title="取用为任务锚">⌖</button><button class="fz-thaw" title="解冻删除">✕</button>`;el.querySelector('.fz-text').textContent=item.text;el.querySelector('.fz-use').addEventListener('click',()=>useIdea(item.id));el.querySelector('.fz-thaw').addEventListener('click',()=>thawIdea(item.id));fzList.appendChild(el)})}};
 const openFreezer=()=>{renderFreezerList();fzDrawer.classList.add('open');fzOverlay.style.display='block';fzBtn.classList.add('active')};
 const closeFreezer=()=>{fzDrawer.classList.remove('open');fzOverlay.style.display='none';fzBtn.classList.remove('active')};
 
@@ -2497,11 +2507,11 @@ let moodJournal=JSON.parse(privateGet(MOOD_KEY,'[]'));
 const saveMood=()=>privateSet(MOOD_KEY,JSON.stringify(moodJournal));
 const promptMood=()=>{
   const row=document.createElement('div');row.className='mood-prompt';
-  row.innerHTML='<span>刚才感觉怎么样？</span><button data-m="great">😊</button><button data-m="ok">😐</button><button data-m="😣">😣</button>';
+  row.innerHTML='<span>刚才感觉怎么样？</span><button data-m="great">稳</button><button data-m="ok">中</button><button data-m="low">低</button>';
   row.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
     moodJournal.push({mood:b.dataset.m,date:localDateKey(),ts:Date.now()});
     saveMood();
-    row.innerHTML='<span style="opacity:.7">记录啦～ '+b.textContent+'</span>';
+    row.innerHTML='<span style="opacity:.7">已记录：'+b.textContent+'</span>';
   }));
   dlgMsgs.appendChild(row);dlgMsgs.scrollTop=dlgMsgs.scrollHeight;
 };
@@ -2517,7 +2527,7 @@ function appendPomoNext(head, taskId, subId, subText){
   const row=document.createElement('div');
   row.className='dlg-row pet';
   row.innerHTML=`
-    <div class="dlg-avatar">🍅</div>
+    <div class="dlg-avatar">●</div>
     <div class="dlg-msg-wrap">
       <div class="dlg-bubble"></div>
       <div class="dlg-time">${fmtTime(new Date())}</div>
@@ -2527,7 +2537,7 @@ function appendPomoNext(head, taskId, subId, subText){
   const doneList=[]; // 已经在这条消息里勾掉的子步骤文本
 
   function render(currentSub){
-    const checks=doneList.map(t=>`<div style="color:#7c5cbf">✓ ${escHtml(t)}</div>`).join('');
+    const checks=doneList.map(t=>`<div style="color:var(--green)">✓ ${escHtml(t)}</div>`).join('');
     if(currentSub){
       bubble.innerHTML=`${escHtml(head)}${checks}<br>下一步：<b>${escHtml(currentSub.text)}</b>
         <div class="pomo-next-act">
@@ -2544,7 +2554,7 @@ function appendPomoNext(head, taskId, subId, subText){
         bubble.querySelector('.pomo-next-act')?.remove();
       });
     } else {
-      bubble.innerHTML=`${escHtml(head)}${checks}<br>🎉 全部完成！休息 5 分钟吧 🌸`;
+      bubble.innerHTML=`${escHtml(head)}${checks}<br>全部完成。休息 5 分钟吧`;
     }
   }
   render({id:subId, text:subText});
@@ -2661,23 +2671,23 @@ function checkinMsg(){
     const next = TaskStore.nextUnchecked(act.id);
     if(next){
       const msgs=[
-        `${hm} ✨\n下一步：${next.text}`,
-        `${hm} 了 🌙\n要不要做「${next.text}」？`,
-        `${hm} ☁️\n「${act.title}」下一步：${next.text}`,
+        `${hm}\n下一步：${next.text}`,
+        `${hm} 了\n要不要做「${next.text}」？`,
+        `${hm}\n「${act.title}」下一步：${next.text}`,
       ];
       return rand(msgs);
     }
     const msgs=[
-      `${hm} ☁️\n你还在做「${act.title}」吗？`,
-      `${hm} 了 🌙\n「${act.title}」进展怎么样？`,
-      `${hm} ✨\n还好吗，还在做「${act.title}」？`,
+      `${hm}\n你还在做「${act.title}」吗？`,
+      `${hm} 了\n「${act.title}」进展怎么样？`,
+      `${hm}\n还好吗，还在做「${act.title}」？`,
     ];
     return rand(msgs);
   } else {
     const msgs=[
-      `${hm} 🕐\n你在做什么呢？`,
-      `${hm} 了，注意时间哦 🌸`,
-      `${hm}，还好吗？ 💜`,
+      `${hm}\n你在做什么呢？`,
+      `${hm} 了，注意时间。`,
+      `${hm}，还好吗？`,
     ];
     return rand(msgs);
   }
@@ -2900,7 +2910,7 @@ restartLongTaskSupervisor();
 /* ════════ HELPERS ════════ */
 function rand(a){return a[Math.floor(Math.random()*a.length)];}
 function spawnHeart(cx,cy){
-  const pool=['💜','✨','🌸','⭐','💖'];
+  const pool=['•','◦','◇','◉','◎'];
   const el=document.createElement('div');el.className='heart';
   el.textContent=rand(pool);
   const top=Math.max(50,cy-11);
@@ -2927,7 +2937,7 @@ function petReact(){
      2. Koala "comes alive" only when the user's cursor is in this window
         in the last few seconds (= they are looking at it).
      3. Focusing during a pomodoro → koala goes still (one barely visible
-        long breath). The 🍅 becomes a tiny static badge.
+        long breath). The focus marker becomes a tiny static badge.
      4. Blinks are event-driven (typing, clicking), never random.
      5. Sleeping after 5 min idle is a static state, not motion.
      6. A "quiet mode" body class disables everything for users who
@@ -3029,12 +3039,12 @@ const _moodObs=new MutationObserver(()=>{
 });
 _moodObs.observe(pw,{attributes:true,attributeFilter:['class']});
 const PHRASES=[
-  {label:'😵 我走神了',text:'我刚才走神了，帮我重新专注一下'},
-  {label:'😓 好累',text:'感觉好累，不想动'},
-  {label:'🌀 脑子乱',text:'脑子很乱，不知道该做什么'},
-  {label:'✨ 帮我专注',text:'帮我专注，我现在要开始做事了'},
-  {label:'🌸 鼓励我',text:'给我一句鼓励吧'},
-  {label:'😤 做不下去',text:'这件事我做不下去了'},
+  {label:'走神',text:'我刚才走神了，帮我重新专注一下'},
+  {label:'疲惫',text:'感觉好累，不想动'},
+  {label:'乱',text:'脑子很乱，不知道该做什么'},
+  {label:'专注',text:'帮我专注，我现在要开始做事了'},
+  {label:'鼓励',text:'给我一句鼓励吧'},
+  {label:'卡住',text:'这件事我做不下去了'},
 ];
 
 const quickBar=document.getElementById('quick-bar');
@@ -3093,7 +3103,7 @@ function onEnd(){
   if(!moved){
     petReact();
     setHappy(true);spawnHeart(px+55,py+40);
-    appendMsg('pet',hasKey()?'在这里呢~ 🌸\n有什么想说的吗？':smartFallback('你好'));
+    appendMsg('pet',hasKey()?'在这里。\n有什么想说的吗？':smartFallback('你好'));
   }
 }
 // Browser preview and desktop pet mode both move the pet inside the page.
@@ -3824,11 +3834,11 @@ if(IS_CHAT_WIN){
   // 各频率对应的闲置阈值（毫秒）
   const IDLE_THRESHOLDS = { off: null, low: 20*60*1000, mid: 10*60*1000, high: 5*60*1000 };
   const IDLE_REMIND_MSGS = [
-    '你还在做「{t}」吗？ 💜',
+    '你还在做「{t}」吗？',
     '「{t}」进展怎么样了？',
-    '嘿，别忘了「{t}」哦 🌸',
-    '「{t}」加油！我在陪着你 ✨',
-    '还好吗？「{t}」还等着你呢 🐨',
+    '嘿，别忘了「{t}」。',
+    '「{t}」继续推进，我在陪着你。',
+    '还好吗？「{t}」还等着你呢。',
     '休息够了就继续「{t}」吧～',
   ];
   // 初始化活跃时间（冷启动时不立刻提醒）
@@ -3842,7 +3852,7 @@ if(IS_CHAT_WIN){
     if (status.hasModel && !status.ready && !status.loading) {
       if (typeof addLog === 'function') addLog('[模型] 检测到内置模型，后台加载中…');
       const ok = await loadLocalModel();
-      if (ok && typeof addLog === 'function') addLog('[模型] 后台加载完成 ✅');
+      if (ok && typeof addLog === 'function') addLog('[模型] 后台加载完成');
       updateStatus();
     }
   })();
@@ -3867,9 +3877,9 @@ if(IS_CHAT_WIN){
       if(next){
         // 优先提醒下一个具体子步骤
         const tpls = [
-          `下一步：${next.text} ✨`,
+          `下一步：${next.text}`,
           `还差「${next.text}」一步～`,
-          `「${next.text}」加油 💜`,
+          `继续推进「${next.text}」`,
         ];
         msg = tpls[Math.floor(Math.random()*tpls.length)];
       } else {
