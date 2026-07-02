@@ -1,0 +1,7 @@
+﻿Starting: Intent { cmp=com.naonao.app.android/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.naonao.app.android/.MainActivity
+TotalTime: 264
+WaitTime: 266
+Complete

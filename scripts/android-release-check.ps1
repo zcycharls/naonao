@@ -1,6 +1,7 @@
 param(
   [switch]$Rebuild,
-  [switch]$RequireDevice
+  [switch]$RequireDevice,
+  [string]$DeviceSerial = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -76,8 +77,14 @@ try {
   }
 
   $InstallSmoke = "skipped: no connected Android device"
-  if ($EnvInfo.ConnectedDevices -eq 1 -or $RequireDevice) {
-    & .\scripts\android-install-smoke.ps1 -ApkPath $ReleaseApk -EvidenceDir "deliverables\android\install-smoke" -SkipApkVerify
+  if ($DeviceSerial -or $EnvInfo.ConnectedDevices -eq 1 -or $RequireDevice) {
+    $InstallArgs = @{
+      ApkPath = $ReleaseApk
+      EvidenceDir = "deliverables\android\install-smoke"
+      SkipApkVerify = $true
+    }
+    if ($DeviceSerial) { $InstallArgs.DeviceSerial = $DeviceSerial }
+    & .\scripts\android-install-smoke.ps1 @InstallArgs
     $InstallSmoke = "passed"
   }
 

@@ -1,6 +1,7 @@
 param(
   [string]$ApkPath = "deliverables\android\naonao-android-1.701.0.apk",
   [string]$EvidenceDir = "deliverables\android\install-smoke",
+  [string]$DeviceSerial = "",
   [int]$LaunchWaitSeconds = 3,
   [switch]$SkipApkVerify
 )
@@ -52,8 +53,19 @@ $Devices = & $Adb devices -l
 if ($LASTEXITCODE -ne 0) { throw "adb devices failed" }
 
 $DeviceRows = @($Devices | Where-Object { $_ -match "\sdevice(\s|$)" -and $_ -notmatch "^List of devices" })
-if ($DeviceRows.Count -ne 1) {
-  throw "Expected exactly one connected Android device, found $($DeviceRows.Count).`n$($Devices -join "`n")"
+if ($DeviceSerial) {
+  $MatchingRows = @($DeviceRows | Where-Object { ($_ -split "\s+")[0] -eq $DeviceSerial })
+  if ($MatchingRows.Count -ne 1) {
+    $State = & $Adb -s $DeviceSerial shell getprop sys.boot_completed 2>&1
+    if ($LASTEXITCODE -ne 0) {
+      throw "Requested Android device is not connected: $DeviceSerial.`n$($Devices -join "`n")`n$($State -join "`n")"
+    }
+    $DeviceRows = @("$DeviceSerial device")
+  } else {
+    $DeviceRows = $MatchingRows
+  }
+} elseif ($DeviceRows.Count -ne 1) {
+  throw "Expected exactly one connected Android device, found $($DeviceRows.Count). Pass -DeviceSerial when multiple adb targets exist.`n$($Devices -join "`n")"
 }
 $DeviceSerial = ($DeviceRows[0].Trim() -split "\s+")[0]
 
@@ -62,8 +74,14 @@ function Invoke-DeviceAdb {
     [string[]]$AdbArgs,
     [switch]$AllowFailure
   )
-  $Output = & $Adb -s $DeviceSerial @AdbArgs 2>&1
-  $ExitCode = $LASTEXITCODE
+  $OldErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $Output = & $Adb -s $DeviceSerial @AdbArgs 2>&1
+    $ExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $OldErrorActionPreference
+  }
   if ($ExitCode -ne 0 -and -not $AllowFailure) {
     throw "adb $($AdbArgs -join ' ') failed with exit code $ExitCode.`n$($Output -join "`n")"
   }
@@ -93,6 +111,51 @@ function Assert-NoLaunchCrash {
       throw "Launch logcat crash check failed.`n$Excerpt"
     }
   }
+}
+
+function Assert-WebViewReady {
+  param([string]$LogText)
+
+  $SmokeMatch = [regex]::Match($LogText, "NAONAO_SMOKE[\s\S]{0,1000}")
+  if (-not $SmokeMatch.Success) {
+    throw "Launch logcat did not contain the Android WebView readiness marker."
+  }
+
+  $SmokeWindow = $SmokeMatch.Value
+  $SmokeLines = @($SmokeWindow -split "`n" | Where-Object { $_ -match "NAONAO_SMOKE" })
+  foreach ($Line in $SmokeLines) {
+    $PayloadMatch = [regex]::Match($Line, "NAONAO_SMOKE\([^)]*\):\s*(?<payload>.*)$")
+    if (-not $PayloadMatch.Success) { continue }
+    $Payload = $PayloadMatch.Groups["payload"].Value.Trim()
+    try {
+      $DecodedPayload = $Payload | ConvertFrom-Json
+      if ($DecodedPayload -is [string]) {
+        $ReadyState = $DecodedPayload | ConvertFrom-Json
+      } else {
+        $ReadyState = $DecodedPayload
+      }
+      if ($ReadyState.title -eq "孬孬 Android" -and
+          [int]$ReadyState.nav -eq 5 -and
+          [bool]$ReadyState.home -and
+          [bool]$ReadyState.naonao -and
+          [bool]$ReadyState.bridge) {
+        return
+      }
+    } catch {
+      continue
+    }
+  }
+
+  $NormalizedSmoke = $SmokeWindow -replace "\\", ""
+  if ($NormalizedSmoke -match '"title"\s*:\s*"[^"]+"' -and
+      $NormalizedSmoke -match '"nav"\s*:\s*5' -and
+      $NormalizedSmoke -match '"home"\s*:\s*true' -and
+      $NormalizedSmoke -match '"naonao"\s*:\s*true' -and
+      $NormalizedSmoke -match '"bridge"\s*:\s*true') {
+    return
+  }
+
+  throw "Launch logcat contained NAONAO_SMOKE but not the expected WebView readiness state.`n$SmokeWindow"
 }
 
 function Test-PackageProcess {
@@ -153,15 +216,15 @@ $Logcat = Invoke-DeviceAdb -AdbArgs @("logcat", "-d", "-v", "time") -AllowFailur
 $LogcatText = $Logcat.Output -join "`n"
 Write-EvidenceText -Name "logcat.txt" -Text $LogcatText | Out-Null
 Assert-NoLaunchCrash -LogText $LogcatText
+Assert-WebViewReady -LogText $LogcatText
 
 $ScreenshotPath = Join-Path $ResolvedEvidenceDir "launch.png"
 $RemoteScreenshot = "/sdcard/Download/naonao-install-smoke-launch.png"
 Invoke-DeviceAdb -AdbArgs @("shell", "screencap", "-p", $RemoteScreenshot) | Out-Null
-$PullOutput = & $Adb -s $DeviceSerial pull $RemoteScreenshot $ScreenshotPath 2>&1
-$PullExitCode = $LASTEXITCODE
+$PullOutput = Invoke-DeviceAdb -AdbArgs @("pull", $RemoteScreenshot, $ScreenshotPath) -AllowFailure
 Invoke-DeviceAdb -AdbArgs @("shell", "rm", "-f", $RemoteScreenshot) -AllowFailure | Out-Null
-if ($PullExitCode -ne 0) {
-  Write-EvidenceText -Name "screencap-error.txt" -Text ($PullOutput -join "`n") | Out-Null
+if ($PullOutput.ExitCode -ne 0) {
+  Write-EvidenceText -Name "screencap-error.txt" -Text ($PullOutput.Output -join "`n") | Out-Null
   throw "adb pull launch screenshot failed; see screencap-error.txt"
 }
 if ((Get-Item -LiteralPath $ScreenshotPath).Length -lt 1000) {
@@ -184,6 +247,7 @@ $Report = [pscustomobject]@{
     logcat = "logcat.txt"
     screenshot = "launch.png"
   }
+  webViewReady = "passed"
 }
 $ReportPath = Join-Path $ResolvedEvidenceDir "install-smoke-report.json"
 $Report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding UTF8
@@ -199,6 +263,7 @@ $Report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encodi
   Process = "passed"
   ForegroundConfirmed = $ForegroundConfirmed
   LaunchCrashScan = "passed"
+  WebViewReady = "passed"
   Screenshot = $ScreenshotPath
   EvidenceDir = $ResolvedEvidenceDir
   Report = $ReportPath

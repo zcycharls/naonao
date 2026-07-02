@@ -50,8 +50,11 @@ import android.content.SharedPreferences;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
+import android.util.Log;
 
 public class MainActivity extends Activity {
+    private static final String SMOKE_TAG = "NAONAO_SMOKE";
+
     private WebView webView;
     private AndroidBridge androidBridge;
 
@@ -98,6 +101,22 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return handleUrl(Uri.parse(url));
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (url == null || !url.startsWith("file:///android_asset/")) return;
+                view.evaluateJavascript(
+                        "(function(){return JSON.stringify({" +
+                                "title:document.title," +
+                                "nav:document.querySelectorAll('.bottom-nav button').length," +
+                                "home:!!document.getElementById('view-home')," +
+                                "naonao:!!window.NAONAO," +
+                                "bridge:!!window.AndroidBridge" +
+                                "});})()",
+                        value -> Log.i(SMOKE_TAG, value == null ? "null" : value)
+                );
             }
 
             private boolean handleUrl(Uri uri) {
