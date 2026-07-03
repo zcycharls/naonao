@@ -17,18 +17,6 @@ if (-not $ApkPath) {
   $ApkPath = "deliverables\android\naonao-android-$VersionName.apk"
 }
 
-$ModelName = "Xenova/Qwen1.5-0.5B-Chat"
-$ModelRevision = "340777bb38067a8a5af921a405e3206a8cc2f318"
-$ModelRelativeDir = "Xenova/Qwen1.5-0.5B-Chat"
-$DesktopExeName = [string]([char]0x5B6C) + [string]([char]0x5B6C) + ".exe"
-$ModelRequiredFiles = @(
-  [pscustomobject]@{ file = "config.json"; size = 677; sha256 = "347b4bab02495e69e6c460cb0de4f5db0fa8f9d7cf188aea2fc36ca5b7bd58fb" },
-  [pscustomobject]@{ file = "generation_config.json"; size = 179; sha256 = "4a438118078e120d18b7fe4dbf884041d3c999e90b27346ee295cfb9e7f15ad7" },
-  [pscustomobject]@{ file = "tokenizer.json"; size = 7028015; sha256 = "f7c9b2dba4a296b1aa76c16a34b8225c0c118978400d4bb66bff0902d702f5b8" },
-  [pscustomobject]@{ file = "tokenizer_config.json"; size = 1168; sha256 = "fb7a9aad08c87a3e8a90fa7557e8039f0a122d90b07afed374bd825928c42510" },
-  [pscustomobject]@{ file = "onnx/decoder_model_merged_quantized.onnx"; size = 482326147; sha256 = "068cad70fa3850652e6ebc0ad7a49847568f32e6eda5a8527e5893de9a7b8939" }
-)
-
 $AndroidHome = $env:ANDROID_HOME
 if (-not $AndroidHome) { $AndroidHome = $env:ANDROID_SDK_ROOT }
 if (-not $AndroidHome) { $AndroidHome = "C:\Android\android-sdk" }
@@ -121,20 +109,6 @@ try {
     "assets\styles.css",
     "assets\app.js",
     "assets\build-info.json",
-    "assets\bundled-client\index.html",
-    "assets\bundled-client\styles.css",
-    "assets\bundled-client\app.js",
-    "assets\bundled-client\assets\hat.png",
-    "assets\bundled-client\js\local-model.js",
-    "assets\bundled-client\js\fallback-data.js",
-    "assets\bundled-client\js\pet-dialog.js",
-    "assets\bundled-client\js\provider-defaults.js",
-    "assets\bundled-client\lib\transformers\transformers.min.js",
-    "assets\bundled-client\lib\transformers\ort-wasm.wasm",
-    "assets\bundled-client\lib\transformers\ort-wasm-threaded.wasm",
-    "assets\bundled-client\lib\transformers\ort-wasm-simd.wasm",
-    "assets\bundled-client\lib\transformers\ort-wasm-simd-threaded.wasm",
-    "assets\desktop-runtime\win-unpacked.zip",
     "res\xml\network_security_config.xml"
   )
   foreach ($Entry in $RequiredEntries) {
@@ -142,18 +116,21 @@ try {
       throw "APK content check failed: missing $Entry"
     }
   }
-  foreach ($ModelEntry in $ModelRequiredFiles) {
-    $ApkModelPath = Join-Path $ZipRoot ("assets\models\$($ModelRelativeDir.Replace('/', '\'))\" + $ModelEntry.file.Replace("/", "\"))
-    if (-not (Test-Path -LiteralPath $ApkModelPath)) {
-      throw "APK content check failed: missing bundled model file $($ModelEntry.file)"
-    }
-    $ModelFile = Get-Item -LiteralPath $ApkModelPath
-    if ($ModelFile.Length -ne [int64]$ModelEntry.size) {
-      throw "APK content check failed: bundled model file size mismatch $($ModelEntry.file)"
-    }
-    $ModelHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ApkModelPath).Hash.ToLowerInvariant()
-    if ($ModelHash -ne $ModelEntry.sha256) {
-      throw "APK content check failed: bundled model sha256 mismatch $($ModelEntry.file)"
+  $ExtractedEntries = Get-ChildItem -LiteralPath $ZipRoot -Recurse -File |
+    ForEach-Object { $_.FullName.Substring($ZipRoot.Length + 1).Replace("\", "/") }
+  $ForbiddenEntryPatterns = @(
+    "^assets/models(/|$)",
+    "^assets/desktop-runtime(/|$)",
+    "^assets/bundled-client(/|$)",
+    "(^|/)transformers(/|$)",
+    "\.onnx$",
+    "\.safetensors$",
+    "\.wasm$"
+  )
+  foreach ($ForbiddenPattern in $ForbiddenEntryPatterns) {
+    $Match = $ExtractedEntries | Where-Object { $_ -match $ForbiddenPattern } | Select-Object -First 1
+    if ($Match) {
+      throw "APK content check failed: Android APK must be network-model only, found forbidden entry $Match"
     }
   }
   foreach ($Entry in @("assets\index.html", "assets\styles.css", "assets\app.js", "classes.dex")) {
@@ -162,34 +139,20 @@ try {
       throw "APK content check failed: $Entry unexpectedly small"
     }
   }
-  foreach ($Entry in @("assets\bundled-client\index.html", "assets\bundled-client\styles.css", "assets\bundled-client\app.js", "assets\bundled-client\lib\transformers\transformers.min.js")) {
-    $Item = Get-Item (Join-Path $ZipRoot $Entry)
-    if ($Item.Length -lt 50000) {
-      throw "APK content check failed: bundled client asset unexpectedly small: $Entry"
-    }
-  }
 
   $BuildInfo = Get-Content -LiteralPath (Join-Path $ZipRoot "assets\build-info.json") -Raw -Encoding UTF8 | ConvertFrom-Json
   if ($BuildInfo.package -ne "com.naonao.app.android" -or $BuildInfo.versionName -ne $VersionName) {
     throw "APK content check failed: build-info metadata mismatch"
   }
-  if ($BuildInfo.bundle -ne "full-android-client") {
-    throw "APK content check failed: build-info does not identify a full Android client bundle"
+  if ($BuildInfo.bundle -ne "android-network-client") {
+    throw "APK content check failed: build-info does not identify an Android network client bundle"
   }
-  if ($BuildInfo.bundledModel.name -ne $ModelName -or $BuildInfo.bundledModel.revision -ne $ModelRevision) {
-    throw "APK content check failed: bundled model metadata mismatch"
+  if ($BuildInfo.modelMode -ne "network-only") {
+    throw "APK content check failed: build-info modelMode must be network-only"
   }
-  $DesktopRuntimeArchive = Join-Path $ZipRoot "assets\desktop-runtime\win-unpacked.zip"
-  $DesktopRuntimeArchiveHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $DesktopRuntimeArchive).Hash.ToLowerInvariant()
-  if ($DesktopRuntimeArchiveHash -ne [string]$BuildInfo.bundledDesktopRuntimeArchive.sha256) {
-    throw "APK content check failed: bundled desktop runtime archive hash mismatch"
-  }
-  $DesktopRuntimeExtracted = Join-Path $TempRoot "desktop-runtime"
-  New-Item -ItemType Directory -Force -Path $DesktopRuntimeExtracted | Out-Null
-  [System.IO.Compression.ZipFile]::ExtractToDirectory($DesktopRuntimeArchive, $DesktopRuntimeExtracted)
-  foreach ($DesktopRequired in @($DesktopExeName, "resources\app.asar", "LICENSES.chromium.html", "chrome_100_percent.pak", "resources.pak", "icudtl.dat", "ffmpeg.dll", "libEGL.dll", "libGLESv2.dll")) {
-    if (-not (Test-Path -LiteralPath (Join-Path $DesktopRuntimeExtracted $DesktopRequired))) {
-      throw "APK content check failed: missing file inside bundled desktop runtime archive: $DesktopRequired"
+  foreach ($StaleProperty in @("bundledModel", "bundledDesktopRuntimeArchive", "bundledClientRoot")) {
+    if ($BuildInfo.PSObject.Properties.Name -contains $StaleProperty) {
+      throw "APK content check failed: build-info should not contain stale $StaleProperty metadata"
     }
   }
   if (-not $BuildInfo.files -or $BuildInfo.files.Count -lt 10) {
@@ -199,32 +162,14 @@ try {
     Where-Object { $_.FullName -ne (Join-Path $AndroidMain "assets\build-info.json") } |
     ForEach-Object { "android/src/main/" + $_.FullName.Substring($AndroidMain.Length + 1).Replace("\", "/") } |
     Sort-Object
-  $ClientRoot = Join-Path $RepoRoot "app"
-  $ClientSourceFiles = Get-ChildItem -LiteralPath $ClientRoot -Recurse -File |
-    Where-Object { $_.FullName.Substring($ClientRoot.Length + 1) -notmatch '^[\\/]?models[\\/]' } |
-    ForEach-Object { "app/" + $_.FullName.Substring($ClientRoot.Length + 1).Replace("\", "/") } |
-    Sort-Object
   $BuildInfoAndroidPaths = @($BuildInfo.files | Where-Object { $_.kind -eq "android" } | ForEach-Object { [string]$_.sourcePath } | Sort-Object)
-  $BuildInfoClientPaths = @($BuildInfo.files | Where-Object { $_.kind -eq "bundled-client" } | ForEach-Object { [string]$_.sourcePath } | Sort-Object)
-  $DesktopRuntimeRoot = Join-Path $RepoRoot "dist\win-unpacked"
-  if (-not (Test-Path -LiteralPath $DesktopRuntimeRoot)) {
-    throw "APK content check failed: missing local desktop runtime source dist/win-unpacked"
+  $NonAndroidEntries = @($BuildInfo.files | Where-Object { [string]$_.kind -ne "android" })
+  if ($NonAndroidEntries.Count -gt 0) {
+    throw "APK content check failed: build-info should only contain Android source files"
   }
-  $DesktopRuntimeFiles = Get-ChildItem -LiteralPath $DesktopRuntimeRoot -Recurse -File |
-    ForEach-Object { "dist/win-unpacked/" + $_.FullName.Substring($DesktopRuntimeRoot.Length + 1).Replace("\", "/") } |
-    Sort-Object
-  $BuildInfoDesktopRuntimePaths = @($BuildInfo.files | Where-Object { $_.kind -eq "desktop-runtime" } | ForEach-Object { [string]$_.sourcePath } | Sort-Object)
   $PathDiff = Compare-Object -ReferenceObject $CurrentSourceFiles -DifferenceObject $BuildInfoAndroidPaths
   if ($PathDiff) {
     throw "APK content check failed: build-info Android source file set does not match current source"
-  }
-  $ClientPathDiff = Compare-Object -ReferenceObject $ClientSourceFiles -DifferenceObject $BuildInfoClientPaths
-  if ($ClientPathDiff) {
-    throw "APK content check failed: build-info bundled-client file set does not match current app source"
-  }
-  $DesktopRuntimePathDiff = Compare-Object -ReferenceObject $DesktopRuntimeFiles -DifferenceObject $BuildInfoDesktopRuntimePaths
-  if ($DesktopRuntimePathDiff) {
-    throw "APK content check failed: build-info desktop-runtime file set does not match current dist/win-unpacked"
   }
   $BuildInfoAssetPaths = @($BuildInfo.files | Where-Object { $_.assetPath } | ForEach-Object { [string]$_.assetPath } | Sort-Object)
   if (($BuildInfoAssetPaths | Select-Object -Unique).Count -ne $BuildInfoAssetPaths.Count) {
@@ -237,40 +182,17 @@ try {
     if ([string]::IsNullOrWhiteSpace($SourcePath) -or $SourcePath.Contains("..") -or [System.IO.Path]::IsPathRooted($SourcePath)) {
       throw "APK content check failed: invalid build-info source path $SourcePath"
     }
-    $ResolvedSourcePath = $null
     if ($Kind -eq "android") {
       $ResolvedSourcePath = Join-Path $RepoRoot ($SourcePath.Replace("/", "\"))
-    } elseif ($Kind -eq "bundled-client") {
-      $ResolvedSourcePath = Join-Path $RepoRoot ($SourcePath.Replace("/", "\"))
-    } elseif ($Kind -eq "desktop-runtime") {
-      $ResolvedSourcePath = Join-Path $RepoRoot ($SourcePath.Replace("/", "\"))
-    } elseif ($Kind -eq "bundled-model") {
-      $ModelFile = $ModelRequiredFiles | Where-Object { "$ModelName/$ModelRevision/$($_.file)" -eq $SourcePath } | Select-Object -First 1
-      if (-not $ModelFile) {
-        throw "APK content check failed: unknown bundled model source path $SourcePath"
-      }
     } else {
       throw "APK content check failed: unknown build-info kind $Kind"
     }
-    if ($ResolvedSourcePath) {
-      if (-not (Test-Path -LiteralPath $ResolvedSourcePath)) {
-        throw "APK content check failed: build-info source missing $SourcePath"
-      }
-      $SourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ResolvedSourcePath).Hash.ToLowerInvariant()
-      if ($SourceHash -ne [string]$FileEntry.sha256) {
-        throw "APK content check failed: $SourcePath does not match current source"
-      }
-      if ($Kind -eq "desktop-runtime") {
-        $RelativeDesktopPath = $SourcePath.Substring("dist/win-unpacked/".Length).Replace("/", "\")
-        $ExtractedDesktopPath = Join-Path $DesktopRuntimeExtracted $RelativeDesktopPath
-        if (-not (Test-Path -LiteralPath $ExtractedDesktopPath)) {
-          throw "APK content check failed: desktop runtime archive missing $RelativeDesktopPath"
-        }
-        $ExtractedDesktopHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ExtractedDesktopPath).Hash.ToLowerInvariant()
-        if ($ExtractedDesktopHash -ne [string]$FileEntry.sha256) {
-          throw "APK content check failed: desktop runtime archive file hash mismatch $RelativeDesktopPath"
-        }
-      }
+    if (-not (Test-Path -LiteralPath $ResolvedSourcePath)) {
+      throw "APK content check failed: build-info source missing $SourcePath"
+    }
+    $SourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ResolvedSourcePath).Hash.ToLowerInvariant()
+    if ($SourceHash -ne [string]$FileEntry.sha256) {
+      throw "APK content check failed: $SourcePath does not match current source"
     }
     if ($AssetPath) {
       if ($AssetPath.Contains("..") -or [System.IO.Path]::IsPathRooted($AssetPath)) {
@@ -458,13 +380,11 @@ try {
     VersionName = $VersionName
     VersionCode = $VersionCode
     Signature = "v1/v2/v3 verified"
-    Content = "classes.dex, Android assets, full bundled client assets, Transformers/WASM runtime, local AI model files, and desktop runtime archive verified"
+    Content = "classes.dex, Android assets, native bridge, and network-model-only package verified; no local model, Transformers/WASM runtime, bundled desktop client, or desktop runtime archive"
+    ModelMode = $BuildInfo.modelMode
     SourceGuards = "manifest, WebView, cleartext policy, notification, reminder restore, CSP, bridge checks passed"
     SourceDigest = $BuildInfo.sourceDigest
-    BundledClientFiles = @($BuildInfo.files | Where-Object { $_.kind -eq "bundled-client" }).Count
-    BundledDesktopRuntimeFiles = @($BuildInfo.files | Where-Object { $_.kind -eq "desktop-runtime" }).Count
-    BundledModel = "$ModelName@$ModelRevision"
-    BundledModelBytes = [int64]$BuildInfo.bundledModel.bytes
+    AndroidSourceFiles = @($BuildInfo.files | Where-Object { $_.kind -eq "android" }).Count
   }
 } finally {
   if (Test-Path -LiteralPath $TempRoot) {

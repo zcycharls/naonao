@@ -9,12 +9,12 @@ deliverables/android/naonao-android-1.703.848.apk
 SHA256：
 
 ```text
-C452453E0F2BE126F7E954F2FABA57FFBD950181444CDC1A84F888CFE42E1729
+E3CEEDC55DB713AFB1B39D13632150728A67CE2C1B8A5ABB3920C0BC4913B839
 ```
 
-文件大小：584,976,955 字节，约 585 MB。
+文件大小：49,970 字节，约 50 KB。
 
-这个 APK 是完整打包版本：内含 Android 原生壳、本地 HTML/CSS/JS、完整桌面客户端静态资源、本地 AI 模型文件，以及 Windows 桌面运行时归档。Android 端仍通过 WebView 和原生桥运行；随包的 Windows/Electron/Chromium 运行时是资源归档，不会在 Android 上直接执行。
+这个 APK 是 Android 网络模型客户端：内含 Android 原生壳和移动端 HTML/CSS/JS，不内置本地 AI 模型、Transformers/WASM、桌面客户端静态资源或 Windows 桌面运行时归档。AI 对话需要配置 Hermes Agent 或 API 提供商；未配置时只使用本地规则 fallback，不等同于手机端离线大模型推理。
 
 ## 手机安装
 
@@ -22,7 +22,7 @@ C452453E0F2BE126F7E954F2FABA57FFBD950181444CDC1A84F888CFE42E1729
 2. 在手机文件管理器里点开 APK。
 3. 如果提示“不允许安装未知应用”，进入提示里的设置页，允许当前文件管理器或浏览器安装未知应用。
 4. 安装完成后打开“孬孬”。
-5. 首次在设置里开启通知提醒时，允许通知权限；不允许也能使用任务、番茄钟、冰箱和本地对话。
+5. 首次在设置里开启通知提醒时，允许通知权限；不允许也能使用任务、番茄钟、冰箱和本地规则 fallback。
 
 ## 数据导出
 

@@ -2,7 +2,7 @@
 
 这是孬孬的 Android 客户端工程。它不是网页端，也不依赖 `naonao.help` 运行；APK 内置本地界面资源，通过 Android WebView + 原生桥接提供移动端体验。
 
-当前主交付是完整打包 APK：除 Android 原生壳资源外，还会把桌面客户端静态资源、本地 AI 模型文件，以及 `dist/win-unpacked` 桌面运行时归档放进 APK。Android 端仍通过 WebView 和原生桥运行；Windows/Electron/Chromium 运行时在 Android 上不能直接执行，只作为随包资源归档保存。
+当前主交付是网络模型客户端 APK：APK 内只包含 Android 原生壳和移动端界面资源，不打包桌面客户端、本地 AI 模型、Transformers/WASM 或 `dist/win-unpacked` 桌面运行时。AI 对话通过 Hermes Agent 或 API 提供商走 Android 原生桥发起网络请求；未配置网络模型时仅使用本地规则 fallback。
 
 ## 范围
 
@@ -10,7 +10,7 @@
 - 番茄钟、休息、心情记录、完成统计
 - 想法冰箱、取用为任务
 - 数据统计、近 14 天趋势、连续打卡
-- 本地对话 fallback
+- 未配置网络模型时的本地规则 fallback
 - Anthropic / OpenAI 兼容 / Hermes Agent 请求通道
 - 飞书 Webhook 测试和长远任务提醒；每个长远任务可保存独立 Webhook
 - Android 本地通知与振动提醒
@@ -27,7 +27,7 @@
 deliverables\android\naonao-android-1.703.848.apk
 ```
 
-脚本使用 Android SDK build-tools 直接构建，不要求 Gradle。完整包要求本机已有经校验的 `Xenova/Qwen1.5-0.5B-Chat` 模型文件和 `dist/win-unpacked` 桌面运行时目录；缺失时构建会失败，避免误产出只有 WebView 壳的小 APK。
+脚本使用 Android SDK build-tools 直接构建，不要求 Gradle。Android APK 不依赖本机桌面构建产物或本地模型目录；发布校验会反向检查 APK 中不得出现 `assets/models`、Transformers/WASM、`assets/bundled-client` 或 `assets/desktop-runtime`。
 
 开发调试包：
 
@@ -35,7 +35,7 @@ deliverables\android\naonao-android-1.703.848.apk
 .\android\build-apk.ps1 -Configuration debug
 ```
 
-`naonao-android-1.703.848.apk` 是给用户侧载安装的主交付；当前大小约 585 MB。`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
+`naonao-android-1.703.848.apk` 是给用户侧载安装的主交付；当前大小约 50 KB。`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
 
 正式签名可通过环境变量注入：
 
