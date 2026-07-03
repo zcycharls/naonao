@@ -9,10 +9,10 @@ deliverables/android/naonao-android-1.703.848.apk
 SHA256：
 
 ```text
-EA17BE73C79AE09433C1AB9A20BC5BE2C806D8BE557069897656B058F8F0F56D
+521C03223D562C9B6D7093538C8E5EAC06A8850B1C49F15D8F0C2589ADEC17CF
 ```
 
-文件大小：49,970 字节，约 50 KB。
+文件大小：337,096 字节，约 329 KB。
 
 这个 APK 是 Android 网络模型客户端：内含 Android 原生壳和移动端 HTML/CSS/JS，不内置本地 AI 模型、Transformers/WASM、桌面客户端静态资源或 Windows 桌面运行时归档。AI 对话需要配置 Hermes Agent 或 API 提供商；未配置时只使用本地规则 fallback，不等同于手机端离线大模型推理。
 

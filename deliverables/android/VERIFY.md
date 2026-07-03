@@ -7,9 +7,9 @@
 - 主交付：`deliverables/android/naonao-android-1.703.848.apk`
 - 调试包：`deliverables/android/naonao-android-debug.apk`
 - 安装说明：`deliverables/android/INSTALL.md`
-- 当前主交付大小：49,970 字节
-- 当前调试包大小：49,970 字节
-- 当前主交付 SHA256：`EA17BE73C79AE09433C1AB9A20BC5BE2C806D8BE557069897656B058F8F0F56D`
+- 当前主交付大小：337,096 字节
+- 当前调试包大小：337,096 字节
+- 当前主交付 SHA256：`521C03223D562C9B6D7093538C8E5EAC06A8850B1C49F15D8F0C2589ADEC17CF`
 - 当前调试包 SHA256：`00DDC276A4604960DF44DB7D91878484350FD02C62DE6E518369FB1384C1F92A`
 
 ## 已验证

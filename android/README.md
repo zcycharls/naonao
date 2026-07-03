@@ -35,7 +35,7 @@ deliverables\android\naonao-android-1.703.848.apk
 .\android\build-apk.ps1 -Configuration debug
 ```
 
-`naonao-android-1.703.848.apk` 是给用户侧载安装的主交付；当前大小约 50 KB。`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
+`naonao-android-1.703.848.apk` 是给用户侧载安装的主交付；当前大小约 329 KB。`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
 
 正式签名可通过环境变量注入：
 
