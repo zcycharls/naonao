@@ -135,14 +135,14 @@
     {
       "view": "freezer",
       "file": "deliverables/android/screens/freezer.png",
-      "bytes": 83251,
+      "bytes": 82828,
       "width": 390,
       "height": 844
     },
     {
       "view": "stats",
       "file": "deliverables/android/screens/stats.png",
-      "bytes": 101356,
+      "bytes": 101385,
       "width": 390,
       "height": 844
     },
@@ -161,5 +161,5 @@
       "height": 844
     }
   ],
-  "checkedAt": "2026-07-03T00:55:45.922Z"
+  "checkedAt": "2026-07-03T03:57:08.998Z"
 }

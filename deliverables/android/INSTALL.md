@@ -9,8 +9,12 @@ deliverables/android/naonao-android-1.703.848.apk
 SHA256：
 
 ```text
-61A164AA20EAF0B215AE28C855A02FE7FBEFF3B188CD73AB51A2186C7D08F9F3
+C452453E0F2BE126F7E954F2FABA57FFBD950181444CDC1A84F888CFE42E1729
 ```
+
+文件大小：584,976,955 字节，约 585 MB。
+
+这个 APK 是完整打包版本：内含 Android 原生壳、本地 HTML/CSS/JS、完整桌面客户端静态资源、本地 AI 模型文件，以及 Windows 桌面运行时归档。Android 端仍通过 WebView 和原生桥运行；随包的 Windows/Electron/Chromium 运行时是资源归档，不会在 Android 上直接执行。
 
 ## 手机安装
 
@@ -44,4 +48,4 @@ Android 里的 `127.0.0.1` / `localhost` 指手机本机，不是电脑。如果
 启动后还会确认已安装包版本、应用进程、前台 Activity，并扫描本次启动后的 logcat，若出现本包 `FATAL EXCEPTION`、`AndroidRuntime`、`Fatal signal` 或关联 WebView/Chromium 崩溃信号会直接失败。
 通过时会把 `am start` 输出、`dumpsys package/window/activity`、本次启动后的 `logcat`、启动截图和 `install-smoke-report.json` 保存到 `deliverables/android/install-smoke/`，用于复核真机或模拟器上的实际运行状态。
 
-当前开发机已用 Android 15 API 35 AOSP ATD 模拟器完成安装级验证；证据见 `deliverables/android/install-smoke/`。如果本机 ADB 同时存在多个目标，可加 `-DeviceSerial emulator-5554` 指定要验证的设备。
+如果本机 ADB 同时存在多个目标，可加 `-DeviceSerial emulator-5554` 或真机序列号指定要验证的设备。

@@ -7,6 +7,8 @@ android/build/
 android/.keystore/
 .tmp/
 deliverables/android/*.idsig
+deliverables/android/*.apk
+deliverables/android/install-smoke/
 
 # Logs
 *.log

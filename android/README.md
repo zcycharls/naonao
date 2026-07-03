@@ -2,6 +2,8 @@
 
 这是孬孬的 Android 客户端工程。它不是网页端，也不依赖 `naonao.help` 运行；APK 内置本地界面资源，通过 Android WebView + 原生桥接提供移动端体验。
 
+当前主交付是完整打包 APK：除 Android 原生壳资源外，还会把桌面客户端静态资源、本地 AI 模型文件，以及 `dist/win-unpacked` 桌面运行时归档放进 APK。Android 端仍通过 WebView 和原生桥运行；Windows/Electron/Chromium 运行时在 Android 上不能直接执行，只作为随包资源归档保存。
+
 ## 范围
 
 - 任务锚点、子步骤、当前任务切换
@@ -25,7 +27,7 @@
 deliverables\android\naonao-android-1.703.848.apk
 ```
 
-脚本使用 Android SDK build-tools 直接构建，不要求 Gradle。
+脚本使用 Android SDK build-tools 直接构建，不要求 Gradle。完整包要求本机已有经校验的 `Xenova/Qwen1.5-0.5B-Chat` 模型文件和 `dist/win-unpacked` 桌面运行时目录；缺失时构建会失败，避免误产出只有 WebView 壳的小 APK。
 
 开发调试包：
 
@@ -33,7 +35,7 @@ deliverables\android\naonao-android-1.703.848.apk
 .\android\build-apk.ps1 -Configuration debug
 ```
 
-`naonao-android-1.703.848.apk` 是给用户侧载安装的主交付；`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
+`naonao-android-1.703.848.apk` 是给用户侧载安装的主交付；当前大小约 585 MB。`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
 
 正式签名可通过环境变量注入：
 
@@ -69,4 +71,4 @@ node scripts\android-smoke.js
 
 脚本会安装 APK、显式启动主 Activity、确认包版本/进程/前台 Activity，并扫描本次启动后的 logcat 崩溃信号。
 
-当前开发机没有可用 Android 设备；CPU 固件虚拟化未开启，且 Hypervisor Platform 未启用，所以暂时不能在本机完成稳定模拟器验证。
+没有连接 Android 设备时，统一发布门禁会跳过安装级 smoke；需要强制真机或模拟器安装验证时使用 `.\scripts\android-release-check.ps1 -RequireDevice` 或加 `-DeviceSerial <设备序列号>`。
