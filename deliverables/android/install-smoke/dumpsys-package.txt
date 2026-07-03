@@ -1,18 +1,18 @@
 ﻿Activity Resolver Table:
   Non-Data Actions:
       android.intent.action.MAIN:
-        8b70e86 com.naonao.app.android/.MainActivity filter e023347
+        b42e6a9 com.naonao.app.android/.MainActivity filter d79e42e
           Action: "android.intent.action.MAIN"
           Category: "android.intent.category.LAUNCHER"
 
 Receiver Resolver Table:
   Non-Data Actions:
       android.intent.action.BOOT_COMPLETED:
-        279a774 com.naonao.app.android/.BootReceiver filter 689d49d
+        a005bcf com.naonao.app.android/.BootReceiver filter f3a595c
           Action: "android.intent.action.BOOT_COMPLETED"
           Action: "android.intent.action.MY_PACKAGE_REPLACED"
       android.intent.action.MY_PACKAGE_REPLACED:
-        279a774 com.naonao.app.android/.BootReceiver filter 689d49d
+        a005bcf com.naonao.app.android/.BootReceiver filter f3a595c
           Action: "android.intent.action.BOOT_COMPLETED"
           Action: "android.intent.action.MY_PACKAGE_REPLACED"
 
@@ -23,19 +23,19 @@ Key Set Manager:
       Signing KeySets: 20
 
 Packages:
-  Package [com.naonao.app.android] (f10f557):
+  Package [com.naonao.app.android] (788bd30):
     appId=10138
-    pkg=Package{d432844 com.naonao.app.android}
-    codePath=/data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==
-    resourcePath=/data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==
-    legacyNativeLibraryDir=/data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/lib
+    pkg=Package{1fd5da9 com.naonao.app.android}
+    codePath=/data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==
+    resourcePath=/data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==
+    legacyNativeLibraryDir=/data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/lib
     extractNativeLibs=true
     primaryCpuAbi=null
     secondaryCpuAbi=null
     cpuAbiOverride=null
-    versionCode=170100 minSdk=23 targetSdk=35
+    versionCode=1703848 minSdk=23 targetSdk=35
     minExtensionVersions=[]
-    versionName=1.701.0
+    versionName=1.703.848
     hiddenApiEnforcementPolicy=2
     usesNonSdkApi=false
     splits=[base]
@@ -45,8 +45,8 @@ Packages:
     forceQueryable=false
     scannedAsStoppedSystemApp=false
     supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
-    timeStamp=2026-07-02 20:13:48
-    lastUpdateTime=2026-07-02 20:13:48
+    timeStamp=2026-07-03 00:55:49
+    lastUpdateTime=2026-07-03 00:55:49
     installerPackageName=null
     installerPackageUid=-1
     initiatingPackageName=com.android.shell
@@ -100,10 +100,10 @@ Queries:
 
 Dexopt state:
   [com.naonao.app.android]
-    path: /data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/base.apk
+    path: /data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/base.apk
       x86_64: [status=verify] [reason=install] [primary-abi]
-        [location is /data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/oat/x86_64/base.odex]
+        [location is /data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/oat/x86_64/base.odex]
 
 Compiler stats:
   [com.naonao.app.android]
-     base.apk - 75
+     base.apk - 74

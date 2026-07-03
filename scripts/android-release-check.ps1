@@ -42,7 +42,10 @@ try {
   $ApkInfo = & .\scripts\android-verify-apk.ps1
   $EnvInfo = .\scripts\android-env-check.ps1 -SkipRemoteSdkList
 
-  $ReleaseApk = "deliverables\android\naonao-android-1.701.0.apk"
+  $ManifestText = Get-Content -LiteralPath android\src\main\AndroidManifest.xml -Raw -Encoding UTF8
+  $VersionName = [regex]::Match($ManifestText, 'android:versionName="([^"]+)"').Groups[1].Value
+  if (-not $VersionName) { throw "Could not read Android versionName from manifest" }
+  $ReleaseApk = "deliverables\android\naonao-android-$VersionName.apk"
   $DebugApk = "deliverables\android\naonao-android-debug.apk"
   $ReleaseHash = (Get-FileHash -Algorithm SHA256 $ReleaseApk).Hash
   $DebugHash = (Get-FileHash -Algorithm SHA256 $DebugApk).Hash

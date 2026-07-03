@@ -1,126 +1,129 @@
-﻿--------- beginning of main
-07-02 20:13:49.309 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:49.310 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:49.310 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:49.310 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:49.311 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
---------- beginning of system
-07-02 20:13:49.613 W/ActivityTaskManager(  575): callingPackage for (uid=2000, pid=3507) has no WPC
-07-02 20:13:49.614 W/OptProp (  575): Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE
-07-02 20:13:49.615 V/GrammaticalInflectionUtils(  575): AttributionSource: AttributionSource { uid = 10138, packageName = null, attributionTag = null, token = android.os.Binder@ea74e24, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
-07-02 20:13:49.615 W/OptProp (  575): Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
-07-02 20:13:49.616 W/OptProp (  575): Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
-07-02 20:13:49.622 V/SplashScreenExceptionList(  575): SplashScreen checking exception for package com.naonao.app.android (target sdk:35) -> false
-07-02 20:13:49.623 I/ActivityTaskManager(  575): START u0 {flg=0x10000000 cmp=com.naonao.app.android/.MainActivity} with LAUNCH_MULTIPLE from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
-07-02 20:13:49.625 V/GrammaticalInflectionUtils(  575): AttributionSource: AttributionSource { uid = 10138, packageName = null, attributionTag = null, token = android.os.Binder@ea74e24, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
-07-02 20:13:49.631 I/AppWidgetServiceImpl(  575): Received broadcast: android.intent.action.PACKAGE_UNSTOPPED on user 0
-07-02 20:13:49.631 I/AppWidgetServiceImpl(  575): Updating package stopped masked state for uid 10138 package com.naonao.app.android isStopped false
-07-02 20:13:49.634 D/Zygote  (  381): Forked child process 3510
-07-02 20:13:49.635 I/ActivityManager(  575): Start proc 3510:com.naonao.app.android/u0a138 for next-top-activity {com.naonao.app.android/com.naonao.app.android.MainActivity}
-07-02 20:13:49.653 I/BpBinder(  453): onLastStrongRef automatically unlinking death recipients: 
-07-02 20:13:49.654 I/nao.app.android( 3510): Using CollectorTypeCMC GC.
-07-02 20:13:49.654 W/nao.app.android( 3510): Unexpected CPU variant for x86: x86_64.
-07-02 20:13:49.654 W/nao.app.android( 3510): Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, default
-07-02 20:13:49.654 I/netd    (  380): tetherGetStats() -> {[]} <1.48ms>
-07-02 20:13:49.674 E/nao.app.android( 3510): Not starting debugger since process cannot load the jdwp agent.
-07-02 20:13:49.676 D/nativeloader( 3510): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
-07-02 20:13:49.685 D/nativeloader( 3510): Configuring clns-7 for other apk /data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/base.apk. target_sdk_version=35, uses_libraries=, library_path=/data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/lib/x86_64, permitted_path=/data:/mnt/expand:/data/user/0/com.naonao.app.android
-07-02 20:13:49.686 D/CompatChangeReporter( 3510): Compat change id reported: 202956589; UID 10138; state: ENABLED
-07-02 20:13:49.689 V/GraphicsEnvironment( 3510): Currently set values for:
-07-02 20:13:49.689 V/GraphicsEnvironment( 3510):   angle_gl_driver_selection_pkgs=[]
-07-02 20:13:49.689 V/GraphicsEnvironment( 3510):   angle_gl_driver_selection_values=[]
-07-02 20:13:49.689 V/GraphicsEnvironment( 3510): Global.Settings values are invalid: number of packages: 0, number of values: 0
-07-02 20:13:49.689 V/GraphicsEnvironment( 3510): Neither updatable production driver nor prerelease driver is supported.
-07-02 20:13:49.691 D/CompatChangeReporter(  575): Compat change id reported: 324203798; UID 10138; state: ENABLED
-07-02 20:13:49.694 I/BroadcastQueue(  575): BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.BOOT_COMPLETED dispatchLatency:0 completeLatency:14 dispatchRealLatency:1 completeRealLatency:14 receiversSize:1 userId:0 userType:android.os.usertype.full.SYSTEM
-07-02 20:13:49.704 I/WebViewFactory( 3510): Loading com.android.webview version 124.0.6367.219 (code 636771907)
-07-02 20:13:49.705 V/ResourcesManager( 3510): The following library key has been added: ResourcesKey{ mHash=76d85954 mResDir=null mSplitDirs=[] mOverlayDirs=[] mLibDirs=[/product/app/webview/webview.apk,/system_ext/framework/androidx.window.extensions.jar] mDisplayId=0 mOverrideConfig=v35 mCompatInfo={420dpi always-compat} mLoaders=[]}
-07-02 20:13:49.706 D/ApplicationLoaders( 3510): Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
-07-02 20:13:49.707 D/nativeloader( 3510): InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libapexsupport.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-x86_64-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvendorsupport.so:libvndksupport.so:libvulkan.so
-07-02 20:13:49.707 D/nativeloader( 3510): Configuring product-clns-8 for unbundled product apk /product/app/webview/webview.apk. target_sdk_version=34, uses_libraries=, library_path=/product/app/webview/lib/x86_64:/product/app/webview/webview.apk!/lib/x86_64:/product/lib64:/system/product/lib64, permitted_path=/data:/mnt/expand:/product/lib64:/system/product/lib64
-07-02 20:13:49.708 D/nativeloader( 3510): InitVndkspLibrariesProduct: VNDK is deprecated with product
-07-02 20:13:49.715 I/cr_WVCFactoryProvider( 3510): Loaded version=124.0.6367.219 minSdkVersion=1 isBundle=false multiprocess=true packageId=2
-07-02 20:13:49.719 D/nativeloader( 3510): Load /product/app/webview/webview.apk!/lib/x86_64/libwebviewchromium.so using ns product-clns-8 from class loader (caller=/product/app/webview/webview.apk): ok
-07-02 20:13:49.721 D/nativeloader( 3510): Load /system/lib64/libwebviewchromium_plat_support.so using ns product-clns-8 from class loader (caller=/product/app/webview/webview.apk): ok
-07-02 20:13:49.723 E/chromium( 3510): [0702/201349.723137:ERROR:variations_seed_loader.cc(37)] Seed missing signature.
-07-02 20:13:49.723 I/cr_VariationsUtils( 3510): Failed reading seed file "/data/user/0/com.naonao.app.android/app_webview/variations_seed_new"
-07-02 20:13:49.723 I/chromium( 3510): [0702/201349.723440:INFO:variations_seed_loader.cc(66)] Failed to open file for reading.: No such file or directory (2)
-07-02 20:13:49.723 I/cr_VariationsUtils( 3510): Failed reading seed file "/data/user/0/com.naonao.app.android/app_webview/variations_seed"
-07-02 20:13:49.725 D/CompatChangeReporter( 3510): Compat change id reported: 279646685; UID 10138; state: ENABLED
-07-02 20:13:49.726 I/cr_LibraryLoader( 3510): Successfully loaded native library
-07-02 20:13:49.726 I/cr_CachingUmaRecorder( 3510): Flushed 6 samples from 6 histograms, 0 samples were dropped.
-07-02 20:13:49.728 I/cr_CombinedPProvider( 3510): #registerProvider() provider:WV.o7@41b4d5 isPolicyCacheEnabled:false policyProvidersSize:0
-07-02 20:13:49.730 I/cr_PolicyProvider( 3510): #setManagerAndSource() 0
-07-02 20:13:49.734 V/GrammaticalInflectionUtils(  575): AttributionSource: AttributionSource { uid = 99009, packageName = null, attributionTag = null, token = android.os.Binder@ea74e24, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
-07-02 20:13:49.735 I/cr_CombinedPProvider( 3510): #linkNativeInternal() 1
-07-02 20:13:49.735 I/cr_AppResProvider( 3510): #getApplicationRestrictionsFromUserManager() Bundle[EMPTY_PARCEL]
-07-02 20:13:49.735 I/cr_PolicyProvider( 3510): #notifySettingsAvailable() 0
-07-02 20:13:49.735 I/cr_CombinedPProvider( 3510): #onSettingsAvailable() 0
-07-02 20:13:49.735 I/cr_CombinedPProvider( 3510): #flushPolicies()
-07-02 20:13:49.737 D/Zygote  (  977): Forked child process 3531
-07-02 20:13:49.740 I/ocessService0:0( 3531): Using CollectorTypeCMC GC.
-07-02 20:13:49.741 W/ocessService0:0( 3531): Unexpected CPU variant for x86: x86_64.
-07-02 20:13:49.741 W/ocessService0:0( 3531): Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, default
-07-02 20:13:49.742 E/ocessService0:0( 3531): Not starting debugger since process cannot load the jdwp agent.
-07-02 20:13:49.743 D/nativeloader( 3531): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
-07-02 20:13:49.745 I/ActivityManager(  575): Start proc 3531:com.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0/u0i9 for  {com.naonao.app.android/org.chromium.content.app.SandboxedProcessService0:0}
-07-02 20:13:49.750 D/CompatChangeReporter( 3531): Compat change id reported: 242716250; UID 99009; state: ENABLED
-07-02 20:13:49.755 D/ApplicationLoaders( 3531): Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+﻿--------- beginning of system
+07-03 00:55:50.687 W/ActivityTaskManager(  575): callingPackage for (uid=2000, pid=4158) has no WPC
+07-03 00:55:50.689 W/OptProp (  575): Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE
+--------- beginning of main
+07-03 00:55:50.689 V/GrammaticalInflectionUtils(  575): AttributionSource: AttributionSource { uid = 10138, packageName = null, attributionTag = null, token = android.os.Binder@ea74e24, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+07-03 00:55:50.690 W/OptProp (  575): Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+07-03 00:55:50.690 W/OptProp (  575): Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+07-03 00:55:50.693 V/SplashScreenExceptionList(  575): SplashScreen checking exception for package com.naonao.app.android (target sdk:35) -> false
+07-03 00:55:50.695 I/ActivityTaskManager(  575): START u0 {flg=0x10000000 cmp=com.naonao.app.android/.MainActivity} with LAUNCH_MULTIPLE from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+07-03 00:55:50.696 V/GrammaticalInflectionUtils(  575): AttributionSource: AttributionSource { uid = 10138, packageName = null, attributionTag = null, token = android.os.Binder@ea74e24, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+07-03 00:55:50.702 I/AppWidgetServiceImpl(  575): Received broadcast: android.intent.action.PACKAGE_UNSTOPPED on user 0
+07-03 00:55:50.702 I/AppWidgetServiceImpl(  575): Updating package stopped masked state for uid 10138 package com.naonao.app.android isStopped false
+07-03 00:55:50.702 D/Zygote  (  381): Forked child process 4161
+07-03 00:55:50.707 I/ActivityManager(  575): Start proc 4161:com.naonao.app.android/u0a138 for next-top-activity {com.naonao.app.android/com.naonao.app.android.MainActivity}
+07-03 00:55:50.709 I/netd    (  380): tetherGetStats() -> {[]} <0.36ms>
+07-03 00:55:50.729 I/nao.app.android( 4161): Using CollectorTypeCMC GC.
+07-03 00:55:50.729 W/nao.app.android( 4161): Unexpected CPU variant for x86: x86_64.
+07-03 00:55:50.729 W/nao.app.android( 4161): Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, default
+07-03 00:55:50.749 E/nao.app.android( 4161): Not starting debugger since process cannot load the jdwp agent.
+07-03 00:55:50.751 D/nativeloader( 4161): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+07-03 00:55:50.758 D/nativeloader( 4161): Configuring clns-7 for other apk /data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/base.apk. target_sdk_version=35, uses_libraries=, library_path=/data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/lib/x86_64, permitted_path=/data:/mnt/expand:/data/user/0/com.naonao.app.android
+07-03 00:55:50.759 D/CompatChangeReporter( 4161): Compat change id reported: 202956589; UID 10138; state: ENABLED
+07-03 00:55:50.761 V/GraphicsEnvironment( 4161): Currently set values for:
+07-03 00:55:50.761 V/GraphicsEnvironment( 4161):   angle_gl_driver_selection_pkgs=[]
+07-03 00:55:50.761 V/GraphicsEnvironment( 4161):   angle_gl_driver_selection_values=[]
+07-03 00:55:50.761 V/GraphicsEnvironment( 4161): Global.Settings values are invalid: number of packages: 0, number of values: 0
+07-03 00:55:50.761 V/GraphicsEnvironment( 4161): Neither updatable production driver nor prerelease driver is supported.
+07-03 00:55:50.763 D/CompatChangeReporter(  575): Compat change id reported: 324203798; UID 10138; state: ENABLED
+07-03 00:55:50.766 I/BroadcastQueue(  575): BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.BOOT_COMPLETED dispatchLatency:1 completeLatency:12 dispatchRealLatency:1 completeRealLatency:12 receiversSize:1 userId:0 userType:android.os.usertype.full.SYSTEM
+07-03 00:55:50.776 I/WebViewFactory( 4161): Loading com.android.webview version 124.0.6367.219 (code 636771907)
+07-03 00:55:50.777 V/ResourcesManager( 4161): The following library key has been added: ResourcesKey{ mHash=76d85954 mResDir=null mSplitDirs=[] mOverlayDirs=[] mLibDirs=[/product/app/webview/webview.apk,/system_ext/framework/androidx.window.extensions.jar] mDisplayId=0 mOverrideConfig=v35 mCompatInfo={420dpi always-compat} mLoaders=[]}
+07-03 00:55:50.778 D/ApplicationLoaders( 4161): Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+07-03 00:55:50.779 D/nativeloader( 4161): InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libapexsupport.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-x86_64-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvendorsupport.so:libvndksupport.so:libvulkan.so
+07-03 00:55:50.779 D/nativeloader( 4161): Configuring product-clns-8 for unbundled product apk /product/app/webview/webview.apk. target_sdk_version=34, uses_libraries=, library_path=/product/app/webview/lib/x86_64:/product/app/webview/webview.apk!/lib/x86_64:/product/lib64:/system/product/lib64, permitted_path=/data:/mnt/expand:/product/lib64:/system/product/lib64
+07-03 00:55:50.779 D/nativeloader( 4161): InitVndkspLibrariesProduct: VNDK is deprecated with product
+07-03 00:55:50.788 I/cr_WVCFactoryProvider( 4161): Loaded version=124.0.6367.219 minSdkVersion=1 isBundle=false multiprocess=true packageId=2
+07-03 00:55:50.790 D/nativeloader( 4161): Load /product/app/webview/webview.apk!/lib/x86_64/libwebviewchromium.so using ns product-clns-8 from class loader (caller=/product/app/webview/webview.apk): ok
+07-03 00:55:50.791 D/nativeloader( 4161): Load /system/lib64/libwebviewchromium_plat_support.so using ns product-clns-8 from class loader (caller=/product/app/webview/webview.apk): ok
+07-03 00:55:50.794 E/chromium( 4161): [0703/005550.793984:ERROR:variations_seed_loader.cc(37)] Seed missing signature.
+07-03 00:55:50.794 I/cr_VariationsUtils( 4161): Failed reading seed file "/data/user/0/com.naonao.app.android/app_webview/variations_seed_new"
+07-03 00:55:50.794 I/chromium( 4161): [0703/005550.794222:INFO:variations_seed_loader.cc(66)] Failed to open file for reading.: No such file or directory (2)
+07-03 00:55:50.794 I/cr_VariationsUtils( 4161): Failed reading seed file "/data/user/0/com.naonao.app.android/app_webview/variations_seed"
+07-03 00:55:50.794 I/cr_VariationsUtils( 4161): Requesting new seed from IVariationsSeedServer
+07-03 00:55:50.797 D/ActivityThread( 2068): Package [com.naonao.app.android] reported as REPLACED, but missing application info. Assuming REMOVED.
+07-03 00:55:50.797 D/CompatChangeReporter( 4161): Compat change id reported: 279646685; UID 10138; state: ENABLED
+07-03 00:55:50.798 I/cr_LibraryLoader( 4161): Successfully loaded native library
+07-03 00:55:50.798 D/ActivityManager(  575): sync unfroze 2068 com.android.webview:webview_service for 6
+07-03 00:55:50.799 I/cr_CachingUmaRecorder( 4161): Flushed 6 samples from 6 histograms, 0 samples were dropped.
+07-03 00:55:50.801 I/cr_CombinedPProvider( 4161): #registerProvider() provider:WV.o7@e6163db isPolicyCacheEnabled:false policyProvidersSize:0
+07-03 00:55:50.802 I/cr_PolicyProvider( 4161): #setManagerAndSource() 0
+07-03 00:55:50.806 V/GrammaticalInflectionUtils(  575): AttributionSource: AttributionSource { uid = 99010, packageName = null, attributionTag = null, token = android.os.Binder@ea74e24, deviceId = 0, next = null } does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+07-03 00:55:50.808 I/cr_CombinedPProvider( 4161): #linkNativeInternal() 1
+07-03 00:55:50.808 I/cr_AppResProvider( 4161): #getApplicationRestrictionsFromUserManager() Bundle[EMPTY_PARCEL]
+07-03 00:55:50.809 I/cr_PolicyProvider( 4161): #notifySettingsAvailable() 0
+07-03 00:55:50.809 I/cr_CombinedPProvider( 4161): #onSettingsAvailable() 0
+07-03 00:55:50.809 I/cr_CombinedPProvider( 4161): #flushPolicies()
+07-03 00:55:50.809 D/Zygote  (  977): Forked child process 4182
+07-03 00:55:50.811 I/ocessService0:0( 4182): Using CollectorTypeCMC GC.
+07-03 00:55:50.812 W/ocessService0:0( 4182): Unexpected CPU variant for x86: x86_64.
+07-03 00:55:50.812 W/ocessService0:0( 4182): Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, default
+07-03 00:55:50.813 E/ocessService0:0( 4182): Not starting debugger since process cannot load the jdwp agent.
+07-03 00:55:50.815 D/nativeloader( 4182): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+07-03 00:55:50.819 I/ActivityManager(  575): Start proc 4182:com.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0/u0i10 for  {com.naonao.app.android/org.chromium.content.app.SandboxedProcessService0:0}
+07-03 00:55:50.822 D/CompatChangeReporter( 4182): Compat change id reported: 242716250; UID 99010; state: ENABLED
+07-03 00:55:50.826 D/ApplicationLoaders( 4182): Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
 --------- beginning of kernel
-07-02 20:13:49.734 W/servicemanager(    0): Isolated app with UID 99009 requested 'network_management', but the service is not allowed for isolated apps.
-07-02 20:13:49.737 W/servicemanager(    0): Isolated app with UID 99009 requested 'connectivity', but the service is not allowed for isolated apps.
-07-02 20:13:49.761 I/cr_WebViewApkApp( 3531): Launched version=124.0.6367.219 minSdkVersion=1 isBundle=false processName=com.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0
-07-02 20:13:49.767 I/cr_ChildProcessService( 3531): Creating new ChildProcessService pid=3531
-07-02 20:13:49.746 E/SELinux (    0): avc:  denied  { find } for pid=3531 uid=99009 name=content_capture scontext=u:r:isolated_app:s0:c512,c768 tcontext=u:object_r:content_capture_service:s0 tclass=service_manager permissive=0
-07-02 20:13:49.771 D/ActivityThread( 2068): Package [com.naonao.app.android] reported as REPLACED, but missing application info. Assuming REMOVED.
-07-02 20:13:49.772 D/ActivityManager(  575): sync unfroze 2068 com.android.webview:webview_service for 6
-07-02 20:13:49.804 D/ConnectivityService(  575): requestNetwork for uid/pid:10138/3510 activeRequest: null callbackRequest: 76 [NetworkRequest [ REQUEST id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647 isUidTracked: false
-07-02 20:13:49.804 D/OemPaidWifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
-07-02 20:13:49.804 D/ConnectivityService(  575): NetReassign [77 : null → 100] [c 0] [a 0] [i 0]
-07-02 20:13:49.804 D/MultiInternetWifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
-07-02 20:13:49.805 D/WifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
-07-02 20:13:49.805 D/UntrustedWifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=77, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
-07-02 20:13:49.805 D/CompatChangeReporter(  575): Compat change id reported: 319212206; UID 10138; state: ENABLED
-07-02 20:13:49.806 D/ConnectivityService(  575): NetReassign [no changes] [c 0] [a 1] [i 0]
-07-02 20:13:49.811 D/CompatChangeReporter( 3510): Compat change id reported: 309578419; UID 10138; state: ENABLED
-07-02 20:13:49.830 I/EGL_emulation( 3510): Opening libGLESv1_CM_emulation.so
-07-02 20:13:49.830 I/EGL_emulation( 3510): Opening libGLESv2_emulation.so
-07-02 20:13:49.831 W/cr_media( 3510): BLUETOOTH_CONNECT permission is missing.
-07-02 20:13:49.831 W/cr_media( 3510): registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission
-07-02 20:13:49.836 E/EGL_emulation( 3510): eglCreateContext: EGL_BAD_CONFIG: no ES 3.2 support
-07-02 20:13:49.836 E/EGL_emulation( 3510): tid 3562: eglCreateContext(1830): error 0x3005 (EGL_BAD_CONFIG)
-07-02 20:13:49.836 E/EGL_emulation( 3510): eglCreateContext: EGL_BAD_CONFIG: no ES 3.1 support
-07-02 20:13:49.836 E/EGL_emulation( 3510): tid 3562: eglCreateContext(1824): error 0x3005 (EGL_BAD_CONFIG)
-07-02 20:13:49.836 I/cr_LibraryLoader( 3531): Successfully loaded native library
-07-02 20:13:49.838 I/cr_CachingUmaRecorder( 3531): Flushed 2 samples from 2 histograms, 0 samples were dropped.
-07-02 20:13:49.841 W/HWUI    ( 3510): Unknown dataspace 0
-07-02 20:13:49.842 W/SystemServiceRegistry( 3531): No service published for: uimode
-07-02 20:13:49.822 W/servicemanager(    0): Isolated app with UID 99009 requested 'uimode', but the service is not allowed for isolated apps.
-07-02 20:13:49.853 W/chromium( 3531): [WARNING:runtime_features.cc(694)] SharedStorage for M118+ cannot be enabled in this configuration. Use --enable-features=SharedStorageAPI,SharedStorageAPIM118 in addition.
-07-02 20:13:49.871 D/CoreBackPreview(  575): Window{a575b02 u0 com.naonao.app.android/com.naonao.app.android.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@f3ce768, mPriority=0, mIsAnimationCallback=false}
-07-02 20:13:49.882 W/HWUI    ( 3510): Failed to initialize 101010-2 format, error = EGL_SUCCESS
-07-02 20:13:49.890 I/hwservicemanager(  175): getTransport: Cannot find entry android.hardware.graphics.mapper@4.0::IMapper/default in either framework or device VINTF manifest.
-07-02 20:13:49.890 I/Gralloc4( 3510): mapper 4.x is not supported
-07-02 20:13:49.869 I/servicemanager(    0): Caller(pid=3510,uid=10138,sid=u:r:untrusted_app:s0:c138,c256,c512,c768) Could not find android.hardware.graphics.allocator.IAllocator/default in the VINTF manifest. No alternative instances declared in VINTF.
-07-02 20:13:49.901 I/ActivityTaskManager(  575): Displayed com.naonao.app.android/.MainActivity for user 0: +287ms
-07-02 20:13:49.921 I/chromium( 3531): [INFO:viewport_data.cc(133)] E2E_Used ViewportFitCover
-07-02 20:13:49.928 I/ImeTracker(  575): com.naonao.app.android:4547bba5: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
-07-02 20:13:49.929 I/ImeTracker(  575): com.naonao.app.android:4547bba5: onCancelled at PHASE_SERVER_SHOULD_HIDE
-07-02 20:13:49.945 I/chromium( 3531): [INFO:document_style_environment_variables.cc(104)] E2E_Used SafeAreaInsetBottom
-07-02 20:13:49.981 I/NAONAO_SMOKE( 3510): "{\"title\":\"孬孬 Android\",\"nav\":5,\"home\":true,\"naonao\":true,\"bridge\":true}"
-07-02 20:13:50.405 D/VRI[EmptyHomeActivity]( 1078): visibilityChanged oldVisibility=true newVisibility=false
-07-02 20:13:52.119 E/TaskPersister(  575): File error accessing recents directory (directory doesn't exist?).
-07-02 20:13:52.315 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:52.316 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:52.316 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:52.316 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:52.316 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
-07-02 20:13:52.820 I/wpa_supplicant( 1386): wlan0: CTRL-EVENT-BEACON-LOSS 
-07-02 20:13:53.471 I/artd    ( 3470): Dex parent of /data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/base.apk is not writable: Permission denied
-07-02 20:13:53.471 I/artd    ( 3470): GetBestInfo checking odex in dalvik-cache (/data/dalvik-cache/x86_64/data@app@~~uu9JgJI1kQkQNY-qhMyFyw==@com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==@base.apk@classes.dex)
-07-02 20:13:53.471 I/artd    ( 3470): Loading /data/dalvik-cache/x86_64/data@app@~~uu9JgJI1kQkQNY-qhMyFyw==@com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==@base.apk@classes.dex with executable: 0
-07-02 20:13:53.471 I/artd    ( 3470): OatFileAssistant test for existing oat file /data/dalvik-cache/x86_64/data@app@~~uu9JgJI1kQkQNY-qhMyFyw==@com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==@base.apk@classes.dex: File /data/dalvik-cache/x86_64/data@app@~~uu9JgJI1kQkQNY-qhMyFyw==@com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==@base.apk@classes.vdex does not exist.
-07-02 20:13:53.471 I/artd    ( 3470): GetBestInfo checking odex next to the dex file (/data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/oat/x86_64/base.odex)
-07-02 20:13:53.471 I/artd    ( 3470): Loading /data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/oat/x86_64/base.odex with executable: 0
-07-02 20:13:53.472 I/artd    ( 3470): Successfully loaded /data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/oat/x86_64/base.odex with executable: 0
-07-02 20:13:53.473 I/artd    ( 3470): /data/app/~~uu9JgJI1kQkQNY-qhMyFyw==/com.naonao.app.android-i3TgLwZm3VsZLVFufqUrzA==/oat/x86_64/base.odex is kOatUpToDate with filter verify
+07-03 00:55:50.806 W/servicemanager(    0): Isolated app with UID 99010 requested 'network_management', but the service is not allowed for isolated apps.
+07-03 00:55:50.809 W/servicemanager(    0): Isolated app with UID 99010 requested 'connectivity', but the service is not allowed for isolated apps.
+07-03 00:55:50.832 I/cr_WebViewApkApp( 4182): Launched version=124.0.6367.219 minSdkVersion=1 isBundle=false processName=com.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0
+07-03 00:55:50.839 I/cr_ChildProcessService( 4182): Creating new ChildProcessService pid=4182
+07-03 00:55:50.819 E/SELinux (    0): avc:  denied  { find } for pid=4182 uid=99010 name=content_capture scontext=u:r:isolated_app:s0:c512,c768 tcontext=u:object_r:content_capture_service:s0 tclass=service_manager permissive=0
+07-03 00:55:50.869 D/ConnectivityService(  575): requestNetwork for uid/pid:10138/4161 activeRequest: null callbackRequest: 79 [NetworkRequest [ REQUEST id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647 isUidTracked: false
+07-03 00:55:50.870 D/CompatChangeReporter(  575): Compat change id reported: 319212206; UID 10138; state: ENABLED
+07-03 00:55:50.870 D/OemPaidWifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
+07-03 00:55:50.870 D/MultiInternetWifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
+07-03 00:55:50.871 D/WifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
+07-03 00:55:50.871 D/UntrustedWifiNetworkFactory(  575): got request NetworkRequest [ REQUEST id=80, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10138 RequestorUid: 10138 RequestorPkg: com.naonao.app.android UnderlyingNetworks: Null] ]
+07-03 00:55:50.871 D/ConnectivityService(  575): NetReassign [80 : null → 100] [c 0] [a 0] [i 1]
+07-03 00:55:50.872 D/ConnectivityService(  575): NetReassign [no changes] [c 0] [a 0] [i 0]
+07-03 00:55:50.873 D/CompatChangeReporter( 4161): Compat change id reported: 309578419; UID 10138; state: ENABLED
+07-03 00:55:50.888 I/EGL_emulation( 4161): Opening libGLESv1_CM_emulation.so
+07-03 00:55:50.888 I/EGL_emulation( 4161): Opening libGLESv2_emulation.so
+07-03 00:55:50.891 W/cr_media( 4161): BLUETOOTH_CONNECT permission is missing.
+07-03 00:55:50.893 I/cr_LibraryLoader( 4182): Successfully loaded native library
+07-03 00:55:50.893 W/cr_media( 4161): registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission
+07-03 00:55:50.894 I/cr_CachingUmaRecorder( 4182): Flushed 2 samples from 2 histograms, 0 samples were dropped.
+07-03 00:55:50.895 E/EGL_emulation( 4161): eglCreateContext: EGL_BAD_CONFIG: no ES 3.2 support
+07-03 00:55:50.895 E/EGL_emulation( 4161): tid 4213: eglCreateContext(1830): error 0x3005 (EGL_BAD_CONFIG)
+07-03 00:55:50.895 E/EGL_emulation( 4161): eglCreateContext: EGL_BAD_CONFIG: no ES 3.1 support
+07-03 00:55:50.895 E/EGL_emulation( 4161): tid 4213: eglCreateContext(1824): error 0x3005 (EGL_BAD_CONFIG)
+07-03 00:55:50.898 W/SystemServiceRegistry( 4182): No service published for: uimode
+07-03 00:55:50.879 W/servicemanager(    0): Isolated app with UID 99010 requested 'uimode', but the service is not allowed for isolated apps.
+07-03 00:55:50.901 W/HWUI    ( 4161): Unknown dataspace 0
+07-03 00:55:50.904 W/chromium( 4182): [WARNING:runtime_features.cc(694)] SharedStorage for M118+ cannot be enabled in this configuration. Use --enable-features=SharedStorageAPI,SharedStorageAPIM118 in addition.
+07-03 00:55:50.920 I/BpBinder(  453): onLastStrongRef automatically unlinking death recipients: 
+07-03 00:55:50.930 D/CoreBackPreview(  575): Window{8fc88ef u0 com.naonao.app.android/com.naonao.app.android.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@56b813d, mPriority=0, mIsAnimationCallback=false}
+07-03 00:55:50.936 I/cr_VariationsUtils( 2068): Seed download job already scheduled
+07-03 00:55:50.939 W/HWUI    ( 4161): Failed to initialize 101010-2 format, error = EGL_SUCCESS
+07-03 00:55:50.947 I/hwservicemanager(  175): getTransport: Cannot find entry android.hardware.graphics.mapper@4.0::IMapper/default in either framework or device VINTF manifest.
+07-03 00:55:50.947 I/Gralloc4( 4161): mapper 4.x is not supported
+07-03 00:55:50.926 I/servicemanager(    0): Caller(pid=4161,uid=10138,sid=u:r:untrusted_app:s0:c138,c256,c512,c768) Could not find android.hardware.graphics.allocator.IAllocator/default in the VINTF manifest. No alternative instances declared in VINTF.
+07-03 00:55:50.956 I/ActivityTaskManager(  575): Displayed com.naonao.app.android/.MainActivity for user 0: +267ms
+07-03 00:55:50.967 W/webview_service( 2068): Reducing the number of considered missed Gc histogram windows from 1766 to 100
+07-03 00:55:50.974 I/chromium( 4182): [INFO:viewport_data.cc(133)] E2E_Used ViewportFitCover
+07-03 00:55:50.979 I/ImeTracker(  575): com.naonao.app.android:9364a0c: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+07-03 00:55:50.979 I/ImeTracker(  575): com.naonao.app.android:9364a0c: onCancelled at PHASE_SERVER_SHOULD_HIDE
+07-03 00:55:50.990 I/chromium( 4182): [INFO:document_style_environment_variables.cc(104)] E2E_Used SafeAreaInsetBottom
+07-03 00:55:51.025 I/NAONAO_SMOKE( 4161): "{\"title\":\"孬孬 Android\",\"nav\":5,\"home\":true,\"naonao\":true,\"bridge\":true}"
+07-03 00:55:51.472 D/VRI[EmptyHomeActivity]( 1078): visibilityChanged oldVisibility=true newVisibility=false
+07-03 00:55:51.589 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:51.589 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:51.590 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:51.590 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:51.591 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:53.502 E/TaskPersister(  575): File error accessing recents directory (directory doesn't exist?).
+07-03 00:55:53.910 I/wpa_supplicant( 1386): wlan0: CTRL-EVENT-BEACON-LOSS 
+07-03 00:55:54.464 I/artd    ( 4117): Dex parent of /data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/base.apk is not writable: Permission denied
+07-03 00:55:54.464 I/artd    ( 4117): GetBestInfo checking odex in dalvik-cache (/data/dalvik-cache/x86_64/data@app@~~fK79Lx0_DKVSgpRwFUTJhA==@com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==@base.apk@classes.dex)
+07-03 00:55:54.464 I/artd    ( 4117): Loading /data/dalvik-cache/x86_64/data@app@~~fK79Lx0_DKVSgpRwFUTJhA==@com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==@base.apk@classes.dex with executable: 0
+07-03 00:55:54.464 I/artd    ( 4117): OatFileAssistant test for existing oat file /data/dalvik-cache/x86_64/data@app@~~fK79Lx0_DKVSgpRwFUTJhA==@com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==@base.apk@classes.dex: File /data/dalvik-cache/x86_64/data@app@~~fK79Lx0_DKVSgpRwFUTJhA==@com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==@base.apk@classes.vdex does not exist.
+07-03 00:55:54.464 I/artd    ( 4117): GetBestInfo checking odex next to the dex file (/data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/oat/x86_64/base.odex)
+07-03 00:55:54.464 I/artd    ( 4117): Loading /data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/oat/x86_64/base.odex with executable: 0
+07-03 00:55:54.465 I/artd    ( 4117): Successfully loaded /data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/oat/x86_64/base.odex with executable: 0
+07-03 00:55:54.465 I/artd    ( 4117): /data/app/~~fK79Lx0_DKVSgpRwFUTJhA==/com.naonao.app.android-l31KaLfiEmDeECNPqVx1Iw==/oat/x86_64/base.odex is kOatUpToDate with filter verify
+07-03 00:55:54.596 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:54.597 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:54.598 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:54.598 W/BestClock(  575): java.time.DateTimeException: Missing network time fix
+07-03 00:55:54.599 W/BestClock(  575): java.time.DateTimeException: Missing network time fix

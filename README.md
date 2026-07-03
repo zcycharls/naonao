@@ -2,7 +2,7 @@
 
 > 一只桌面宠物，陪伴 ADHD 用户聚焦当下、减少焦虑。
 > 支持**本地 AI 模型**（免费离线），模型按需下载，不内置到安装包。
-> 当前只维护 **Electron 桌面客户端**；`naonao.help` / GitHub Pages 仅作为介绍和安装包下载页，不是网页端。
+> 当前维护 **Electron 桌面客户端** 和 **Android 客户端**；`naonao.help` / GitHub Pages 仅作为介绍和安装包下载页，不是网页端。
 
 ---
 
@@ -172,7 +172,7 @@ git push origin main
 3. **本地 AI 模型**需要手动下载（点击设置里的按钮），或者把 `app/models/` 目录复制过来
 4. **推送代码前**确保已配置 SSH key（参考上方"GitHub"章节）
 5. **打包前**先测试 `npm start` 能正常运行
-6. **只维护桌面客户端**：功能入口在 `app/index.html`，业务代码在 `app/app.js` 和 `app/styles.css`；`naonao.help` 只放介绍和下载链接，不实现网页端功能。
+6. **客户端优先**：桌面端功能入口在 `app/index.html`，业务代码在 `app/app.js` 和 `app/styles.css`；Android 客户端源码在 `android/`；`naonao.help` 只放介绍和下载链接，不实现网页端功能。
 
 ---
 

@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.naonao.app.android"
-    android:versionCode="170100"
-    android:versionName="1.701.0">
+    android:versionCode="1703848"
+    android:versionName="1.703.848">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />

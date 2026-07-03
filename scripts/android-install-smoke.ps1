@@ -1,5 +1,5 @@
 param(
-  [string]$ApkPath = "deliverables\android\naonao-android-1.701.0.apk",
+  [string]$ApkPath = "",
   [string]$EvidenceDir = "deliverables\android\install-smoke",
   [string]$DeviceSerial = "",
   [int]$LaunchWaitSeconds = 3,
@@ -33,9 +33,19 @@ if (-not (Test-Path $Adb)) { throw "Missing adb: $Adb" }
 
 $PackageName = "com.naonao.app.android"
 $ActivityName = "$PackageName/.MainActivity"
+$RepoRoot = [System.IO.Path]::GetFullPath((Resolve-Path (Join-Path $PSScriptRoot "..")).Path)
+$AndroidManifest = Join-Path $RepoRoot "android\src\main\AndroidManifest.xml"
+$ManifestText = Get-Content -LiteralPath $AndroidManifest -Raw -Encoding UTF8
+$VersionName = [regex]::Match($ManifestText, 'android:versionName="([^"]+)"').Groups[1].Value
+$VersionCode = [int][regex]::Match($ManifestText, 'android:versionCode="(\d+)"').Groups[1].Value
+if (-not $VersionName -or -not $VersionCode) {
+  throw "Could not read Android version from $AndroidManifest"
+}
+if (-not $ApkPath) {
+  $ApkPath = "deliverables\android\naonao-android-$VersionName.apk"
+}
 $ResolvedApk = (Resolve-Path $ApkPath).Path
 $ResolvedEvidenceDir = [System.IO.Path]::GetFullPath($EvidenceDir)
-$RepoRoot = [System.IO.Path]::GetFullPath((Resolve-Path (Join-Path $PSScriptRoot "..")).Path)
 $AllowedEvidenceRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "deliverables\android"))
 $AllowedEvidencePrefix = $AllowedEvidenceRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
 if ($ResolvedEvidenceDir -ne $AllowedEvidenceRoot -and -not $ResolvedEvidenceDir.StartsWith($AllowedEvidencePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -192,7 +202,7 @@ Start-Sleep -Seconds ([Math]::Max(1, $LaunchWaitSeconds))
 $PackageInfo = Invoke-DeviceAdb -AdbArgs @("shell", "dumpsys", "package", $PackageName)
 $PackageText = $PackageInfo.Output -join "`n"
 Write-EvidenceText -Name "dumpsys-package.txt" -Text $PackageText | Out-Null
-if ($PackageText -notmatch "versionName=1\.701\.0" -or $PackageText -notmatch "versionCode=170100") {
+if ($PackageText -notmatch "versionName=$([regex]::Escape($VersionName))" -or $PackageText -notmatch "versionCode=$VersionCode") {
   throw "Installed package version check failed"
 }
 
@@ -236,8 +246,8 @@ $Report = [pscustomobject]@{
   apk = $ResolvedApk
   device = $DeviceRows[0].Trim()
   package = $PackageName
-  versionName = "1.701.0"
-  versionCode = 170100
+  versionName = $VersionName
+  versionCode = $VersionCode
   evidenceDir = $ResolvedEvidenceDir
   files = @{
     start = "am-start.txt"
@@ -256,8 +266,8 @@ $Report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encodi
   Apk = $ResolvedApk
   Device = $DeviceRows[0].Trim()
   Package = $PackageName
-  VersionName = "1.701.0"
-  VersionCode = 170100
+  VersionName = $VersionName
+  VersionCode = $VersionCode
   Install = "passed"
   Launch = "passed"
   Process = "passed"

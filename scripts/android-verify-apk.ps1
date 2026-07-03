@@ -1,8 +1,21 @@
 param(
-  [string]$ApkPath = "deliverables\android\naonao-android-1.701.0.apk"
+  [string]$ApkPath = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+$RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$AndroidMain = Join-Path $RepoRoot "android\src\main"
+$ManifestPath = Join-Path $AndroidMain "AndroidManifest.xml"
+$ManifestForVersion = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8
+$VersionName = [regex]::Match($ManifestForVersion, 'android:versionName="([^"]+)"').Groups[1].Value
+$VersionCode = [int][regex]::Match($ManifestForVersion, 'android:versionCode="(\d+)"').Groups[1].Value
+if (-not $VersionName -or -not $VersionCode) {
+  throw "Could not read Android version from $ManifestPath"
+}
+if (-not $ApkPath) {
+  $ApkPath = "deliverables\android\naonao-android-$VersionName.apk"
+}
 
 $AndroidHome = $env:ANDROID_HOME
 if (-not $AndroidHome) { $AndroidHome = $env:ANDROID_SDK_ROOT }
@@ -56,8 +69,8 @@ try {
   $AppLabel = "application-label:'" + [string]([char]0x5B6C) + [string]([char]0x5B6C) + "'"
   $Required = @(
     "package: name='com.naonao.app.android'",
-    "versionCode='170100'",
-    "versionName='1.701.0'",
+    "versionCode='$VersionCode'",
+    "versionName='$VersionName'",
     "sdkVersion:'23'",
     "targetSdkVersion:'35'",
     $AppLabel,
@@ -110,10 +123,8 @@ try {
     }
   }
 
-  $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-  $AndroidMain = Join-Path $RepoRoot "android\src\main"
   $BuildInfo = Get-Content -LiteralPath (Join-Path $ZipRoot "assets\build-info.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-  if ($BuildInfo.package -ne "com.naonao.app.android" -or $BuildInfo.versionName -ne "1.701.0") {
+  if ($BuildInfo.package -ne "com.naonao.app.android" -or $BuildInfo.versionName -ne $VersionName) {
     throw "APK content check failed: build-info metadata mismatch"
   }
   if (-not $BuildInfo.files -or $BuildInfo.files.Count -lt 10) {
@@ -324,8 +335,8 @@ try {
     Bytes = (Get-Item $ResolvedApk).Length
     Sha256 = $Hash.Hash
     Package = "com.naonao.app.android"
-    VersionName = "1.701.0"
-    VersionCode = 170100
+    VersionName = $VersionName
+    VersionCode = $VersionCode
     Signature = "v1/v2/v3 verified"
     Content = "classes.dex and Android assets verified; APK build-info matches current Android source"
     SourceGuards = "manifest, WebView, cleartext policy, notification, reminder restore, CSP, bridge checks passed"

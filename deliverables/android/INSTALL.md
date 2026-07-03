@@ -3,18 +3,18 @@
 主安装包：
 
 ```text
-deliverables/android/naonao-android-1.701.0.apk
+deliverables/android/naonao-android-1.703.848.apk
 ```
 
 SHA256：
 
 ```text
-240811FF9E4417A00704B5DC9402680204AAD475D260AFA9BD9564CA308BD95E
+61A164AA20EAF0B215AE28C855A02FE7FBEFF3B188CD73AB51A2186C7D08F9F3
 ```
 
 ## 手机安装
 
-1. 把 `naonao-android-1.701.0.apk` 传到 Android 手机。
+1. 把 `naonao-android-1.703.848.apk` 传到 Android 手机。
 2. 在手机文件管理器里点开 APK。
 3. 如果提示“不允许安装未知应用”，进入提示里的设置页，允许当前文件管理器或浏览器安装未知应用。
 4. 安装完成后打开“孬孬”。

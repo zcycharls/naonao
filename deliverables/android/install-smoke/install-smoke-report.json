@@ -1,10 +1,10 @@
 ﻿{
-    "generatedAt":  "2026-07-02T20:13:56.1643813Z",
-    "apk":  "D:\\naonao - 副本\\repo\\deliverables\\android\\naonao-android-1.701.0.apk",
+    "generatedAt":  "2026-07-03T00:55:57.0223493Z",
+    "apk":  "D:\\naonao - 副本\\repo\\deliverables\\android\\naonao-android-1.703.848.apk",
     "device":  "emulator-5554 device",
     "package":  "com.naonao.app.android",
-    "versionName":  "1.701.0",
-    "versionCode":  170100,
+    "versionName":  "1.703.848",
+    "versionCode":  1703848,
     "evidenceDir":  "D:\\naonao - 副本\\repo\\deliverables\\android\\install-smoke",
     "files":  {
                   "activities":  "dumpsys-activities.txt",

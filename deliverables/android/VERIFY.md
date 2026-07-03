@@ -4,19 +4,19 @@
 
 ## 产物
 
-- 主交付：`deliverables/android/naonao-android-1.701.0.apk`
+- 主交付：`deliverables/android/naonao-android-1.703.848.apk`
 - 调试包：`deliverables/android/naonao-android-debug.apk`
 - 安装说明：`deliverables/android/INSTALL.md`
-- 当前主交付 SHA256：`240811FF9E4417A00704B5DC9402680204AAD475D260AFA9BD9564CA308BD95E`
-- 当前调试包 SHA256：`808352767ADC79BF3C0251507D0B510282DA02B820D107459C45E98A91EA5AF4`
+- 当前主交付 SHA256：`61A164AA20EAF0B215AE28C855A02FE7FBEFF3B188CD73AB51A2186C7D08F9F3`
+- 当前调试包 SHA256：`ACED1B7854E55AD2E341800A113F1FA04887BEDFBFBA7F912A13EA1D6EEF37EB`
 
 ## 已验证
 
 - `android/build-apk.ps1` 可重复构建 release/debug APK，release 与 debug 并行构建也不会互相清理临时目录。
 - `scripts/android-verify-apk.ps1` 验证 release APK：
   - 包名：`com.naonao.app.android`
-  - 版本：`1.701.0`
-  - `versionCode=170100`
+  - 版本：`1.703.848`
+  - `versionCode=1703848`
   - `minSdk=23`
   - `targetSdk=35`
   - 入口：`com.naonao.app.android.MainActivity`
@@ -27,7 +27,7 @@
   - Manifest、WebView 安全设置、URL 白名单拦截、AndroidBridge、通知权限按需请求、数据导出分享、数据导入恢复、通知权限保护、原生提醒恢复、CSP、飞书 Webhook 域名校验、原生 HTTP 明文策略检查已做源码门禁检查
   - APK 内页面 CSP 已收紧为 `script-src 'self'` 与 `connect-src 'none'`；页面不允许 inline script/inline event handler，前端 JS 不直接发网络请求，外部 AI/飞书请求只走 AndroidBridge 原生代发
   - APK 内 `assets/build-info.json` 记录 12 个 Android 源码/资源文件的 SHA256 和稳定 `sourceDigest`，覆盖 Manifest、Java、res 和前端 assets；验证脚本会逐项和当前源码对比并检查文件集合完整性，避免源码更新后误交付旧 APK
-  - 当前 Android 源码 `sourceDigest`：`1944367A14456D623AC376AE21039B1B36AA223395739321871FE5F076B8F365`
+  - 当前 Android 源码 `sourceDigest`：`B136A6509929930B02DF9D2C9803BB3D4272E235ACF4F0703A91E8B7D143964E`
   - 已确认重复构建时 APK 整包 SHA256 会因 zip/signing 元数据变化而改变；因此交付校验以当前 APK SHA256 + APK 内稳定 `sourceDigest` + 逐文件源码 hash 门禁共同判断，不把整包 hash 可复现性当成已满足条件
   - AndroidBridge 网络请求线程池已限制并发；HTTP 连接在异常路径也会 `disconnect`，响应体读取有上限，避免网络异常或超大响应造成资源占用失控
   - 原生提醒不申请 `SCHEDULE_EXACT_ALARM`，也不使用 exact alarm API；通知点击带 `MainActivity` 兜底和栈复用 flag，避免启动 Intent 为空或重复堆栈
