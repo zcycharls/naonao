@@ -81,7 +81,6 @@
       <button class="settings-tab" type="button" data-settings-tab="conversation"><span class="settings-tab-icon">◌</span><span>对话</span></button>
       <button class="settings-tab" type="button" data-settings-tab="appearance"><span class="settings-tab-icon">◒</span><span>外观</span></button>
       <button class="settings-tab" type="button" data-settings-tab="workspace"><span class="settings-tab-icon">□</span><span>工作区</span></button>
-      <button class="settings-tab" type="button" data-settings-tab="security"><span class="settings-tab-icon">⌂</span><span>安全</span></button>
       <button class="settings-tab" type="button" data-settings-tab="memory"><span class="settings-tab-icon">✣</span><span>记忆与上下文</span></button>
       <button class="settings-tab" type="button" data-settings-tab="providers"><span class="settings-tab-icon">↯</span><span>提供方</span></button>
       <button class="settings-tab" type="button" data-settings-tab="tools"><span class="settings-tab-icon">⌘</span><span>工具与密钥</span></button>
@@ -184,16 +183,6 @@
             <span class="hint">每个长远任务绑定一个独立飞书机器人 Webhook。</span>
           </div>
           <button class="settings-action compact" type="button" data-settings-open="long-tasks">打开</button>
-        </div>
-      </section>
-
-      <section class="settings-section" data-settings-section="security" hidden>
-        <div class="settings-section-head">
-          <h2>安全</h2>
-          <p>密钥由系统加密存储，渲染进程只负责写入新值和检查是否已保存。</p>
-        </div>
-        <div class="settings-block">
-          <div class="settings-note">API Key 由系统加密存储，AI 请求由主进程代发。</div>
         </div>
       </section>
 
@@ -405,7 +394,6 @@
 <div id="chat-dialog" role="log" aria-label="聊天对话框" aria-live="polite">
   <div id="dlg-header">
     <div id="dlg-title">
-      <div class="pet-dot">孬</div>
       孬孬
     </div>
     <div id="dlg-header-btns">
@@ -414,6 +402,7 @@
       <button id="dlg-minimize" aria-label="最小化" title="最小化">−</button>
       <button id="stats-toggle" aria-label="统计面板" title="数据统计">▥</button>
       <button id="body-double-btn" aria-label="一起专注" title="一起专注">▤</button>
+      <button id="freezer-btn" aria-label="想法冰箱" title="想法冰箱">冰箱</button>
     </div>
   </div>
 
@@ -454,9 +443,6 @@
   </div>
 
   <div id="dlg-msgs"></div>
-
-  <!-- Freezer button -->
-  <button id="freezer-btn" aria-label="想法冰箱" title="想法冰箱">◇</button>
 </div>
 
 <div id="hint">轻触孬孬，或在下方输入 ✦</div>

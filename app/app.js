@@ -92,7 +92,14 @@ function normalizeLongTasks(value){
   }).filter(Boolean).slice(0,LONG_TASK_MAX);
 }
 
+function applyTheme(){
+  document.documentElement.dataset.theme='koala';
+  document.body.dataset.theme='koala';
+  return 'koala';
+}
+
 let cfg=load();
+cfg.theme=applyTheme(cfg.theme);
 cfg.proxy=false;
 let history=[];
 let busy=false;
@@ -935,7 +942,7 @@ async function openSettings(){
   syncApiKeyField();fModel.value=cfg.m;fBase.value=cfg.b;
   if(fProxy) fProxy.checked=false;
   await syncFeishuSettingsFields();
-  curP=cfg.p;syncSeg();syncFreq();syncPetMode();updateStatus();
+  curP=cfg.p;syncSeg();syncFreq();syncPetMode();applyTheme();updateStatus();
   overlay.classList.add('open');panel.classList.add('open');
 }
 function closeSettings(){overlay.classList.remove('open');panel.classList.remove('open');}
@@ -967,6 +974,7 @@ document.querySelectorAll('#pet-mode-seg .seg-b').forEach(b=>{
   });
 });
 syncPetMode();
+applyTheme();
 function syncSeg(){
   segBtns.forEach(b=>b.classList.toggle('on',b.dataset.p===curP));
   frBase.style.display=curP==='openai'?'flex':'none';
@@ -3144,6 +3152,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   }
 
   const overlay=document.getElementById('onboard-overlay');
+  window.petBridge?.setIgnoreMouse?.(false);
   const steps=overlay.querySelectorAll('.onboard-step');
   let currentStep=0;
 
@@ -3156,7 +3165,8 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
   function finish(){
     localStorage.setItem('nono_onboarding_done','true');
     overlay.classList.remove('show');
-    setTimeout(()=>{overlay.style.display='none';},400);
+    window.petBridge?.setIgnoreMouse?.(false);
+    setTimeout(()=>{overlay.style.display='none'; window.petBridge?.setIgnoreMouse?.(false); window.syncPetAnchors?.();},400);
     // happy reaction from koala after onboarding
     if(typeof setHappy==='function') setHappy(true);
     if(typeof spawnHeart==='function') spawnHeart(px+55,py+40);
@@ -3684,7 +3694,15 @@ if(IS_CHAT_WIN){
   else petImg.addEventListener('load', setupAlpha);
   window.addEventListener('resize',()=>requestAnimationFrame(syncPetAnchors));
 
+  function isOnboardingActive(){
+    const overlay = document.getElementById('onboard-overlay');
+    return !!(overlay && overlay.classList.contains('show') && overlay.style.display !== 'none');
+  }
   function isOverKoala(cx, cy){
+    // While onboarding is visible, the pet window must accept mouse events over
+    // the whole overlay/card. Otherwise the transparent pet window can be put
+    // into click-through mode before the user presses the onboarding buttons.
+    if(isOnboardingActive()) return true;
     // Always respond over tray buttons
     const tray = document.getElementById('pet-tray');
     if(tray){
