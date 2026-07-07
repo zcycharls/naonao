@@ -347,6 +347,16 @@ function renderHome(){
   $('focus-badge').textContent = state.timer.running ? (state.timer.mode === 'focus' ? '专注中' : '休息中') : (state.bodyDouble ? '陪你专注' : '待命');
   $('today-line').textContent = task ? `现在守住：${task.title}` : '今天先抓住一件事。';
   $('body-double-toggle').classList.toggle('on', state.bodyDouble);
+  $('body-double-toggle').setAttribute('aria-pressed', String(state.bodyDouble));
+  $('android-pet').classList.toggle('has-hat', state.bodyDouble);
+}
+
+function animatePet(){
+  const pet = $('android-pet');
+  if(!pet) return;
+  pet.classList.remove('pet-bop');
+  void pet.offsetWidth;
+  pet.classList.add('pet-bop');
 }
 
 function renderChat(){
@@ -1071,11 +1081,16 @@ function bindEvents(){
     persist();
     renderChat();
   });
+  $('android-pet').addEventListener('click', animatePet);
+  $('android-pet').addEventListener('animationend', () => {
+    $('android-pet').classList.remove('pet-bop');
+  });
   $('body-double-toggle').addEventListener('click', () => {
     state.bodyDouble = !state.bodyDouble;
     nativeVibrate(35);
     persist();
     renderHome();
+    animatePet();
   });
   $('timer-start').addEventListener('click', startOrPauseTimer);
   $('timer-reset').addEventListener('click', resetTimer);

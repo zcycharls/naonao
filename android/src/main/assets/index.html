@@ -10,7 +10,6 @@
 <body>
   <div id="app-shell">
     <header class="topbar">
-      <div class="brand-mark" aria-hidden="true">孬</div>
       <div class="top-copy">
         <div class="eyebrow">NAONAO Android</div>
         <h1>孬孬</h1>
@@ -21,20 +20,15 @@
     <main id="view-home" class="view active" data-view="home">
       <section class="hero">
         <div class="pet-stage">
-          <div class="pet-card">
-            <div class="pet-ear left"></div>
-            <div class="pet-ear right"></div>
-            <div class="pet-face">
-              <span class="pet-eye"></span>
-              <span class="pet-eye"></span>
-              <span class="pet-nose">孬</span>
-            </div>
+          <button id="android-pet" class="pet-button" type="button" aria-label="孬孬">
+            <img class="pet-hat" id="pet-hat" src="hat.png" alt="" aria-hidden="true">
+            <img class="pet-img" src="pet.png" alt="孬孬" draggable="false">
             <div class="pet-badge" id="focus-badge">待命</div>
-          </div>
+          </button>
         </div>
         <div class="hero-copy">
           <p id="today-line">今天先抓住一件事。</p>
-          <button id="body-double-toggle" class="pill-toggle" type="button">◉ 一起专注</button>
+          <button id="body-double-toggle" class="pill-toggle" type="button" aria-pressed="false">◉ 一起专注</button>
         </div>
       </section>
 

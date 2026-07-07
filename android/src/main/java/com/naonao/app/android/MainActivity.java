@@ -1,11 +1,13 @@
 package com.naonao.app.android;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +18,7 @@ import android.os.Vibrator;
 import android.provider.Settings;
 import android.security.NetworkSecurityPolicy;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -57,10 +60,17 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private AndroidBridge androidBridge;
+    private boolean pageReady = false;
+    private int safeInsetLeft = 0;
+    private int safeInsetTop = 0;
+    private int safeInsetRight = 0;
+    private int safeInsetBottom = 0;
+    private float density = 1f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        density = Math.max(1f, getResources().getDisplayMetrics().density);
 
         webView = new WebView(this);
         webView.setLayoutParams(new FrameLayout.LayoutParams(
@@ -68,6 +78,7 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
         setContentView(webView);
+        installWindowInsetsBridge();
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -107,6 +118,8 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 if (url == null || !url.startsWith("file:///android_asset/")) return;
+                pageReady = true;
+                applyWindowInsetsToPage();
                 view.evaluateJavascript(
                         "(function(){return JSON.stringify({" +
                                 "title:document.title," +
@@ -137,8 +150,95 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
+    private void installWindowInsetsBridge() {
+        webView.setOnApplyWindowInsetsListener((view, insets) -> {
+            updateSafeAreaInsets(readSafeAreaInsets(insets));
+            return insets;
+        });
+        webView.post(() -> {
+            if (webView != null) webView.requestApplyInsets();
+        });
+    }
+
+    private void updateSafeAreaInsets(int[] insets) {
+        if (insets == null || insets.length != 4) return;
+        int cssLeft = toCssPx(insets[0]);
+        int cssTop = toCssPx(insets[1]);
+        int cssRight = toCssPx(insets[2]);
+        int cssBottom = toCssPx(insets[3]);
+        if (safeInsetLeft == cssLeft
+                && safeInsetTop == cssTop
+                && safeInsetRight == cssRight
+                && safeInsetBottom == cssBottom) {
+            return;
+        }
+        safeInsetLeft = cssLeft;
+        safeInsetTop = cssTop;
+        safeInsetRight = cssRight;
+        safeInsetBottom = cssBottom;
+        applyWindowInsetsToPage();
+    }
+
+    private int toCssPx(int physicalPx) {
+        return Math.round(Math.max(0, physicalPx) / density);
+    }
+
+    private void applyWindowInsetsToPage() {
+        if (!pageReady || webView == null) return;
+        String script = "(function(){var s=document.documentElement.style;"
+                + "s.setProperty('--safe-left','" + safeInsetLeft + "px');"
+                + "s.setProperty('--safe-top','" + safeInsetTop + "px');"
+                + "s.setProperty('--safe-right','" + safeInsetRight + "px');"
+                + "s.setProperty('--safe-bottom','" + safeInsetBottom + "px');"
+                + "})()";
+        webView.evaluateJavascript(script, null);
+    }
+
+    private static int[] readSafeAreaInsets(WindowInsets insets) {
+        if (insets == null) return new int[]{0, 0, 0, 0};
+        if (Build.VERSION.SDK_INT >= 30) return Api30Insets.read(insets);
+
+        int left = Math.max(0, insets.getSystemWindowInsetLeft());
+        int top = Math.max(0, insets.getSystemWindowInsetTop());
+        int right = Math.max(0, insets.getSystemWindowInsetRight());
+        int bottom = Math.max(0, insets.getSystemWindowInsetBottom());
+        if (Build.VERSION.SDK_INT >= 28) {
+            return Api28Insets.mergeDisplayCutout(insets, left, top, right, bottom);
+        }
+        return new int[]{left, top, right, bottom};
+    }
+
+    @TargetApi(28)
+    private static class Api28Insets {
+        static int[] mergeDisplayCutout(WindowInsets insets, int left, int top, int right, int bottom) {
+            android.view.DisplayCutout cutout = insets.getDisplayCutout();
+            if (cutout != null) {
+                left = Math.max(left, cutout.getSafeInsetLeft());
+                top = Math.max(top, cutout.getSafeInsetTop());
+                right = Math.max(right, cutout.getSafeInsetRight());
+                bottom = Math.max(bottom, cutout.getSafeInsetBottom());
+            }
+            return new int[]{left, top, right, bottom};
+        }
+    }
+
+    @TargetApi(30)
+    private static class Api30Insets {
+        static int[] read(WindowInsets insets) {
+            Insets systemBars = insets.getInsets(WindowInsets.Type.systemBars());
+            Insets displayCutout = insets.getInsets(WindowInsets.Type.displayCutout());
+            return new int[]{
+                    Math.max(systemBars.left, displayCutout.left),
+                    Math.max(systemBars.top, displayCutout.top),
+                    Math.max(systemBars.right, displayCutout.right),
+                    Math.max(systemBars.bottom, displayCutout.bottom)
+            };
+        }
+    }
+
     @Override
     protected void onDestroy() {
+        pageReady = false;
         if (androidBridge != null) {
             androidBridge.shutdown();
             androidBridge = null;

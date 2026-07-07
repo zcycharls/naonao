@@ -145,7 +145,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         android.app.Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new android.app.Notification.Builder(context, CHANNEL_ID)
                 : new android.app.Notification.Builder(context);
-        builder.setSmallIcon(R.drawable.ic_launcher)
+        builder.setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(emptyToDefault(title, "孬孬提醒"))
                 .setContentText(emptyToDefault(body, "回来看看当前任务。"))
                 .setStyle(new android.app.Notification.BigTextStyle().bigText(emptyToDefault(body, "回来看看当前任务。")))

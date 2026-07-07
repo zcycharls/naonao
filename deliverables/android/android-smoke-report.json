@@ -1,5 +1,5 @@
 {
-  "screenshotBytes": 111380,
+  "screenshotBytes": 121373,
   "screenshotWidth": 390,
   "screenshotHeight": 844,
   "expectedWidth": 390,
@@ -10,6 +10,35 @@
   "docScrollWidth": 390,
   "bodyScrollWidth": 390,
   "overflowingCount": 0,
+  "petState": {
+    "brandMarkCount": 0,
+    "petPresent": true,
+    "petHasHatClass": true,
+    "petBopClass": true,
+    "imageSrc": "pet.png",
+    "imageLoaded": true,
+    "imageNaturalWidth": 390,
+    "imageNaturalHeight": 493,
+    "imageRect": {
+      "left": 24,
+      "right": 136.7962188720703,
+      "top": 87.92387390136719,
+      "bottom": 215.0761260986328,
+      "width": 112.79621887207031,
+      "height": 127.15225219726562
+    },
+    "hatSrc": "hat.png",
+    "hatVisible": true,
+    "hatRect": {
+      "left": 52.343406677246094,
+      "right": 113.6565933227539,
+      "top": 83.54962921142578,
+      "bottom": 128.99725341796875,
+      "width": 61.31318664550781,
+      "height": 45.44762420654297
+    },
+    "badgeText": "陪你专注"
+  },
   "hasBottomNav": true,
   "visibleNavButtons": 5,
   "appInitialized": true,
@@ -34,6 +63,17 @@
       "overflowingCount": 0,
       "overflowing": [],
       "visibleNavButtons": 5,
+      "safeArea": {
+        "top": "12px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px",
+        "topbarMinHeight": "74px",
+        "topbarPaddingTop": "14px",
+        "viewPaddingLeft": "14px",
+        "viewPaddingRight": "14px",
+        "navPaddingBottom": "32px"
+      },
       "keyControlsPresent": true,
       "failures": []
     },
@@ -46,6 +86,17 @@
       "overflowingCount": 0,
       "overflowing": [],
       "visibleNavButtons": 5,
+      "safeArea": {
+        "top": "12px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px",
+        "topbarMinHeight": "74px",
+        "topbarPaddingTop": "14px",
+        "viewPaddingLeft": "14px",
+        "viewPaddingRight": "14px",
+        "navPaddingBottom": "32px"
+      },
       "keyControlsPresent": true,
       "failures": []
     },
@@ -58,6 +109,17 @@
       "overflowingCount": 0,
       "overflowing": [],
       "visibleNavButtons": 5,
+      "safeArea": {
+        "top": "12px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px",
+        "topbarMinHeight": "74px",
+        "topbarPaddingTop": "14px",
+        "viewPaddingLeft": "14px",
+        "viewPaddingRight": "14px",
+        "navPaddingBottom": "32px"
+      },
       "keyControlsPresent": true,
       "failures": []
     },
@@ -70,6 +132,17 @@
       "overflowingCount": 0,
       "overflowing": [],
       "visibleNavButtons": 5,
+      "safeArea": {
+        "top": "12px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px",
+        "topbarMinHeight": "74px",
+        "topbarPaddingTop": "14px",
+        "viewPaddingLeft": "14px",
+        "viewPaddingRight": "14px",
+        "navPaddingBottom": "32px"
+      },
       "keyControlsPresent": true,
       "failures": []
     },
@@ -82,6 +155,17 @@
       "overflowingCount": 0,
       "overflowing": [],
       "visibleNavButtons": 5,
+      "safeArea": {
+        "top": "12px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px",
+        "topbarMinHeight": "74px",
+        "topbarPaddingTop": "14px",
+        "viewPaddingLeft": "14px",
+        "viewPaddingRight": "14px",
+        "navPaddingBottom": "32px"
+      },
       "keyControlsPresent": true,
       "failures": []
     },
@@ -94,6 +178,17 @@
       "overflowingCount": 0,
       "overflowing": [],
       "visibleNavButtons": 5,
+      "safeArea": {
+        "top": "12px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px",
+        "topbarMinHeight": "74px",
+        "topbarPaddingTop": "14px",
+        "viewPaddingLeft": "14px",
+        "viewPaddingRight": "14px",
+        "navPaddingBottom": "32px"
+      },
       "keyControlsPresent": true,
       "failures": []
     },
@@ -106,6 +201,17 @@
       "overflowingCount": 0,
       "overflowing": [],
       "visibleNavButtons": 5,
+      "safeArea": {
+        "top": "12px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px",
+        "topbarMinHeight": "74px",
+        "topbarPaddingTop": "14px",
+        "viewPaddingLeft": "14px",
+        "viewPaddingRight": "14px",
+        "navPaddingBottom": "32px"
+      },
       "keyControlsPresent": true,
       "failures": []
     }
@@ -114,52 +220,52 @@
     {
       "view": "home",
       "file": "deliverables/android/screens/home.png",
-      "bytes": 111380,
+      "bytes": 121373,
       "width": 390,
       "height": 844
     },
     {
       "view": "tasks",
       "file": "deliverables/android/screens/tasks.png",
-      "bytes": 86033,
+      "bytes": 83169,
       "width": 390,
       "height": 844
     },
     {
       "view": "focus",
       "file": "deliverables/android/screens/focus.png",
-      "bytes": 106213,
+      "bytes": 102072,
       "width": 390,
       "height": 844
     },
     {
       "view": "freezer",
       "file": "deliverables/android/screens/freezer.png",
-      "bytes": 82930,
+      "bytes": 80269,
       "width": 390,
       "height": 844
     },
     {
       "view": "stats",
       "file": "deliverables/android/screens/stats.png",
-      "bytes": 101516,
+      "bytes": 97332,
       "width": 390,
       "height": 844
     },
     {
       "view": "settings",
       "file": "deliverables/android/screens/settings.png",
-      "bytes": 88199,
+      "bytes": 82714,
       "width": 390,
       "height": 844
     },
     {
       "view": "home-final",
       "file": "deliverables/android/android-smoke.png",
-      "bytes": 111380,
+      "bytes": 121373,
       "width": 390,
       "height": 844
     }
   ],
-  "checkedAt": "2026-07-03T07:35:11.146Z"
+  "checkedAt": "2026-07-07T08:04:50.910Z"
 }

@@ -108,6 +108,8 @@ try {
     "assets\index.html",
     "assets\styles.css",
     "assets\app.js",
+    "assets\pet.png",
+    "assets\hat.png",
     "assets\build-info.json",
     "res\xml\network_security_config.xml"
   )
@@ -136,6 +138,12 @@ try {
   foreach ($Entry in @("assets\index.html", "assets\styles.css", "assets\app.js", "classes.dex")) {
     $Item = Get-Item (Join-Path $ZipRoot $Entry)
     if ($Item.Length -lt 1000) {
+      throw "APK content check failed: $Entry unexpectedly small"
+    }
+  }
+  foreach ($Entry in @("assets\pet.png", "assets\hat.png")) {
+    $Item = Get-Item (Join-Path $ZipRoot $Entry)
+    if ($Item.Length -lt 10000) {
       throw "APK content check failed: $Entry unexpectedly small"
     }
   }
@@ -219,8 +227,10 @@ try {
   $BootReceiver = Get-Content -LiteralPath (Join-Path $AndroidMain "java\com\naonao\app\android\BootReceiver.java") -Raw -Encoding UTF8
   $Manifest = Get-Content -LiteralPath (Join-Path $AndroidMain "AndroidManifest.xml") -Raw -Encoding UTF8
   $AssetHtml = Get-Content -LiteralPath (Join-Path $AndroidMain "assets\index.html") -Raw -Encoding UTF8
+  $AssetCss = Get-Content -LiteralPath (Join-Path $AndroidMain "assets\styles.css") -Raw -Encoding UTF8
   $AssetJs = Get-Content -LiteralPath (Join-Path $AndroidMain "assets\app.js") -Raw -Encoding UTF8
   $BuildScript = Get-Content -LiteralPath (Join-Path $RepoRoot "android\build-apk.ps1") -Raw -Encoding UTF8
+  $IconSyncScript = Get-Content -LiteralPath (Join-Path $RepoRoot "scripts\sync-android-icon.ps1") -Raw -Encoding UTF8
   $SourceChecks = @(
     @{ Name = "manifest disables backup"; Text = $Manifest; Needle = 'android:allowBackup="false"' },
     @{ Name = "manifest disables debug"; Text = $Manifest; Needle = 'android:debuggable="false"' },
@@ -238,6 +248,15 @@ try {
     @{ Name = "webview checks page readiness on load"; Text = $MainActivity; Needle = "onPageFinished(WebView view, String url)" },
     @{ Name = "webview readiness verifies title"; Text = $MainActivity; Needle = "title:document.title" },
     @{ Name = "webview readiness verifies nav"; Text = $MainActivity; Needle = "document.querySelectorAll('.bottom-nav button').length" },
+    @{ Name = "webview listens for Android window insets"; Text = $MainActivity; Needle = "setOnApplyWindowInsetsListener" },
+    @{ Name = "webview requests initial insets"; Text = $MainActivity; Needle = "requestApplyInsets()" },
+    @{ Name = "webview reads system bar insets"; Text = $MainActivity; Needle = "WindowInsets.Type.systemBars()" },
+    @{ Name = "webview reads display cutout insets"; Text = $MainActivity; Needle = "WindowInsets.Type.displayCutout()" },
+    @{ Name = "webview converts physical insets to css pixels"; Text = $MainActivity; Needle = "physicalPx) / density" },
+    @{ Name = "webview bridges safe top to CSS"; Text = $MainActivity; Needle = "s.setProperty('--safe-top'" },
+    @{ Name = "webview bridges safe bottom to CSS"; Text = $MainActivity; Needle = "s.setProperty('--safe-bottom'" },
+    @{ Name = "webview bridges safe left to CSS"; Text = $MainActivity; Needle = "s.setProperty('--safe-left'" },
+    @{ Name = "webview bridges safe right to CSS"; Text = $MainActivity; Needle = "s.setProperty('--safe-right'" },
     @{ Name = "non-asset file URLs blocked"; Text = $MainActivity; Needle = 'return !uri.toString().startsWith("file:///android_asset/")' },
     @{ Name = "unknown schemes blocked"; Text = $MainActivity; Needle = "return true;" },
     @{ Name = "cleartext http checked before native request"; Text = $MainActivity; Needle = "ensureCleartextPermitted(endpoint)" },
@@ -256,6 +275,7 @@ try {
     @{ Name = "notification permission requested on demand"; Text = $MainActivity; Needle = "ensureNotificationPermission()" },
     @{ Name = "native data export share available"; Text = $MainActivity; Needle = "shareText(String title, String text)" },
     @{ Name = "notification permission guarded"; Text = $ReminderReceiver; Needle = "POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED" },
+    @{ Name = "notification uses dedicated small icon"; Text = $ReminderReceiver; Needle = "R.drawable.ic_notification" },
     @{ Name = "notification click has launch fallback"; Text = $ReminderReceiver; Needle = "launch = new Intent(context, MainActivity.class)" },
     @{ Name = "notification launch avoids duplicate stack"; Text = $ReminderReceiver; Needle = "Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP" },
     @{ Name = "reminders persisted natively"; Text = $ReminderReceiver; Needle = "PREF_SCHEDULES" },
@@ -273,9 +293,27 @@ try {
     @{ Name = "asset CSP avoids content images"; Text = $AssetHtml; Needle = "img-src 'self' data: file:" },
     @{ Name = "asset CSP disallows inline script"; Text = $AssetHtml; Needle = "script-src 'self'" },
     @{ Name = "asset references app js"; Text = $AssetHtml; Needle = '<script src="app.js"></script>' },
+    @{ Name = "asset viewport allows safe area"; Text = $AssetHtml; Needle = "viewport-fit=cover" },
     @{ Name = "asset has data import button"; Text = $AssetHtml; Needle = 'id="import-data"' },
     @{ Name = "asset has in-page dialog"; Text = $AssetHtml; Needle = 'id="app-dialog"' },
+    @{ Name = "asset removes redundant brand mark"; Text = $AssetHtml; Pattern = '<header class="topbar">(?:(?!brand-mark)[\s\S])*?<button id="settings-shortcut"' },
+    @{ Name = "asset uses desktop pet image"; Text = $AssetHtml; Needle = 'src="pet.png"' },
+    @{ Name = "asset uses desktop body-double hat"; Text = $AssetHtml; Needle = 'src="hat.png"' },
+    @{ Name = "asset css defines safe top fallback"; Text = $AssetCss; Needle = "--safe-top:env(safe-area-inset-top,0px)" },
+    @{ Name = "asset css defines safe left fallback"; Text = $AssetCss; Needle = "--safe-left:env(safe-area-inset-left,0px)" },
+    @{ Name = "asset css defines safe right fallback"; Text = $AssetCss; Needle = "--safe-right:env(safe-area-inset-right,0px)" },
+    @{ Name = "asset css defines snug safe top padding"; Text = $AssetCss; Needle = "--safe-top-pad:max(14px,var(--safe-top))" },
+    @{ Name = "asset css topbar consumes snug safe top"; Text = $AssetCss; Pattern = "\.topbar\{[^}]*var\(--safe-top-pad\)" },
+    @{ Name = "asset css content consumes side insets"; Text = $AssetCss; Pattern = "\.view\{[^}]*var\(--safe-left\)[^}]*var\(--safe-right\)" },
+    @{ Name = "asset css nav consumes bottom inset"; Text = $AssetCss; Pattern = "\.bottom-nav\{[^}]*var\(--safe-bottom\)" },
+    @{ Name = "asset css styles desktop pet image"; Text = $AssetCss; Needle = ".pet-img" },
+    @{ Name = "asset css styles body-double hat"; Text = $AssetCss; Needle = ".pet-button.has-hat .pet-hat" },
+    @{ Name = "asset css keeps desktop pet click animation"; Text = $AssetCss; Needle = "@keyframes pet-jump" },
+    @{ Name = "android icon sync uses desktop icon"; Text = $IconSyncScript; Needle = 'build\icon.ico' },
+    @{ Name = "android icon sync writes mipmap launcher assets"; Text = $IconSyncScript; Needle = 'mipmap-xxxhdpi' },
     @{ Name = "app has android bridge callback"; Text = $AssetJs; Needle = "window.NAONAO_NATIVE" },
+    @{ Name = "app toggles body-double pet hat"; Text = $AssetJs; Needle = ".classList.toggle('has-hat', state.bodyDouble)" },
+    @{ Name = "app animates pet on click"; Text = $AssetJs; Needle = "function animatePet()" },
     @{ Name = "app uses in-page dialog helper"; Text = $AssetJs; Needle = "function showDialog" },
     @{ Name = "app imports exported data"; Text = $AssetJs; Needle = "function importData()" },
     @{ Name = "app strips imported trust confirmations"; Text = $AssetJs; Needle = "function normalizeImportedConfig(raw)" },

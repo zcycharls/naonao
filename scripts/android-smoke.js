@@ -36,6 +36,7 @@ const report = path.join(repo, 'deliverables', 'android', 'android-smoke-report.
 const measuredDir = path.join(repo, '.tmp', `android-smoke-measure-${Date.now()}`);
 const measuredHtml = path.join(measuredDir, 'index.html');
 const viewport = { width: 390, height: 844 };
+const simulatedSafeArea = { top: 12, right: 0, bottom: 24, left: 0 };
 const storageKey = 'naonao_android_state_v1';
 
 function sampleState() {
@@ -228,11 +229,15 @@ function measurementExpression() {
         const r = btn.getBoundingClientRect();
         return { label:btn.textContent.trim(), target:btn.dataset.target || '', left:r.left, right:r.right, top:r.top, bottom:r.bottom, width:r.width, height:r.height };
       });
+      const rootStyle = getComputedStyle(document.documentElement);
+      const topbarStyle = getComputedStyle(document.querySelector('.topbar'));
+      const viewStyle = getComputedStyle(document.querySelector('.view.active'));
+      const navStyle = getComputedStyle(document.querySelector('.bottom-nav'));
       const activeView = document.querySelector('.view.active') && document.querySelector('.view.active').dataset.view;
       const viewRect = activeView ? rectFor('#view-' + activeView) : null;
       const firstPanel = activeView ? rectFor('#view-' + activeView + ' .panel, #view-' + activeView + ' .focus-panel') : null;
       const keySelectors = {
-        home: ['#active-task-title', '#quick-task-input', '#chat-input'],
+        home: ['#android-pet', '#android-pet .pet-img', '#pet-hat', '#active-task-title', '#quick-task-input', '#chat-input'],
         tasks: ['#task-input', '#task-list'],
         focus: ['#timer-ring', '#timer-start', '#focus-intent-input'],
         freezer: ['#freezer-input', '#freezer-list'],
@@ -247,6 +252,10 @@ function measurementExpression() {
         const r = node.getBoundingClientRect();
         return { text:node.textContent.trim().slice(0,30), width:r.width, height:r.height };
       });
+      const pet = document.querySelector('#android-pet');
+      const petImg = document.querySelector('#android-pet .pet-img');
+      const petHat = document.querySelector('#pet-hat');
+      const petHatStyle = petHat ? getComputedStyle(petHat) : null;
       return {
         innerWidth,
         innerHeight,
@@ -258,6 +267,17 @@ function measurementExpression() {
         activeView,
         timerText: document.getElementById('timer-time') && document.getElementById('timer-time').textContent,
         bottomNavPosition: getComputedStyle(document.querySelector('.bottom-nav')).position,
+        safeArea: {
+          top: rootStyle.getPropertyValue('--safe-top').trim(),
+          right: rootStyle.getPropertyValue('--safe-right').trim(),
+          bottom: rootStyle.getPropertyValue('--safe-bottom').trim(),
+          left: rootStyle.getPropertyValue('--safe-left').trim(),
+          topbarMinHeight: topbarStyle.minHeight,
+          topbarPaddingTop: topbarStyle.paddingTop,
+          viewPaddingLeft: viewStyle.paddingLeft,
+          viewPaddingRight: viewStyle.paddingRight,
+          navPaddingBottom: navStyle.paddingBottom
+        },
         navButtons,
         keyPresence,
         viewRect,
@@ -266,6 +286,21 @@ function measurementExpression() {
         currentPanelRect: rectFor('.current-panel'),
         chatPanelRect: rectFor('.chat-panel'),
         taskTitleRects,
+        petState: {
+          brandMarkCount: document.querySelectorAll('.brand-mark').length,
+          petPresent: !!pet,
+          petHasHatClass: !!pet && pet.classList.contains('has-hat'),
+          petBopClass: !!pet && pet.classList.contains('pet-bop'),
+          imageSrc: petImg ? petImg.getAttribute('src') : '',
+          imageLoaded: !!petImg && petImg.complete && petImg.naturalWidth > 0 && petImg.naturalHeight > 0,
+          imageNaturalWidth: petImg ? petImg.naturalWidth : 0,
+          imageNaturalHeight: petImg ? petImg.naturalHeight : 0,
+          imageRect: rectFor('#android-pet .pet-img'),
+          hatSrc: petHat ? petHat.getAttribute('src') : '',
+          hatVisible: !!petHatStyle && petHatStyle.display !== 'none' && petHatStyle.visibility !== 'hidden',
+          hatRect: rectFor('#pet-hat'),
+          badgeText: document.getElementById('focus-badge') ? document.getElementById('focus-badge').textContent.trim() : ''
+        },
         overflowing: overflow
       };
     })()
@@ -313,11 +348,24 @@ function analyzeLayout(value, expectedView, screenshotSize) {
   if (!value.appInitialized) failures.push('app did not initialize');
   if (value.activeView !== expectedView) failures.push(`expected active view ${expectedView}, got ${value.activeView || 'none'}`);
   if (value.bottomNavPosition !== 'fixed') failures.push('bottom nav CSS did not apply');
+  if (!value.safeArea || value.safeArea.top !== `${simulatedSafeArea.top}px`) failures.push('safe top variable missing');
+  if (!value.safeArea || value.safeArea.bottom !== `${simulatedSafeArea.bottom}px`) failures.push('safe bottom variable missing');
+  if (!value.safeArea || parseFloat(value.safeArea.topbarPaddingTop) < simulatedSafeArea.top) failures.push('topbar does not reserve safe top');
+  if (!value.safeArea || parseFloat(value.safeArea.topbarMinHeight) < simulatedSafeArea.top + 60) failures.push('topbar min-height ignores safe top');
+  if (!value.safeArea || parseFloat(value.safeArea.navPaddingBottom) < simulatedSafeArea.bottom + 8) failures.push('bottom nav does not reserve safe bottom');
   if (navButtons.length !== 5 || visibleNavButtons !== 5) failures.push('bottom nav is clipped');
   if (value.docScrollWidth > value.innerWidth + 1 || value.bodyScrollWidth > value.innerWidth + 1 || (Array.isArray(value.overflowing) && value.overflowing.length > 0)) {
     failures.push('layout overflow detected');
   }
   if (value.keyPresence && value.keyPresence[expectedView] === false) failures.push(`${expectedView} key controls missing`);
+  if (expectedView === 'home') {
+    const pet = value.petState || {};
+    if (pet.brandMarkCount !== 0) failures.push('redundant brand mark still rendered');
+    if (!pet.petPresent) failures.push('desktop pet button missing');
+    if (pet.imageSrc !== 'pet.png' || !pet.imageLoaded) failures.push('desktop pet image did not load');
+    if (!pet.imageRect || pet.imageRect.width < 60 || pet.imageRect.height < 80) failures.push('desktop pet image is not visibly sized');
+    if (pet.hatSrc !== 'hat.png' || !pet.petHasHatClass || !pet.hatVisible) failures.push('body-double hat is not visible on pet');
+  }
   if (expectedView === 'tasks' && Array.isArray(value.taskTitleRects)) {
     const verticalTitle = value.taskTitleRects.find(rect => rect.width > 0 && rect.height / rect.width > 1.8);
     if (verticalTitle) failures.push(`task title appears vertically squeezed: ${verticalTitle.text}`);
@@ -341,6 +389,7 @@ function analyzeLayout(value, expectedView, screenshotSize) {
     overflowingCount: Array.isArray(value.overflowing) ? value.overflowing.length : -1,
     overflowing: Array.isArray(value.overflowing) ? value.overflowing.slice(0, 8) : [],
     visibleNavButtons,
+    safeArea: value.safeArea || null,
     keyControlsPresent: !value.keyPresence || value.keyPresence[expectedView] !== false,
     failures,
   };
@@ -360,6 +409,8 @@ async function main() {
   fs.rmSync(profile, { recursive: true, force: true });
   fs.copyFileSync(path.join(assetsDir, 'styles.css'), path.join(measuredDir, 'styles.css'));
   fs.copyFileSync(path.join(assetsDir, 'app.js'), path.join(measuredDir, 'app.js'));
+  fs.copyFileSync(path.join(assetsDir, 'pet.png'), path.join(measuredDir, 'pet.png'));
+  fs.copyFileSync(path.join(assetsDir, 'hat.png'), path.join(measuredDir, 'hat.png'));
   fs.copyFileSync(html, measuredHtml);
 
   const port = 9300 + Math.floor(Math.random() * 400);
@@ -399,6 +450,36 @@ async function main() {
     });
     await loaded;
     await new Promise(resolve => setTimeout(resolve, 300));
+    await evaluateValue(cdp, `
+      document.documentElement.style.setProperty('--safe-top', '${simulatedSafeArea.top}px');
+      document.documentElement.style.setProperty('--safe-right', '${simulatedSafeArea.right}px');
+      document.documentElement.style.setProperty('--safe-bottom', '${simulatedSafeArea.bottom}px');
+      document.documentElement.style.setProperty('--safe-left', '${simulatedSafeArea.left}px');
+      true
+    `);
+    const bodyDoubleClickWorked = await evaluateValue(cdp, `
+      (() => {
+        const btn = document.getElementById('body-double-toggle');
+        const pet = document.getElementById('android-pet');
+        const hat = document.getElementById('pet-hat');
+        if (!btn || !pet || !hat) return { hidden:false, shown:false };
+        if (pet.classList.contains('has-hat')) btn.click();
+        const hidden = !pet.classList.contains('has-hat') && getComputedStyle(hat).display === 'none';
+        btn.click();
+        const shown = pet.classList.contains('has-hat') && btn.getAttribute('aria-pressed') === 'true' && getComputedStyle(hat).display !== 'none';
+        return { hidden, shown };
+      })()
+    `);
+    if (!bodyDoubleClickWorked.hidden || !bodyDoubleClickWorked.shown) {
+      throw new Error('body-double click did not toggle the pet hat');
+    }
+    const petClickWorked = await evaluateValue(cdp, `
+      document.getElementById('android-pet').click();
+      document.getElementById('android-pet').classList.contains('pet-bop')
+    `);
+    if (!petClickWorked) {
+      throw new Error('pet click animation class was not applied');
+    }
     const viewResults = [];
     const screenshots = [];
     const views = ['home', 'tasks', 'focus', 'freezer', 'stats', 'settings'];
@@ -438,6 +519,7 @@ async function main() {
       docScrollWidth: homeLayout.docScrollWidth,
       bodyScrollWidth: homeLayout.bodyScrollWidth,
       overflowingCount: finalHomeResult.overflowingCount,
+      petState: homeLayout.petState,
       hasBottomNav: finalHomeResult.visibleNavButtons === 5,
       visibleNavButtons: finalHomeResult.visibleNavButtons,
       appInitialized: homeLayout.appInitialized === true,

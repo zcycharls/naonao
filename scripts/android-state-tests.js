@@ -11,6 +11,7 @@ const appJs = fs.readFileSync(path.join(repo, 'android', 'src', 'main', 'assets'
 function makeElement(id) {
   const classes = new Set();
   const listeners = new Map();
+  const attributes = new Map();
   return {
     id,
     value: '',
@@ -20,6 +21,7 @@ function makeElement(id) {
     disabled: false,
     dataset: {},
     style: { setProperty() {} },
+    offsetWidth: 1,
     classList: {
       add(name) { classes.add(name); },
       remove(name) { classes.delete(name); },
@@ -37,6 +39,15 @@ function makeElement(id) {
         return !!force;
       },
       contains(name) { return classes.has(name); },
+    },
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+    },
+    getAttribute(name) {
+      return attributes.has(name) ? attributes.get(name) : null;
+    },
+    removeAttribute(name) {
+      attributes.delete(name);
     },
     addEventListener(type, fn) {
       if (!listeners.has(type)) listeners.set(type, []);
@@ -130,7 +141,7 @@ function makeContext(seedState = {}, options = {}) {
   });
   const ids = [
     ...views.map(view => view.id),
-    'toast','active-task-title','task-done-btn','next-step-text','focus-badge','today-line','body-double-toggle',
+    'toast','active-task-title','task-done-btn','next-step-text','focus-badge','today-line','body-double-toggle','android-pet','pet-hat',
     'chat-messages','task-list','timer-ring','timer-mode','timer-time','timer-sub','timer-start','focus-intent-input',
     'freezer-list','stat-freezer','stat-today','stat-week','stat-streak','trend-bars','mood-list',
     'api-key-input','model-input','base-url-input','confirm-base-url','hermes-enabled','hermes-base-input',

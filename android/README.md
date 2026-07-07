@@ -24,7 +24,7 @@
 产物：
 
 ```text
-deliverables\android\naonao-android-1.703.848.apk
+deliverables\android\naonao-android-1.707.1030.apk
 ```
 
 脚本使用 Android SDK build-tools 直接构建，不要求 Gradle。Android APK 不依赖本机桌面构建产物或本地模型目录；发布校验会反向检查 APK 中不得出现 `assets/models`、Transformers/WASM、`assets/bundled-client` 或 `assets/desktop-runtime`。
@@ -35,7 +35,7 @@ deliverables\android\naonao-android-1.703.848.apk
 .\android\build-apk.ps1 -Configuration debug
 ```
 
-`naonao-android-1.703.848.apk` 是给用户侧载安装的主交付；当前大小约 329 KB。`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
+`naonao-android-1.707.1030.apk` 是给用户侧载安装的主交付；当前大小约 513 KB。`naonao-android-debug.apk` 只用于调试排查。当前 release 产物使用本机自签名 keystore，适合侧载测试和私发安装。正式上架或长期公开发布前，应改用你自己长期保管的 release keystore，否则以后换签名会导致同包名覆盖升级失败。
 
 正式签名可通过环境变量注入：
 

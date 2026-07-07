@@ -3,22 +3,22 @@
 主安装包：
 
 ```text
-deliverables/android/naonao-android-1.703.848.apk
+deliverables/android/naonao-android-1.707.1030.apk
 ```
 
 SHA256：
 
 ```text
-521C03223D562C9B6D7093538C8E5EAC06A8850B1C49F15D8F0C2589ADEC17CF
+94626BF81B6CB3D51666D1F41BB6D38BBC0B4D0364E7AEFB5AB30E2327664B29
 ```
 
-文件大小：337,096 字节，约 329 KB。
+文件大小：525,708 字节，约 513 KB。
 
 这个 APK 是 Android 网络模型客户端：内含 Android 原生壳和移动端 HTML/CSS/JS，不内置本地 AI 模型、Transformers/WASM、桌面客户端静态资源或 Windows 桌面运行时归档。AI 对话需要配置 Hermes Agent 或 API 提供商；未配置时只使用本地规则 fallback，不等同于手机端离线大模型推理。
 
 ## 手机安装
 
-1. 把 `naonao-android-1.703.848.apk` 传到 Android 手机。
+1. 把 `naonao-android-1.707.1030.apk` 传到 Android 手机。
 2. 在手机文件管理器里点开 APK。
 3. 如果提示“不允许安装未知应用”，进入提示里的设置页，允许当前文件管理器或浏览器安装未知应用。
 4. 安装完成后打开“孬孬”。
