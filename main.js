@@ -372,6 +372,38 @@ function lockWindowSize(browserWindow, width, height) {
   restoreSize()
 }
 
+function roundedWindowShape(width, height, radius = 20) {
+  const w = Math.max(1, Math.round(width))
+  const h = Math.max(1, Math.round(height))
+  const r = Math.max(0, Math.min(Math.round(radius), Math.floor(w / 2), Math.floor(h / 2)))
+  if (!r) return [{ x: 0, y: 0, width: w, height: h }]
+
+  const rects = []
+  for (let y = 0; y < r; y++) {
+    const dy = r - y - 0.5
+    const inset = Math.max(0, Math.ceil(r - Math.sqrt(Math.max(0, r * r - dy * dy))))
+    rects.push({ x: inset, y, width: Math.max(1, w - inset * 2), height: 1 })
+  }
+  rects.push({ x: 0, y: r, width: w, height: Math.max(1, h - r * 2) })
+  for (let y = h - r; y < h; y++) {
+    const dy = y - (h - r) + 0.5
+    const inset = Math.max(0, Math.ceil(r - Math.sqrt(Math.max(0, r * r - dy * dy))))
+    rects.push({ x: inset, y, width: Math.max(1, w - inset * 2), height: 1 })
+  }
+  return rects
+}
+
+function lockRoundedWindowShape(browserWindow, width, height, radius = 20) {
+  if (!browserWindow || browserWindow.isDestroyed() || typeof browserWindow.setShape !== 'function') return
+  const applyShape = () => {
+    if (browserWindow.isDestroyed()) return
+    browserWindow.setShape(roundedWindowShape(width, height, radius))
+  }
+  browserWindow.webContents.on('did-finish-load', applyShape)
+  browserWindow.on('resize', applyShape)
+  applyShape()
+}
+
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
   const { width: sw, height: sh } = workArea
@@ -468,7 +500,7 @@ function createWindow() {
       return
     }
     const [x, y] = win.getPosition()
-    const chatW = 380, chatH = 680
+    const chatW = 560, chatH = 680
     // Place chat window to the left of pet, or right if not enough space
     let cx = x - chatW - 8
     if (cx < 0) cx = x + W + 8
@@ -486,6 +518,7 @@ function createWindow() {
       resizable: false,
     })
     lockWindowSize(chatWin, chatW, chatH)
+    lockRoundedWindowShape(chatWin, chatW, chatH)
     chatWin.setAlwaysOnTop(true, 'screen-saver')
     chatWin.loadFile(APP_HTML, { query: { mode: 'chat' } })
     chatWin.on('closed', () => { chatWin = null })
@@ -528,6 +561,7 @@ function createWindow() {
       resizable: false,
     })
     lockWindowSize(settingsWin, setW, setH)
+    lockRoundedWindowShape(settingsWin, setW, setH)
     settingsWin.setAlwaysOnTop(true, 'screen-saver')
     settingsWin.loadFile(APP_HTML, { query: { mode: 'settings' } })
     settingsWin.on('closed', () => { settingsWin = null })
@@ -551,6 +585,7 @@ function createWindow() {
       resizable: false,
     })
     lockWindowSize(longTasksWin, setW, setH)
+    lockRoundedWindowShape(longTasksWin, setW, setH)
     longTasksWin.setAlwaysOnTop(true, 'screen-saver')
     longTasksWin.loadFile(APP_HTML, { query: { mode: 'long-tasks' } })
     longTasksWin.on('closed', () => { longTasksWin = null })

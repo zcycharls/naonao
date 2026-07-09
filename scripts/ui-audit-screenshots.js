@@ -172,7 +172,7 @@ async function main() {
 
   await evalIn(chat, `
     (async () => {
-      document.getElementById('stats-toggle')?.click();
+      document.getElementById('task-list')?.click();
       await new Promise(resolve => setTimeout(resolve, 500));
     })()
   `)

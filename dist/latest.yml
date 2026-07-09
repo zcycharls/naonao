@@ -1,8 +1,8 @@
-version: 1.707.1028
+version: 1.709.1453
 files:
-  - url: naonao-setup-1.707.1028.exe
-    sha512: kaeJ18kpxGR5pFbQ2rhnk+p+KMj2oeOnwulT/1O87l1sXECBT8TZdSxswER88bT4ukupwtD+u4Lnt6hNIrBozw==
-    size: 175076551
-path: naonao-setup-1.707.1028.exe
-sha512: kaeJ18kpxGR5pFbQ2rhnk+p+KMj2oeOnwulT/1O87l1sXECBT8TZdSxswER88bT4ukupwtD+u4Lnt6hNIrBozw==
-releaseDate: '2026-07-07T02:53:33.771Z'
+  - url: naonao-setup-1.709.1453.exe
+    sha512: aBBYr+9CJLSHZmZV5SX46Fz87BPbslx9fYu6XXbwVqB3+W0PEQH+PhWqrsxTmMwYBswa6bKX5baTcGAxcwqGwA==
+    size: 179691399
+path: naonao-setup-1.709.1453.exe
+sha512: aBBYr+9CJLSHZmZV5SX46Fz87BPbslx9fYu6XXbwVqB3+W0PEQH+PhWqrsxTmMwYBswa6bKX5baTcGAxcwqGwA==
+releaseDate: '2026-07-09T06:55:48.460Z'

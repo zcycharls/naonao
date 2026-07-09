@@ -138,10 +138,28 @@ async function main() {
       let petBubbleAvoidsTray = false;
       let petMinScaleClamp = false;
       let petSizeHandleAvoidsTray = false;
+      let petSizeHandleNearBody = false;
+      let compactBubbleAvoidsTray = false;
+      let compactBubbleAvoidsBody = false;
+      let compactBubbleAvoidsHandle = false;
+      let compactHandleAvoidsTray = false;
+      let petSizeHandleRects = null;
       let petBubbleTrayRects = null;
+      let compactPetRects = null;
       let miniBubbleRects = null;
       let petPressLayoutDelta = {};
       if (pw && petImg) {
+        const overlaps = (a, b) => !!a && !!b &&
+          a.left < b.right && a.right > b.left &&
+          a.top < b.bottom && a.bottom > b.top;
+        const rectInfo = rect => rect ? {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+        } : null;
         const petSizeHandleForClamp = document.getElementById('pet-size-handle');
         if (petSizeHandleForClamp) {
           const previousPetSize = localStorage.getItem('nono_pet_size');
@@ -164,6 +182,39 @@ async function main() {
             handleAtMin.right < trayAtMin.left ||
             trayAtMin.bottom < handleAtMin.top ||
             handleAtMin.bottom < trayAtMin.top;
+          const bodyAtMin = window.__nonoPetVisibleRect ? window.__nonoPetVisibleRect() : petImg.getBoundingClientRect();
+          const handleCx = handleAtMin.left + handleAtMin.width / 2;
+          const handleCy = handleAtMin.top + handleAtMin.height / 2;
+          petSizeHandleRects = {
+            body: { left: bodyAtMin.left, right: bodyAtMin.right, top: bodyAtMin.top, bottom: bodyAtMin.bottom },
+            handle: { left: handleAtMin.left, right: handleAtMin.right, top: handleAtMin.top, bottom: handleAtMin.bottom },
+          };
+          petSizeHandleNearBody = handleCx >= bodyAtMin.left - 8 &&
+            handleCx <= bodyAtMin.right + 34 &&
+            handleCy >= bodyAtMin.top + bodyAtMin.height * .55 &&
+            handleCy <= bodyAtMin.bottom + 20;
+          if (miniBubble) {
+            miniBubble.textContent = '你好呀，我是孬孬';
+            miniBubble.classList.add('show');
+            window.syncPetAnchors?.();
+            await new Promise(requestAnimationFrame);
+          }
+          const compactBody = window.__nonoPetVisibleRect ? window.__nonoPetVisibleRect() : petImg.getBoundingClientRect();
+          const compactTray = tray ? tray.getBoundingClientRect() : null;
+          const compactHandle = petSizeHandleForClamp.getBoundingClientRect();
+          const compactBubble = miniBubble && miniBubble.classList.contains('show')
+            ? miniBubble.getBoundingClientRect()
+            : null;
+          compactBubbleAvoidsTray = !overlaps(compactBubble, compactTray);
+          compactBubbleAvoidsBody = !overlaps(compactBubble, compactBody);
+          compactBubbleAvoidsHandle = !overlaps(compactBubble, compactHandle);
+          compactHandleAvoidsTray = !overlaps(compactHandle, compactTray);
+          compactPetRects = {
+            body: rectInfo(compactBody),
+            tray: rectInfo(compactTray),
+            handle: rectInfo(compactHandle),
+            bubble: rectInfo(compactBubble),
+          };
           petSizeHandleForClamp.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: handleAtMin.left + handleAtMin.width / 2, clientY: handleAtMin.top + handleAtMin.height / 2, screenX: 420, screenY: 420 }));
           window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: handleAtMin.left + handleAtMin.width / 2, clientY: handleAtMin.top + handleAtMin.height / 2, screenX: 420, screenY: 420 }));
           await new Promise(requestAnimationFrame);
@@ -290,14 +341,27 @@ async function main() {
             body: { left: bodyRect.left, right: bodyRect.right, top: bodyRect.top, bottom: bodyRect.bottom },
             bubble: { left: bubbleRect.left, right: bubbleRect.right, top: bubbleRect.top, bottom: bubbleRect.bottom },
           };
-          const bubbleOnRight = bubbleRect.left >= bodyRect.right + 96 &&
-            bubbleRect.left <= bodyRect.right + 190;
-          const bubbleOnLeft = bubbleRect.right <= bodyRect.left - 8 &&
-            bubbleRect.right >= bodyRect.left - 160;
+          const bubbleOnRight = bubbleRect.left >= bodyRect.right - 36 &&
+            bubbleRect.left <= bodyRect.right + 48;
+          const bubbleOnLeft = bubbleRect.right <= bodyRect.left + 36 &&
+            bubbleRect.right >= bodyRect.left - 80;
           miniBubbleNearBody = (bubbleOnRight || bubbleOnLeft) &&
             bubbleRect.top >= bodyRect.top - 8 &&
             bubbleRect.top <= bodyRect.top + 32;
         }
+      }
+      const statsToggleRemoved = !document.getElementById('stats-toggle');
+      let taskListOpensStats = false;
+      const taskList = document.getElementById('task-list');
+      const statsDrawer = document.getElementById('stats-drawer');
+      const statsOverlay = document.getElementById('stats-overlay');
+      if (taskList && statsDrawer) {
+        statsDrawer.classList.remove('open');
+        if (statsOverlay) statsOverlay.style.display = 'none';
+        taskList.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: taskList.getBoundingClientRect().left + 10, clientY: taskList.getBoundingClientRect().top + 10 }));
+        taskListOpensStats = statsDrawer.classList.contains('open');
+        statsDrawer.classList.remove('open');
+        if (statsOverlay) statsOverlay.style.display = 'none';
       }
       return JSON.stringify({
         title: document.title,
@@ -318,6 +382,8 @@ async function main() {
         feishuIntervalMin: document.getElementById('feishu-interval')?.getAttribute('min'),
         petSizeControls: !!document.getElementById('pet-size-handle') && !document.getElementById('tray-size-down') && !document.getElementById('tray-size-up'),
         hermesSettings: !!document.getElementById('hermes-agent-enabled') && !!document.getElementById('hermes-agent-base') && !!document.getElementById('hermes-agent-key') && !!document.getElementById('hermes-agent-test-btn') && !!document.getElementById('hermes-enabled') && !!document.getElementById('hermes-review-btn') && !!document.getElementById('hermes-clear-btn'),
+        statsToggleRemoved,
+        taskListOpensStats,
         localStatusLeaksPath: 'modelDir' in localStatus || 'modelsRoot' in localStatus,
         bodyDoubleShowsHat,
         petBodyPinned,
@@ -328,7 +394,14 @@ async function main() {
         petBubbleAvoidsTray,
         petMinScaleClamp,
         petSizeHandleAvoidsTray,
+        petSizeHandleNearBody,
+        compactBubbleAvoidsTray,
+        compactBubbleAvoidsBody,
+        compactBubbleAvoidsHandle,
+        compactHandleAvoidsTray,
+        petSizeHandleRects,
         petBubbleTrayRects,
+        compactPetRects,
         miniBubbleRects,
         petPressLayoutDelta,
         petTrayNearBody,
@@ -369,6 +442,8 @@ async function main() {
   assert.strictEqual(smoke.feishuIntervalMin, '1')
   assert.strictEqual(smoke.petSizeControls, true)
   assert.strictEqual(smoke.hermesSettings, true)
+  assert.strictEqual(smoke.statsToggleRemoved, true)
+  assert.strictEqual(smoke.taskListOpensStats, true)
   assert.strictEqual(smoke.localStatusLeaksPath, false)
   assert.strictEqual(smoke.bodyDoubleShowsHat, true)
   assert.strictEqual(smoke.petBodyPinned, true)
@@ -379,6 +454,11 @@ async function main() {
   assert.strictEqual(smoke.petBubbleAvoidsTray, true, `pet bubble overlaps tray: ${JSON.stringify(smoke.petBubbleTrayRects)}`)
   assert.strictEqual(smoke.petMinScaleClamp, true)
   assert.strictEqual(smoke.petSizeHandleAvoidsTray, true)
+  assert.strictEqual(smoke.petSizeHandleNearBody, true, `pet size handle is not near body: ${JSON.stringify(smoke.petSizeHandleRects)}`)
+  assert.strictEqual(smoke.compactBubbleAvoidsTray, true, `compact mini bubble overlaps tray: ${JSON.stringify(smoke.compactPetRects)}`)
+  assert.strictEqual(smoke.compactBubbleAvoidsBody, true, `compact mini bubble overlaps pet body: ${JSON.stringify(smoke.compactPetRects)}`)
+  assert.strictEqual(smoke.compactBubbleAvoidsHandle, true, `compact mini bubble overlaps resize handle: ${JSON.stringify(smoke.compactPetRects)}`)
+  assert.strictEqual(smoke.compactHandleAvoidsTray, true, `compact resize handle overlaps tray: ${JSON.stringify(smoke.compactPetRects)}`)
   assert.strictEqual(smoke.petTrayNearBody, true)
   assert.strictEqual(smoke.miniBubbleNearBody, true, `mini bubble is not near body: ${JSON.stringify(smoke.miniBubbleRects)}`)
   assert.strictEqual(smoke.taskRows, true)
