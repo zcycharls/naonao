@@ -61,6 +61,15 @@ assert.strictEqual(lock.version, pkg.version, 'package-lock.json top-level versi
 assert.strictEqual(lock.packages[''].version, pkg.version, 'package-lock root package version must match package.json')
 
 assertScriptOrder('app/index.html', [
+  'js/i18n.js',
+  'js/locales/en.js',
+  'js/locales/fr.js',
+  'js/locales/es.js',
+  'js/locales/de.js',
+  'js/locales/ja.js',
+  'js/locales/ko.js',
+  'js/locales/zh-Hant.js',
+  'js/locales/zh-CN.js',
   'js/pet-dialog.js',
   'js/provider-defaults.js',
   'js/fallback-data.js',
@@ -80,17 +89,23 @@ assertContains('app/index.html', ['id="feishu-enabled"', 'id="feishu-webhook"', 
 assertContains('app/index.html', ['自定义 Base URL 会接收你的消息和 API Key', '非本机地址会在发送 Key 前要求确认', '系统加密存储'])
 assertContains('app/index.html', ['长远任务监督', 'id="tray-long-tasks"', 'id="lt-page-panel"', 'id="long-task-add-btn"', 'id="long-task-list"', 'id="long-task-status"', 'id="long-task-save-btn"'])
 assertContains('app/index.html', ['id="pet-size-handle"', 'class="pet-size-handle"', 'aria-label="调整宠物大小"'])
+assertContains('app/index.html', ['id="language-select"', 'value="en"', 'value="fr"', 'value="es"', 'value="de"', 'value="ja"', 'value="ko"', 'value="zh-Hant"', 'value="zh-CN"'])
 assertNotContains('app/index.html', ['id="tray-size-down"', 'id="tray-size-up"', 'aria-label="缩小宠物"', 'aria-label="放大宠物"'])
 assertContains('app/index.html', ['id="hermes-agent-enabled"', 'id="hermes-agent-base"', 'id="hermes-agent-key"', 'id="hermes-agent-test-btn"', 'Hermes Agent（官方 sidecar）', 'id="hermes-enabled"', '本地记忆 fallback', '查看记忆摘要', '清空记忆'])
 assertNotContains('app/index.html', ['corsproxy.io', '浏览器版本', '网页版仍'])
 assertContains('preload.js', ['notifyConfigChanged', 'onConfigChanged', 'config:changed', 'setPetSize', 'setPetShape', 'startPetDrag', 'movePetDrag', 'endPetDrag', 'openLongTasks', 'open-long-tasks', 'hasSecret', 'chatProvider', 'ai:chat', 'privateStoreGetSync', 'privateStoreGet', 'privateStoreSet', 'privateStoreRemove', 'configureFeishuSupervisor', 'feishuSupervisorStatus', 'testFeishuSupervisor', 'onFeishuSupervisorStatus', 'configureLongTaskSupervisor', 'longTaskSupervisorStatus', 'testLongTaskSupervisor', 'onLongTaskSupervisorStatus', 'hasHermesApiKey', 'setHermesApiKey', 'testHermesAgent', 'chatHermesAgent', 'hasLongTaskWebhook', 'setLongTaskWebhook', 'sendLongTaskFeishu'])
 assertNotContains('preload.js', ['getSecret', 'getFeishuWebhook', 'getLongTaskWebhook', 'getFeishuAppSecret', 'getHermesApiKey'])
-assertContains('main.js', ['config:changed', 'workArea', 'const W = workArea.width, H = workArea.height', 'x: workArea.x', 'y: workArea.y', 'screen.getCursorScreenPoint', 'petDragTimer', 'setInterval(movePetWindowToCursor, 16)', 'stopPetDragTimer', 'applyPetWindowShape', 'cursor.x - petDragAnchor.dx', 'cursor.y - petDragAnchor.dy', 'petWindowShape = shape', 'pet:drag-start', 'pet:drag-move', 'pet:drag-end', 'pet:shape:set', 'win.setHasShadow(false)', 'pet:size:set', 'lockWindowSize', 'setMinimumSize', 'setMaximumSize', 'will-resize', 'restoreSize', 'longTasksWin', 'open-long-tasks', "mode: 'long-tasks'", 'secret:has', 'ai:chat', 'normalizeOpenAIBaseUrl', 'needsOpenAIBaseUrlConsent', 'allowThirdPartyBaseUrl', 'fetchWithTimeout', 'REQUEST_TIMEOUT_MS', 'private-store:get-sync', 'PRIVATE_STORE_FILE', 'PRIVATE_STORE_KEYS', 'nono_hermes_memory_v1', 'nono_tasks', 'nono_stats', 'nono_freezer', 'nono_mood', 'PROVIDER_MAX_TEXT', 'FEISHU_SUPERVISOR_FILE', 'configureFeishuSupervisor', 'restoreFeishuSupervisor', 'runFeishuSupervisorTick', 'feishu:supervisor:configure', 'feishu:supervisor:status', 'feishu:supervisor:test', 'feishu:supervisor-status', 'LONG_TASK_SUPERVISOR_FILE', 'configureLongTaskSupervisor', 'restoreLongTaskSupervisor', 'runLongTaskSupervisorTick', 'feishu:long-task-supervisor:configure', 'feishu:long-task-supervisor:status', 'feishu:long-task-supervisor:test', 'feishu:long-task-supervisor-status', 'LONG_TASK_WEBHOOKS_FILE', 'feishu:long-task-webhook:has', 'feishu:long-task-webhook:set', 'feishu:long-task-send', 'sendFeishuWebhookMessage', 'hermes:api-key:has', 'hermes:api-key:set', 'hermes:test', 'hermes:chat', 'needsHermesBaseUrlConsent', "require('./app/js/provider-defaults.js')", 'MODEL_REVISION', 'MODEL_REQUIRED_FILES', 'verifyLocalModelFiles', 'sha256File', 'model integrity check failed', '068cad70fa3850652e6ebc0ad7a49847568f32e6eda5a8527e5893de9a7b8939', 'const PET_MIN_SCALE = 0.35'])
+assertContains('main.js', ['config:changed', 'workArea', 'const W = workArea.width, H = workArea.height', 'x: workArea.x', 'y: workArea.y', 'screen.getCursorScreenPoint', 'petDragTimer', 'setInterval(movePetWindowToCursor, 16)', 'stopPetDragTimer', 'applyPetWindowShape', 'cursor.x - petDragAnchor.dx', 'cursor.y - petDragAnchor.dy', 'petWindowShape = shape', 'pet:drag-start', 'pet:drag-move', 'pet:drag-end', 'pet:shape:set', 'win.setHasShadow(false)', 'pet:size:set', 'lockWindowSize', 'setMinimumSize', 'setMaximumSize', 'will-resize', 'restoreSize', 'longTasksWin', 'open-long-tasks', "mode: 'long-tasks'", 'secret:has', 'ai:chat', 'normalizeOpenAIBaseUrl', 'needsOpenAIBaseUrlConsent', 'allowThirdPartyBaseUrl', 'fetchWithTimeout', 'REQUEST_TIMEOUT_MS', 'private-store:get-sync', 'PRIVATE_STORE_FILE', 'PRIVATE_STORE_KEYS', 'nono_hermes_memory_v1', 'nono_tasks', 'nono_stats', 'nono_freezer', 'nono_mood', 'PROVIDER_MAX_TEXT', 'FEISHU_SUPERVISOR_FILE', 'configureFeishuSupervisor', 'restoreFeishuSupervisor', 'runFeishuSupervisorTick', 'feishu:supervisor:configure', 'feishu:supervisor:status', 'feishu:supervisor:test', 'feishu:supervisor-status', 'LONG_TASK_SUPERVISOR_FILE', 'configureLongTaskSupervisor', 'restoreLongTaskSupervisor', 'runLongTaskSupervisorTick', 'feishu:long-task-supervisor:configure', 'feishu:long-task-supervisor:status', 'feishu:long-task-supervisor:test', 'feishu:long-task-supervisor-status', 'LONG_TASK_WEBHOOKS_FILE', 'feishu:long-task-webhook:has', 'feishu:long-task-webhook:set', 'feishu:long-task-send', 'sendFeishuWebhookMessage', 'hermes:api-key:has', 'hermes:api-key:set', 'hermes:test', 'hermes:chat', 'needsHermesBaseUrlConsent', "require('./app/js/provider-defaults.js')", 'MODEL_REVISION', 'MODEL_REQUIRED_FILES', 'verifyLocalModelFiles', 'sha256File', 'model integrity check failed', '068cad70fa3850652e6ebc0ad7a49847568f32e6eda5a8527e5893de9a7b8939', 'const PET_MIN_SCALE = 0.35', 'function errorResult(errorKey, errorValues)', 'function storedResultError(result, fallbackKey', "status: info.status === 'progress' ? 'downloading' : 'preparing'"])
+assertNotContains('main.js', ['飞书应用机器人未连接', '飞书 Webhook 未配置或格式不正确', 'App Secret 未配置', '正在下载中，请稍候'])
 assertNotContains('main.js', ["ipcMain.handle('secret:get'"])
 assertContains('main.js', ["backgroundColor: '#00000000'", "win.setBackgroundColor('#00000000')"])
 assertNotContains('main.js', ["backgroundColor: '#00000001'"])
 assertNotContains('main.js', ['win.setShape('])
-assertContains('app/app.js', ['applyExternalConfigUpdate', 'buildFeishuSupervisorConfig', 'getFeishuSupervisorTaskSnapshot', 'scheduleFeishuSupervisorSync', 'configureFeishuSupervisor', 'testFeishuSupervisor', 'onFeishuSupervisorStatus', 'Feishu supervisor moved to main', 'PRIVATE_CONTENT_KEYS', 'privateStoreGetSync', 'privateSet', 'privateGet', 'privateRemove', 'confirmThirdPartyBaseUrl', 'needsOpenAIBaseUrlConsent', 'needsHermesBaseUrlConsent', 'confirmedOpenAIBaseUrl', 'confirmedHermesBaseUrl', 'isConfirmedOpenAIBaseUrl', 'isConfirmedHermesBaseUrl', '当前客户端不支持主进程 AI 请求通道', '当前客户端不支持主进程 Hermes 请求通道', '只维护 Electron 桌面客户端'])
+assertContains('app/app.js', ['applyExternalConfigUpdate', 'buildFeishuSupervisorConfig', 'getFeishuSupervisorTaskSnapshot', 'scheduleFeishuSupervisorSync', 'configureFeishuSupervisor', 'testFeishuSupervisor', 'onFeishuSupervisorStatus', 'Feishu supervisor moved to main', 'PRIVATE_CONTENT_KEYS', 'privateStoreGetSync', 'privateSet', 'privateGet', 'privateRemove', 'confirmThirdPartyBaseUrl', 'needsOpenAIBaseUrlConsent', 'needsHermesBaseUrlConsent', 'confirmedOpenAIBaseUrl', 'confirmedHermesBaseUrl', 'isConfirmedOpenAIBaseUrl', 'isConfirmedHermesBaseUrl', "tr('error.aiChannel')", "tr('error.hermesChannel')", "tr('error.desktopOnly')", 'locale:i18n?.normalizeLocale(cfg.locale)', "i18n?.setLocale(cfg.locale)", "window.addEventListener('nono:locale-changed'", 'const resultError=', "data.status==='downloading'", 'const taskChanged=next.lastSentAt!==task.lastSentAt', 'usesDefaultTitle', 'function longTaskTitle(task)'])
+assertNotContains('app/app.js', ['if(!fresh) return task;\n    changed=true;', 'if (downloadStatus && data.msg) downloadStatus.textContent = data.msg;', "error:'飞书发送不可用'"])
+assertContains('main.js', ['function storedResultError', 'lastErrorKey', 'lastErrorValues'])
+assertContains('app/app.js', ['const storedErrorText=', 'lastErrorKey', 'lastErrorValues', "errorKey:'longTasks.unsupported'"])
+assertNotContains('main.js', ['localizedResultError(result'])
 assertNotContains('app/app.js', ['if(cfg.feishuEnabled) await sendFeishuSupervisorCheckin(false)'])
 assertContains('app/app.js', ["nono_freezer:['nono_fz','naonao_freezer']", "nono_tasks:['zt_tasks_v1']", "nono_stats:['naonao_stats']", 'hasFeishuWebhook', 'hasFeishuAppSecret', 'hasHermesApiKey', 'hasLongTaskWebhook'])
 assertNotContains('app/app.js', ['window.petBridge.getFeishuWebhook', 'window.petBridge.getLongTaskWebhook', 'window.petBridge.getFeishuAppSecret', 'window.petBridge.getHermesApiKey', 'corsproxy.io'])
@@ -109,6 +124,15 @@ for (const file of [
   'main.js',
   'preload.js',
   'app/app.js',
+  'app/js/i18n.js',
+  'app/js/locales/en.js',
+  'app/js/locales/fr.js',
+  'app/js/locales/es.js',
+  'app/js/locales/de.js',
+  'app/js/locales/ja.js',
+  'app/js/locales/ko.js',
+  'app/js/locales/zh-Hant.js',
+  'app/js/locales/zh-CN.js',
   'app/js/pet-dialog.js',
   'app/js/fallback-data.js',
   'app/js/local-model.js',
@@ -118,6 +142,8 @@ for (const file of [
 ]) {
   runNode(['--check', file])
 }
+
+runNode(['scripts/i18n-tests.js'])
 
 const dryRun = runNode(['scripts/bump-version.js', '--dry-run', '--now=2026-05-21T09:07:00+08:00'])
 assert.match(dryRun, /1\.521\.907$/, 'version:bump dry-run should strip leading zeroes')

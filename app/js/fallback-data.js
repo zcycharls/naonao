@@ -160,6 +160,9 @@ function fallbackRand(items) {
 
 /* 智能话术匹配：根据用户输入的关键词返回最合适的回应 */
 function smartFallback(input) {
+  if (window.nonoI18n?.getLocale() !== 'zh-CN') {
+    return window.nonoI18n?.random('fallback') || '';
+  }
   if (!input || typeof input !== 'string') {
     return fallbackRand(RESPONSE_POOLS._default);
   }
@@ -294,6 +297,10 @@ const ADHD_TIPS=[
   ' 积极视角\n思维跳跃和联想能力是很多创意工作的核心竞争力。',
   ' 积极视角\n你不是"坏掉了"，你只是用不同的操作系统在运行 ',
 ];
+function localizedAdhdTip() {
+  if (window.nonoI18n?.getLocale() === 'zh-CN') return fallbackRand(ADHD_TIPS);
+  return window.nonoI18n?.random('tips') || smartFallback('');
+}
 const SYS=`你是一只叫"孬孬"的数字陪伴宠物，专门陪伴有ADHD的用户。
 风格：每次回复极简短（最多2-3句话），温柔、接纳、非评判；帮用户聚焦当下；
-不用彩色 emoji；只回应用户最重要的一点，不问多个问题；用中文回复。`;
+不用彩色 emoji；只回应用户最重要的一点，不问多个问题。`;

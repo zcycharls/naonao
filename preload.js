@@ -54,11 +54,14 @@ contextBridge.exposeInMainWorld('petBridge', {
   testFeishuSupervisor: (config) => ipcRenderer.invoke('feishu:supervisor:test', config && typeof config === 'object' ? config : {}),
   // Local AI model (on-demand download)
   localModelStatus: () => ipcRenderer.invoke('local-model:status'),
-  localModelDownload: () => ipcRenderer.invoke('local-model:download'),
+  localModelDownload: (locale) => ipcRenderer.invoke('local-model:download', String(locale || '').slice(0, 16)),
   localModelCancel:  () => ipcRenderer.invoke('local-model:cancel'),
   localModelDelete:  () => ipcRenderer.invoke('local-model:delete'),
   localModelLoad:   () => ipcRenderer.invoke('local-model:load'),
-  localModelInference: (text) => ipcRenderer.invoke('local-model:inference', String(text || '').slice(0, 2000)),
+  localModelInference: (text, locale) => ipcRenderer.invoke('local-model:inference', {
+    text: String(text || '').slice(0, 2000),
+    locale: String(locale || '').slice(0, 16),
+  }),
   // 主进程日志转发到前端
   onMainLog: (callback) => {
     const cb = safeCallback(callback)

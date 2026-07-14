@@ -363,10 +363,48 @@ async function main() {
         statsDrawer.classList.remove('open');
         if (statsOverlay) statsOverlay.style.display = 'none';
       }
+      const languageSelect = document.getElementById('language-select');
+      const previousLocale = window.nonoI18n?.getLocale();
+      const localeOptions = languageSelect ? [...languageSelect.options].map(option => option.value) : [];
+      let localeSwitch = null;
+      if (languageSelect && window.nonoI18n) {
+        languageSelect.value = 'de';
+        languageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 250));
+        const pomoStart = document.getElementById('pomo-start');
+        pomoStart?.click();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        if (pomoStart && !pomoStart.classList.contains('running')) {
+          document.getElementById('pomo-intent-skip')?.click();
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        const fallback = smartFallback('hello');
+        window.nonoI18n.setLocale('zh-CN', { emit: false });
+        window.dispatchEvent(new StorageEvent('storage', { key: 'nono_config' }));
+        await new Promise(resolve => setTimeout(resolve, 250));
+        localeSwitch = {
+          lang: document.documentElement.lang,
+          selected: languageSelect.value,
+          persisted: JSON.parse(localStorage.getItem('nono_config') || '{}').locale,
+          appearanceText: document.querySelector('[data-settings-tab="appearance"] span:last-child')?.textContent,
+          taskPlaceholder: document.getElementById('task-add-input')?.placeholder,
+          pomoRunning: pomoStart?.classList.contains('running'),
+          pomoLabel: pomoStart?.textContent,
+          fallbackLocalized: window.nonoI18n.getBundle('de').fallback.includes(fallback),
+          reloaded: window.nonoI18n.getLocale(),
+        };
+        if (pomoStart?.classList.contains('running')) pomoStart.click();
+        languageSelect.value = previousLocale || 'zh-CN';
+        languageSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
       return JSON.stringify({
         title: document.title,
         scripts: [...document.scripts].map(script => script.getAttribute('src')),
         hasPetDialog: !!window.petDialog,
+        hasI18n: !!window.nonoI18n,
+        localeOptions,
+        localeSwitch,
         fallbackWorks: typeof smartFallback === 'function' && !!smartFallback('你好'),
         localModelApi: typeof refreshLocalModelStatus === 'function' && typeof loadLocalModel === 'function' && typeof localInference === 'function',
         petSizeApi: !!window.petBridge && typeof window.petBridge.setPetSize === 'function' && typeof window.petBridge.setPetShape === 'function' && typeof window.petBridge.startPetDrag === 'function' && typeof window.petBridge.movePetDrag === 'function' && typeof window.petBridge.endPetDrag === 'function',
@@ -427,6 +465,19 @@ async function main() {
     'app.js',
   ])
   assert.strictEqual(smoke.hasPetDialog, true)
+  assert.strictEqual(smoke.hasI18n, true)
+  assert.deepStrictEqual(smoke.localeOptions, ['en', 'fr', 'es', 'de', 'ja', 'ko', 'zh-Hant', 'zh-CN'])
+  assert.deepStrictEqual(smoke.localeSwitch, {
+    lang: 'de',
+    selected: 'de',
+    persisted: 'de',
+    appearanceText: 'Darstellung',
+    taskPlaceholder: 'Aufgabe hinzufügen… (Enter zum Bestätigen)',
+    pomoRunning: true,
+    pomoLabel: 'Pausieren',
+    fallbackLocalized: true,
+    reloaded: 'de',
+  })
   assert.strictEqual(smoke.fallbackWorks, true)
   assert.strictEqual(smoke.localModelApi, true)
   assert.strictEqual(smoke.petSizeApi, true)

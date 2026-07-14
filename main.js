@@ -4,6 +4,52 @@ const fs = require('fs')
 const crypto = require('crypto')
 const { pathToFileURL } = require('url')
 const { DEFAULT_MODEL: PROVIDER_DEFAULT_MODEL } = require('./app/js/provider-defaults.js')
+const i18n = require('./app/js/i18n.js')
+for (const locale of i18n.SUPPORTED_LOCALES) {
+  i18n.registerLocale(require(`./app/js/locales/${locale}.js`))
+}
+
+function errorResult(errorKey, errorValues) {
+  return { success: false, errorKey, ...(errorValues ? { errorValues } : {}) }
+}
+
+function caughtErrorResult(error, fallbackKey) {
+  if (error?.i18nKey) return errorResult(error.i18nKey)
+  const detail = String(error?.message || '').trim()
+  return detail ? { success: false, error: detail } : errorResult(fallbackKey)
+}
+
+function normalizeErrorValues(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const entries = Object.entries(value).slice(0, 8).map(([key, item]) => [
+    String(key).slice(0, 64),
+    String(item ?? '').slice(0, 120),
+  ])
+  return entries.length ? Object.fromEntries(entries) : null
+}
+
+function storedResultError(result, fallbackKey = 'error.sendFailed') {
+  const lastErrorKey = String(result?.errorKey || '').trim().slice(0, 120)
+  if (lastErrorKey) {
+    return {
+      lastError: '',
+      lastErrorKey,
+      lastErrorValues: normalizeErrorValues(result?.errorValues),
+    }
+  }
+  const lastError = String(result?.error || '').trim().slice(0, 240)
+  return {
+    lastError,
+    lastErrorKey: lastError ? '' : fallbackKey,
+    lastErrorValues: null,
+  }
+}
+
+function i18nError(key) {
+  const error = new Error(key)
+  error.i18nKey = key
+  return error
+}
 
 // ═══ 日志转发到前端 ═══
 function sendLogToRenderer(msg) {
@@ -148,7 +194,7 @@ async function loadLocalModel() {
 }
 
 // 下载模型到 userData 目录（点击下载按钮时调用）
-async function downloadLocalModel(progressCallback, isCancelled) {
+async function downloadLocalModel(progressCallback, isCancelled, locale = 'zh-CN') {
   const modelsRoot = path.join(app.getPath('userData'), 'models')
   // 确保目录存在
   if (!fs.existsSync(modelsRoot)) {
@@ -176,10 +222,13 @@ async function downloadLocalModel(progressCallback, isCancelled) {
         if (progressCallback && info) {
           // @xenova/transformers progress: { status, name, file, loaded, total, progress }
           const pct = info.progress !== undefined ? Math.round(info.progress) : 0
-          const msg = info.status === 'progress'
-            ? `下载中 ${pct}% · ${info.name || ''}`
-            : info.status || '准备中…'
-          progressCallback({ pct, msg, loaded: info.loaded, total: info.total })
+          progressCallback({
+            pct,
+            status: info.status === 'progress' ? 'downloading' : 'preparing',
+            name: String(info.name || ''),
+            loaded: info.loaded,
+            total: info.total,
+          })
         }
       }
     })
@@ -192,14 +241,14 @@ async function downloadLocalModel(progressCallback, isCancelled) {
   } catch (e) {
     if (e.message === 'CANCELLED') {
       console.log('[孬孬] ⏹ 下载已取消')
-      return { success: false, error: '已取消下载', cancelled: true }
+      return { ...errorResult('error.modelCancelled'), cancelled: true }
     }
     console.error('[孬孬] 模型下载失败:', e)
     return { success: false, error: e.message }
   }
 }
 
-async function runLocalInference(text) {
+async function runLocalInference(text, locale = 'zh-CN') {
   if (!localModelReady) {
     const ok = await loadLocalModel()
     if (!ok) return null
@@ -210,7 +259,8 @@ async function runLocalInference(text) {
       .replace(/<\|?im_(start|end)\|?>/gi, '')  // 移除 <|im_start|> 等
       .replace(/[\r\n]/g, ' ')                  // 换行转为空格，防止伪造新消息
       .slice(0, 500)                         // 硬限长度
-    const prompt = `<|im_start|>system\n你是一只叫"孬孬"的数字陪伴宠物，专门陪伴有ADHD的用户。风格：每次回复极简短（最多2-3句话），温柔、接纳、非评判；帮用户聚焦当下；偶尔用1-2个emoji；用中文回复。\n<|im_end|>\n<|im_start|>user\n${safeText}\n<|im_end|>\n<|im_start|>assistant\n`
+    const language = i18n.getPromptLanguage(locale)
+    const prompt = `<|im_start|>system\nYou are a digital companion named Nono for users with ADHD. Reply in ${language}. Use at most 2-3 short sentences. Be warm, accepting, non-judgmental, and help the user focus on the next small action.\n<|im_end|>\n<|im_start|>user\n${safeText}\n<|im_end|>\n<|im_start|>assistant\n`
     const result = await localModelPipeline(prompt, {
       max_new_tokens: 80,
       temperature: 0.7,
@@ -823,10 +873,15 @@ function normalizeProviderModel(provider, value) {
 
 function normalizeOpenAIBaseUrl(value) {
   const raw = String(value || '').trim() || 'https://api.openai.com'
-  const url = new URL(raw)
+  let url
+  try {
+    url = new URL(raw)
+  } catch {
+    throw i18nError('error.openaiBase')
+  }
   const localHttp = url.protocol === 'http:' && isLoopbackHost(url.hostname)
   if (url.protocol !== 'https:' && !localHttp) {
-    throw new Error('OpenAI-compatible Base URL must use https or local http')
+    throw i18nError('error.openaiBase')
   }
   url.username = ''
   url.password = ''
@@ -896,14 +951,14 @@ function extractProviderText(provider, body) {
 ipcMain.handle('ai:chat', async (_evt, config) => {
   try {
     const apiKey = readEncryptedString(SECRET_FILE())
-    if (!apiKey) return { success: false, error: 'API Key is not configured' }
+    if (!apiKey) return errorResult('task.needApiKey')
 
     const provider = normalizeProvider(config?.provider)
     const model = normalizeProviderModel(provider, config?.model)
     const maxTokens = Math.min(2000, Math.max(1, Number(config?.maxTokens) || 400))
     const systemPrompt = String(config?.system || '').slice(0, PROVIDER_MAX_TEXT)
     let messages = normalizeProviderMessages(config?.messages)
-    if (!messages.length) return { success: false, error: 'No messages to send' }
+    if (!messages.length) return errorResult('error.missingMessage')
 
     let url
     let body
@@ -914,7 +969,7 @@ ipcMain.handle('ai:chat', async (_evt, config) => {
     } else {
       url = normalizeOpenAIBaseUrl(config?.baseUrl)
       if (needsOpenAIBaseUrlConsent(config?.baseUrl) && config?.allowThirdPartyBaseUrl !== true) {
-        return { success: false, error: 'Custom Base URL must be explicitly confirmed before sending the API key' }
+        return errorResult('error.openaiConsent')
       }
       body = { model, messages, max_tokens: maxTokens, stream: false }
     }
@@ -932,7 +987,7 @@ ipcMain.handle('ai:chat', async (_evt, config) => {
     }
     return { success: true, text: extractProviderText(provider, parsed) }
   } catch (e) {
-    return { success: false, error: e.message || 'AI request failed' }
+    return caughtErrorResult(e, 'error.requestFailed')
   }
 })
 
@@ -979,11 +1034,14 @@ function normalizeFeishuSupervisorState(value) {
     appEnabled: !!raw.appEnabled,
     appId: String(raw.appId || '').trim().slice(0, 80),
     chatId: String(raw.chatId || '').trim().slice(0, 160),
+    locale: i18n.normalizeLocale(raw.locale),
     task: sanitizeFeishuSupervisorTask(raw.task),
     lastSentAt: Number(raw.lastSentAt) || 0,
     nextDueAt: Number(raw.nextDueAt) || 0,
     retryCount: Math.max(0, Math.min(3, Number(raw.retryCount) || 0)),
     lastError: String(raw.lastError || '').slice(0, 240),
+    lastErrorKey: String(raw.lastErrorKey || '').slice(0, 120),
+    lastErrorValues: normalizeErrorValues(raw.lastErrorValues),
     updatedAt: Number(raw.updatedAt) || Date.now(),
   }
 }
@@ -1007,14 +1065,15 @@ function broadcastFeishuSupervisorStatus(extra = {}) {
 
 function buildFeishuSupervisorMessage(state, isTest = false) {
   const now = new Date()
-  const hm = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const locale = i18n.normalizeLocale(state.locale)
+  const hm = now.toLocaleTimeString(i18n.getIntlLocale(locale), { hour: '2-digit', minute: '2-digit', hour12: false })
   const lines = [
-    isTest ? '[孬孬测试提醒]' : '[孬孬监督签到]',
-    `${hm} 现在在做什么？`,
+    i18n.translate(locale, isTest ? 'reminder.checkinTest' : 'reminder.checkin'),
+    i18n.translate(locale, 'reminder.whatDoing', { time: hm }),
   ]
-  if (state.task?.title) lines.push(`当前任务：${state.task.title}`)
-  if (state.task?.nextStep) lines.push(`下一步：${state.task.nextStep}`)
-  lines.push('请用一句话回复/记录：我刚才在做什么，下一步做什么。')
+  if (state.task?.title) lines.push(i18n.translate(locale, 'reminder.currentTask', { title: state.task.title }))
+  if (state.task?.nextStep) lines.push(i18n.translate(locale, 'reminder.nextStep', { step: state.task.nextStep }))
+  lines.push(i18n.translate(locale, 'reminder.replyOneLine'))
   return lines.join('\n')
 }
 
@@ -1022,14 +1081,14 @@ async function sendFeishuAppMessage(chatId, text) {
   const message = String(text || '').trim().slice(0, 1800)
   const targetChatId = String(chatId || '').trim()
   if (!feishuClient || !feishuWsConnected) {
-    return { success: false, error: '飞书应用机器人未连接' }
+    return errorResult('status.feishuDisconnected')
   }
   if (!targetChatId || !message) {
-    return { success: false, error: '缺少会话或消息内容' }
+    return errorResult('error.missingMessage')
   }
   try {
     const messageApi = feishuClient.im?.v1?.message || feishuClient.im?.message
-    if (!messageApi?.create) return { success: false, error: '飞书 SDK 消息 API 不可用' }
+    if (!messageApi?.create) return errorResult('status.sendUnsupported')
     await messageApi.create({
       params: { receive_id_type: 'chat_id' },
       data: {
@@ -1040,7 +1099,7 @@ async function sendFeishuAppMessage(chatId, text) {
     })
     return { success: true }
   } catch (e) {
-    return { success: false, error: e.message || '发送失败' }
+    return caughtErrorResult(e, 'error.sendFailed')
   }
 }
 
@@ -1076,9 +1135,9 @@ function scheduleFeishuSupervisor() {
 }
 
 async function runFeishuSupervisorTick(isTest = false) {
-  if (feishuSupervisorSending) return { success: false, error: '正在发送中' }
+  if (feishuSupervisorSending) return errorResult('error.sending')
   const state = readFeishuSupervisorState()
-  if (!state.enabled && !isTest) return { success: false, error: '飞书监督未开启' }
+  if (!state.enabled && !isTest) return errorResult('error.feishuDisabled')
   feishuSupervisorSending = true
   try {
     const result = await sendFeishuSupervisorMessage(state, isTest)
@@ -1091,12 +1150,14 @@ async function runFeishuSupervisorTick(isTest = false) {
       state.lastSentAt = now
       state.retryCount = 0
       state.lastError = ''
+      state.lastErrorKey = ''
+      state.lastErrorValues = null
       state.nextDueAt = now + normalizeFeishuInterval(state.interval) * 60 * 1000
     } else {
       const retrySteps = [60_000, 5 * 60_000, 15 * 60_000]
       const retryCount = Math.min(3, state.retryCount + 1)
       state.retryCount = retryCount
-      state.lastError = result?.error || '发送失败'
+      Object.assign(state, storedResultError(result))
       state.nextDueAt = now + retrySteps[Math.min(retryCount - 1, retrySteps.length - 1)]
     }
     state.updatedAt = now
@@ -1118,6 +1179,7 @@ function configureFeishuSupervisor(config) {
     appEnabled: !!config?.appEnabled,
     appId: config?.appId,
     chatId: config?.chatId,
+    locale: config?.locale,
     task: config?.task,
     updatedAt: Date.now(),
   })
@@ -1127,6 +1189,8 @@ function configureFeishuSupervisor(config) {
     next.nextDueAt = 0
     next.retryCount = 0
     next.lastError = ''
+    next.lastErrorKey = ''
+    next.lastErrorValues = null
   } else if (!previous.nextDueAt || intervalChanged || wasDisabled) {
     next.nextDueAt = Date.now() + normalizeFeishuInterval(next.interval) * 60 * 1000
     next.retryCount = 0
@@ -1149,6 +1213,7 @@ function sanitizeLongTaskStateTask(task, previous) {
   const intervalChanged = previous && previous.interval !== interval
   const becameEnabled = enabled && !previous?.enabled
   const lastSentAt = Math.max(Number(task.lastSentAt) || 0, Number(previous?.lastSentAt) || 0) || now
+  const previousError = previous || task
   return {
     id,
     title: title || 'Untitled long task',
@@ -1161,7 +1226,9 @@ function sanitizeLongTaskStateTask(task, previous) {
       ? (intervalChanged || becameEnabled || !previous?.nextDueAt ? now + interval * 60 * 1000 : Number(previous.nextDueAt))
       : 0,
     retryCount: enabled ? Math.max(0, Math.min(3, Number(previous?.retryCount) || 0)) : 0,
-    lastError: enabled ? String(previous?.lastError || '').slice(0, 240) : '',
+    lastError: enabled ? String(previousError.lastError || '').slice(0, 240) : '',
+    lastErrorKey: enabled ? String(previousError.lastErrorKey || '').slice(0, 120) : '',
+    lastErrorValues: enabled ? normalizeErrorValues(previousError.lastErrorValues) : null,
     updatedAt: now,
   }
 }
@@ -1174,6 +1241,7 @@ function normalizeLongTaskSupervisorState(value) {
     .filter(Boolean)
     .slice(0, 8)
   return {
+    locale: i18n.normalizeLocale(raw.locale),
     tasks,
     updatedAt: Number(raw.updatedAt) || Date.now(),
   }
@@ -1196,22 +1264,23 @@ function broadcastLongTaskSupervisorStatus(extra = {}) {
   })
 }
 
-function buildLongTaskSupervisorMessage(task, isTest = false) {
-  const hm = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+function buildLongTaskSupervisorMessage(task, isTest = false, locale = 'zh-CN') {
+  const normalizedLocale = i18n.normalizeLocale(locale)
+  const hm = new Date().toLocaleTimeString(i18n.getIntlLocale(normalizedLocale), { hour: '2-digit', minute: '2-digit', hour12: false })
   const lines = [
-    isTest ? '[孬孬长远任务测试]' : '[孬孬长远任务追踪]',
-    `${hm} 请汇报这个目标的进度：${task.title}`,
+    i18n.translate(normalizedLocale, isTest ? 'reminder.longTaskTest' : 'reminder.longTask'),
+    i18n.translate(normalizedLocale, 'reminder.longTaskProgress', { time: hm, title: task.title }),
   ]
-  if (task.goal) lines.push(`目标说明：${task.goal}`)
-  lines.push(`汇报间隔：每 ${normalizeLongTaskInterval(task.interval)} 分钟`)
-  lines.push('请用三句话回复：1. 刚推进了什么；2. 遇到什么阻碍；3. 下一步具体做什么。')
+  if (task.goal) lines.push(i18n.translate(normalizedLocale, 'reminder.goal', { goal: task.goal }))
+  lines.push(i18n.translate(normalizedLocale, 'reminder.interval', { minutes: normalizeLongTaskInterval(task.interval) }))
+  lines.push(i18n.translate(normalizedLocale, 'reminder.replyThreeLines'))
   return lines.join('\n')
 }
 
-async function sendLongTaskSupervisorMessage(task, isTest = false) {
+async function sendLongTaskSupervisorMessage(task, isTest = false, locale = 'zh-CN') {
   const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
   const webhook = String(webhooks[task.id] || '')
-  return sendFeishuWebhookMessage(webhook, buildLongTaskSupervisorMessage(task, isTest))
+  return sendFeishuWebhookMessage(webhook, buildLongTaskSupervisorMessage(task, isTest, locale))
 }
 
 function stopLongTaskSupervisorTimer() {
@@ -1249,7 +1318,8 @@ async function runLongTaskSupervisorTick(isTest = false, testTask = null) {
     if (!task || longTaskSupervisorSending.has(task.id)) continue
     longTaskSupervisorSending.add(task.id)
     try {
-      const result = await sendLongTaskSupervisorMessage(task, isTest)
+      const locale = isTest ? i18n.normalizeLocale(testTask?.locale || state.locale) : state.locale
+      const result = await sendLongTaskSupervisorMessage(task, isTest, locale)
       results.push({ id: task.id, ...result })
       if (isTest) continue
       const current = state.tasks.find(item => item.id === task.id)
@@ -1258,12 +1328,14 @@ async function runLongTaskSupervisorTick(isTest = false, testTask = null) {
         current.lastSentAt = Date.now()
         current.retryCount = 0
         current.lastError = ''
+        current.lastErrorKey = ''
+        current.lastErrorValues = null
         current.nextDueAt = current.lastSentAt + normalizeLongTaskInterval(current.interval) * 60 * 1000
       } else {
         const retrySteps = [60_000, 5 * 60_000, 15 * 60_000]
         const retryCount = Math.min(3, current.retryCount + 1)
         current.retryCount = retryCount
-        current.lastError = result?.error || 'send failed'
+        Object.assign(current, storedResultError(result))
         current.nextDueAt = Date.now() + retrySteps[Math.min(retryCount - 1, retrySteps.length - 1)]
       }
       current.updatedAt = Date.now()
@@ -1288,7 +1360,7 @@ function configureLongTaskSupervisor(config) {
     .map(task => sanitizeLongTaskStateTask(task, previousById.get(String(task?.id || ''))))
     .filter(Boolean)
     .slice(0, 8)
-  const state = { tasks, updatedAt: Date.now() }
+  const state = { locale: config?.locale, tasks, updatedAt: Date.now() }
   writeLongTaskSupervisorState(state)
   scheduleLongTaskSupervisor()
   return { success: true, state: readLongTaskSupervisorState() }
@@ -1369,10 +1441,10 @@ ipcMain.handle('feishu:webhook:set', (_evt, value) => {
 async function sendFeishuWebhookMessage(webhook, text) {
   const message = String(text || '').trim().slice(0, 1800)
   if (!webhook || !isAllowedFeishuWebhook(webhook)) {
-    return { success: false, error: '飞书 Webhook 未配置或格式不正确' }
+    return errorResult('status.invalidWebhook')
   }
   if (!message) {
-    return { success: false, error: '消息为空' }
+    return errorResult('error.missingMessage')
   }
 
   try {
@@ -1391,14 +1463,18 @@ async function sendFeishuWebhookMessage(webhook, text) {
       return { success: false, error: `HTTP ${response.status}` }
     }
     if (body && typeof body.code === 'number' && body.code !== 0) {
-      return { success: false, error: body.msg || body.StatusMessage || `飞书返回 code ${body.code}` }
+      return body.msg || body.StatusMessage
+        ? { success: false, error: body.msg || body.StatusMessage }
+        : errorResult('error.feishuResponse', { code: body.code })
     }
     if (body && typeof body.StatusCode === 'number' && body.StatusCode !== 0) {
-      return { success: false, error: body.StatusMessage || `飞书返回 StatusCode ${body.StatusCode}` }
+      return body.StatusMessage
+        ? { success: false, error: body.StatusMessage }
+        : errorResult('error.feishuResponse', { code: body.StatusCode })
     }
     return { success: true }
   } catch (e) {
-    return { success: false, error: e.message || '发送失败' }
+    return caughtErrorResult(e, 'error.sendFailed')
   }
 }
 
@@ -1427,7 +1503,7 @@ ipcMain.handle('feishu:long-task-webhook:set', (_evt, taskId, value) => {
 
 ipcMain.handle('feishu:long-task-send', async (_evt, taskId, text) => {
   const id = String(taskId || '').trim()
-  if (!isValidLongTaskId(id)) return { success: false, error: '长远任务 id 不正确' }
+  if (!isValidLongTaskId(id)) return errorResult('error.invalidLongTaskId')
   const webhooks = readEncryptedJSON(LONG_TASK_WEBHOOKS_FILE(), {})
   return sendFeishuWebhookMessage(String(webhooks[id] || ''), text)
 })
@@ -1462,8 +1538,13 @@ ipcMain.handle('hermes:api-key:set', (_evt, value) => {
 
 function normalizeHermesBaseUrl(value) {
   const raw = String(value || '').trim() || 'http://127.0.0.1:8642/v1'
-  const url = new URL(raw)
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Hermes API Base URL 只支持 http/https')
+  let url
+  try {
+    url = new URL(raw)
+  } catch {
+    throw i18nError('error.hermesBase')
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw i18nError('error.hermesBase')
   url.hash = ''
   url.search = ''
   url.pathname = (url.pathname || '/v1').replace(/\/+$/, '') || '/v1'
@@ -1497,14 +1578,14 @@ ipcMain.handle('hermes:test', async (_evt, config) => {
   try {
     const baseUrl = normalizeHermesBaseUrl(config?.baseUrl)
     if (needsHermesBaseUrlConsent(baseUrl) && config?.allowThirdPartyBaseUrl !== true) {
-      return { success: false, error: 'Hermes Base URL must be explicitly confirmed before sending the API key' }
+      return errorResult('error.hermesConsent')
     }
     let response = await fetchWithTimeout(hermesHealthUrl(baseUrl), { headers: hermesHeaders() })
     if (!response.ok) response = await fetchWithTimeout(hermesEndpoint(baseUrl, 'models'), { headers: hermesHeaders() })
     if (!response.ok) return { success: false, error: `HTTP ${response.status}` }
     return { success: true }
   } catch (e) {
-    return { success: false, error: e.message || '连接失败' }
+    return caughtErrorResult(e, 'error.connectionFailed')
   }
 })
 
@@ -1512,7 +1593,7 @@ ipcMain.handle('hermes:chat', async (_evt, config) => {
   try {
     const baseUrl = normalizeHermesBaseUrl(config?.baseUrl)
     if (needsHermesBaseUrlConsent(baseUrl) && config?.allowThirdPartyBaseUrl !== true) {
-      return { success: false, error: 'Hermes Base URL must be explicitly confirmed before sending the API key' }
+      return errorResult('error.hermesConsent')
     }
     const model = String(config?.model || '').trim() || 'hermes-agent'
     const messages = Array.isArray(config?.messages) ? config.messages : []
@@ -1535,7 +1616,7 @@ ipcMain.handle('hermes:chat', async (_evt, config) => {
     const text = String(body?.choices?.[0]?.message?.content || '').trim()
     return { success: true, text }
   } catch (e) {
-    return { success: false, error: e.message || '请求失败' }
+    return caughtErrorResult(e, 'error.requestFailed')
   }
 })
 
@@ -1543,10 +1624,10 @@ async function startFeishuAppConnection(config) {
   const appId = String(config?.appId || '').trim()
   const appSecret = readEncryptedString(FEISHU_APP_SECRET_FILE())
   if (!isValidFeishuAppId(appId)) {
-    return { success: false, error: 'App ID 格式不正确' }
+    return errorResult('status.invalidAppId')
   }
   if (!appSecret) {
-    return { success: false, error: 'App Secret 未配置' }
+    return errorResult('status.needAppSecret')
   }
 
   try {
@@ -1582,7 +1663,7 @@ async function startFeishuAppConnection(config) {
     return { success: true }
   } catch (e) {
     stopFeishuWs()
-    return { success: false, error: e.message || '连接失败' }
+    return caughtErrorResult(e, 'error.connectionFailed')
   }
 }
 
@@ -1598,29 +1679,7 @@ ipcMain.handle('feishu:app-status', () => {
 })
 
 ipcMain.handle('feishu:app-send', async (_evt, chatId, text) => {
-  const message = String(text || '').trim().slice(0, 1800)
-  const targetChatId = String(chatId || '').trim()
-  if (!feishuClient || !feishuWsConnected) {
-    return { success: false, error: '飞书应用机器人未连接' }
-  }
-  if (!targetChatId || !message) {
-    return { success: false, error: '缺少会话或消息内容' }
-  }
-  try {
-    const messageApi = feishuClient.im?.v1?.message || feishuClient.im?.message
-    if (!messageApi?.create) return { success: false, error: '飞书 SDK 消息 API 不可用' }
-    await messageApi.create({
-      params: { receive_id_type: 'chat_id' },
-      data: {
-        receive_id: targetChatId,
-        msg_type: 'text',
-        content: JSON.stringify({ text: message }),
-      },
-    })
-    return { success: true }
-  } catch (e) {
-    return { success: false, error: e.message || '发送失败' }
-  }
+  return sendFeishuAppMessage(chatId, text)
 })
 
 ipcMain.handle('feishu:supervisor:configure', (_evt, config) => {
@@ -1642,20 +1701,22 @@ ipcMain.handle('local-model:load', async () => {
   return await loadLocalModel()
 })
 
-ipcMain.handle('local-model:inference', async (_event, text) => {
+ipcMain.handle('local-model:inference', async (_event, input) => {
+  const text = typeof input === 'string' ? input : input?.text
+  const locale = typeof input === 'object' ? i18n.normalizeLocale(input?.locale) : 'zh-CN'
   if (typeof text !== 'string' || text.length === 0 || text.length > 2000) {
     return null
   }
-  return await runLocalInference(text)
+  return await runLocalInference(text, locale)
 })
 
 // 处理下载请求（点击下载按钮时调用）
-ipcMain.handle('local-model:download', async (event) => {
+ipcMain.handle('local-model:download', async (event, requestedLocale) => {
   if (localModelLoading) {
-    return { success: false, error: '正在下载中，请稍候' }
+    return errorResult('error.modelBusy')
   }
   if (localModelReady) {
-    return { success: true, message: '模型已就绪' }
+    return { success: true, messageKey: 'model.ready' }
   }
 
   localModelLoading = true
@@ -1665,18 +1726,19 @@ ipcMain.handle('local-model:download', async (event) => {
     event.sender.send('local-model:progress', progress)
   }
 
-  const result = await downloadLocalModel(sendProgress, () => localModelCancelFlag)
+  const locale = i18n.normalizeLocale(requestedLocale)
+  const result = await downloadLocalModel(sendProgress, () => localModelCancelFlag, locale)
   localModelLoading = false
 
   if (localModelCancelFlag) {
-    return { success: false, error: '已取消下载', cancelled: true }
+    return { ...errorResult('error.modelCancelled'), cancelled: true }
   }
   if (result.success) {
     localModelPipeline = result.pipeline
     localModelReady = true
     return { success: true }
   } else {
-    return { success: false, error: result.error }
+    return result
   }
 })
 
@@ -1689,7 +1751,7 @@ ipcMain.handle('local-model:cancel', async () => {
 // 删除已下载的本地模型文件
 ipcMain.handle('local-model:delete', async () => {
   if (localModelLoading) {
-    return { success: false, error: '模型正在使用中，请稍候' }
+    return errorResult('error.modelBusy')
   }
   // 释放已加载的 pipeline
   localModelPipeline = null

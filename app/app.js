@@ -1,6 +1,17 @@
 (function(){
 'use strict';
 
+const i18n=window.nonoI18n;
+const tr=(key,values)=>i18n?.t(key,values)||key;
+const resultError=(result,fallbackKey='common.unknownError')=>{
+  if(result?.errorKey) return tr(result.errorKey,result.errorValues);
+  return String(result?.error||'').trim()||tr(fallbackKey);
+};
+const storedErrorText=value=>{
+  if(value?.lastErrorKey) return tr(value.lastErrorKey,value.lastErrorValues);
+  return String(value?.lastError||'').trim();
+};
+
 /* ════════ localStorage key migration (one-time) ════════ */
 (function(){
   var _m={
@@ -76,10 +87,12 @@ function normalizeLongTasks(value){
     seen.add(id);
     const title=String(item?.title||'').trim().slice(0,LONG_TASK_TITLE_MAX);
     const goal=String(item?.goal||'').trim().slice(0,LONG_TASK_GOAL_MAX);
-    if(!title&&!goal) return null;
+    const usesDefaultTitle=item?.usesDefaultTitle===true;
+    if(!title&&!goal&&!usesDefaultTitle) return null;
     return {
       id,
-      title:title||'未命名长远任务',
+      title,
+      usesDefaultTitle,
       goal,
       interval:normalizeLongTaskInterval(item?.interval),
       enabled:!!item?.enabled,
@@ -88,8 +101,17 @@ function normalizeLongTasks(value){
       nextDueAt:Number(item?.nextDueAt)||0,
       retryCount:Math.max(0,Math.min(3,Number(item?.retryCount)||0)),
       lastError:String(item?.lastError||'').slice(0,240),
+      lastErrorKey:String(item?.lastErrorKey||'').slice(0,120),
+      lastErrorValues:item?.lastErrorValues&&typeof item.lastErrorValues==='object'&&!Array.isArray(item.lastErrorValues)
+        ? {...item.lastErrorValues}
+        : null,
     };
   }).filter(Boolean).slice(0,LONG_TASK_MAX);
+}
+
+function longTaskTitle(task){
+  if(task?.usesDefaultTitle) return tr('longTasks.newTitle');
+  return String(task?.title||'').trim()||tr('longTasks.untitled');
 }
 
 function applyTheme(){
@@ -99,6 +121,7 @@ function applyTheme(){
 }
 
 let cfg=load();
+i18n?.init(document,cfg.locale);
 cfg.theme=applyTheme(cfg.theme);
 cfg.proxy=false;
 let history=[];
@@ -191,6 +214,7 @@ function load(){
   try{const s=JSON.parse(localStorage.getItem('nono_config')||'{}');
     return{
       p:s.p||'anthropic',k:s.k||'',hasApiKey:!!s.hasApiKey,m:s.m||'',b:s.b||'',proxy:!!s.proxy,freq:s.freq||'mid',
+      locale:i18n?.normalizeLocale(s.locale)||'zh-CN',
       confirmedOpenAIBaseUrl:s.confirmedOpenAIBaseUrl||'',
       feishuEnabled:!!s.feishuEnabled,
       feishuInterval:normalizeFeishuInterval(s.feishuInterval),
@@ -204,7 +228,7 @@ function load(){
       hermesEnabled:s.hermesEnabled!==false,
       longTasks:normalizeLongTasks(s.longTasks),
     };}
-  catch{return{p:'anthropic',k:'',hasApiKey:false,m:'',b:'',proxy:false,freq:'mid',confirmedOpenAIBaseUrl:'',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:'',hermesAgentEnabled:false,hermesAgentBaseUrl:'http://127.0.0.1:8642/v1',confirmedHermesBaseUrl:'',hermesAgentModel:'',hermesEnabled:true,longTasks:[]};}
+  catch{return{p:'anthropic',k:'',hasApiKey:false,m:'',b:'',proxy:false,freq:'mid',locale:'zh-CN',confirmedOpenAIBaseUrl:'',feishuEnabled:false,feishuInterval:30,feishuAppEnabled:false,feishuAppId:'',feishuAppChatId:'',hermesAgentEnabled:false,hermesAgentBaseUrl:'http://127.0.0.1:8642/v1',confirmedHermesBaseUrl:'',hermesAgentModel:'',hermesEnabled:true,longTasks:[]};}
 }
 function save(){
   // Desktop-only product: never persist API keys to localStorage.
@@ -246,10 +270,10 @@ function syncApiKeyField(){
   if(!fKey) return;
   if(IS_ELECTRON){
     fKey.value='';
-    fKey.placeholder=hasKey()?'已保存，留空则继续使用当前 Key':'粘贴你的 API Key…';
+    fKey.placeholder=hasKey()?tr('settings.model.savedApiKeyPlaceholder'):tr('settings.model.apiKeyPlaceholder');
   } else {
     fKey.value=cfg.k;
-    fKey.placeholder='粘贴你的 API Key…';
+    fKey.placeholder=tr('settings.model.apiKeyPlaceholder');
   }
 }
 
@@ -316,6 +340,7 @@ const hermesEnabledEl=document.getElementById('hermes-enabled');
 const hermesStatusEl=document.getElementById('hermes-status');
 const hermesReviewBtn=document.getElementById('hermes-review-btn');
 const hermesClearBtn=document.getElementById('hermes-clear-btn');
+const languageSelect=document.getElementById('language-select');
 const longTaskWebhookDrafts={};
 const longTaskWebhookSaved={};
 const removedLongTaskIds=new Set();
@@ -327,7 +352,7 @@ function syncSettingsWindowTitle(target){
   const active=[...document.querySelectorAll('.settings-tab')]
     .find(btn=>btn.dataset.settingsTab===target)
     ?.querySelector('span:last-child');
-  title.textContent=active?.textContent?.trim()||'设置';
+  title.textContent=active?.textContent?.trim()||tr('settings.title');
 }
 
 function selectSettingsTab(tab){
@@ -384,8 +409,9 @@ function normalizeFeishuInterval(value){
 
 function normalizeHermesAgentBaseUrl(value){
   const raw=String(value||'').trim()||'http://127.0.0.1:8642/v1';
-  const url=new URL(raw);
-  if(url.protocol!=='http:'&&url.protocol!=='https:') throw new Error('Hermes API Base URL 只支持 http/https');
+  let url;
+  try{url=new URL(raw)}catch{throw new Error(tr('error.hermesBase'))}
+  if(url.protocol!=='http:'&&url.protocol!=='https:') throw new Error(tr('error.hermesBase'));
   url.hash='';
   url.search='';
   url.pathname=(url.pathname||'/v1').replace(/\/+$/,'')||'/v1';
@@ -398,9 +424,10 @@ function isLoopbackHost(hostname){
 
 function normalizeOpenAICompatibleBaseUrl(value){
   const raw=String(value||'').trim()||'https://api.openai.com/v1';
-  const url=new URL(raw);
+  let url;
+  try{url=new URL(raw)}catch{throw new Error(tr('error.openaiBase'))}
   const localHttp=url.protocol==='http:'&&isLoopbackHost(url.hostname);
-  if(url.protocol!=='https:'&&!localHttp) throw new Error('OpenAI 兼容 Base URL 必须使用 https，或本机 http');
+  if(url.protocol!=='https:'&&!localHttp) throw new Error(tr('error.openaiBase'));
   url.username='';
   url.password='';
   url.hash='';
@@ -435,7 +462,7 @@ function isConfirmedHermesBaseUrl(value){
 }
 
 async function confirmThirdPartyBaseUrl(kind,url){
-  return petDialog.confirm(`${kind} 将把你的消息和已保存的 API Key 发送到：\n${url}\n\n只在你信任这个服务时继续。`,{title:'确认第三方 Base URL'});
+  return petDialog.confirm(tr('dialog.thirdPartyMessage',{kind,url}),{title:tr('dialog.thirdPartyTitle')});
 }
 
 function hermesAgentModelName(){
@@ -446,8 +473,8 @@ function updateHermesAgentStatus(text){
   if(!hermesAgentStatusEl) return;
   hermesAgentStatusEl.textContent=text||(
     cfg.hermesAgentEnabled
-      ? `Hermes Agent 已启用：${cfg.hermesAgentBaseUrl||'http://127.0.0.1:8642/v1'}`
-      : '未连接官方 Hermes Agent'
+      ? tr('status.hermesEnabled',{url:cfg.hermesAgentBaseUrl||'http://127.0.0.1:8642/v1'})
+      : tr('status.hermesDisconnected')
   );
 }
 
@@ -465,21 +492,21 @@ async function testHermesAgentConnection(){
       cfg.confirmedHermesBaseUrl='';
     }
   }catch(e){
-    updateHermesAgentStatus(e.message||'Hermes API Base URL 不正确');
+    updateHermesAgentStatus(e.message||tr('error.hermesBase'));
     return false;
   }
-  updateHermesAgentStatus('正在测试 Hermes 连接…');
+  updateHermesAgentStatus(tr('status.hermesTesting'));
   try{
     if(window.petBridge?.testHermesAgent){
       const result=await window.petBridge.testHermesAgent({baseUrl:cfg.hermesAgentBaseUrl,allowThirdPartyBaseUrl:isConfirmedHermesBaseUrl(cfg.hermesAgentBaseUrl)});
-      if(!result?.success) throw new Error(result?.error||'连接失败');
-      updateHermesAgentStatus('Hermes Agent 连接正常');
+      if(!result?.success) throw new Error(resultError(result));
+      updateHermesAgentStatus(tr('status.hermesConnected'));
       save();
       return true;
     }
-    throw new Error('当前客户端不支持主进程 Hermes 请求通道，请重新启动应用。');
+    throw new Error(tr('error.hermesChannel'));
   }catch(e){
-    updateHermesAgentStatus(`Hermes Agent 连接失败：${e.message||'未知错误'}`);
+    updateHermesAgentStatus(tr('status.hermesFailed',{error:e.message||tr('common.unknownError')}));
     return false;
   }
 }
@@ -552,31 +579,32 @@ function summarizeHermesMemory(memory=readHermesMemory()){
     const selected=items.slice(0,limit);
     if(selected.length) lines.push(`${title}：${selected.map(x=>x.text).join('；')}`);
   };
-  take('用户偏好',memory.profile,5);
-  take('工作模式',memory.workPatterns,5);
-  take('复盘记录',memory.reflections,3);
+  take(tr('memory.profile'),memory.profile,5);
+  take(tr('memory.workPatterns'),memory.workPatterns,5);
+  take(tr('memory.reflections'),memory.reflections,3);
   return lines.join('\n');
 }
 
 function buildHermesSystemPrompt(){
-  if(!cfg.hermesEnabled) return SYS;
+  const base=`${SYS}\n\nAlways reply in ${i18n?.getPromptLanguage()||'Simplified Chinese'}.`;
+  if(!cfg.hermesEnabled) return base;
   const summary=summarizeHermesMemory();
-  if(!summary) return SYS;
-  return `${SYS}\n\nHermes Agent 本地长期记忆（只作为辅助上下文，不要逐字复述）：\n${summary}\n\n使用规则：优先尊重用户当前消息；当记忆与当前消息冲突时，以当前消息为准。`;
+  if(!summary) return base;
+  return `${base}\n\nLocal long-term memory (use only as supporting context; do not repeat verbatim):\n${summary}\n\nPrefer the user's current message whenever it conflicts with memory.`;
 }
 
 function buildHermesLocalPrompt(userText){
   if(!cfg.hermesEnabled) return userText;
   const summary=summarizeHermesMemory();
   if(!summary) return userText;
-  return `长期记忆摘要：${summary}\n\n当前用户消息：${userText}`;
+  return tr('memory.summaryPrefix',{summary,message:userText});
 }
 
 function updateHermesStatus(){
   if(!hermesStatusEl) return;
   const memory=readHermesMemory();
   const count=memory.profile.length+memory.workPatterns.length+memory.reflections.length+memory.events.length;
-  hermesStatusEl.textContent=cfg.hermesEnabled?`Hermes 记忆已开启：当前 ${count} 条本地记忆`:'Hermes 记忆已关闭';
+  hermesStatusEl.textContent=cfg.hermesEnabled?tr('status.hermesMemoryOn',{count}):tr('status.hermesMemoryOff');
 }
 
 function updateFeishuSupervisorStatus(pending=false){
@@ -584,26 +612,28 @@ function updateFeishuSupervisorStatus(pending=false){
   const minutes=normalizeFeishuInterval(feishuIntervalEl?.value||cfg.feishuInterval);
   const enabled=feishuEnabledEl ? !!feishuEnabledEl.checked : !!cfg.feishuEnabled;
   if(enabled){
-    feishuStatusEl.textContent=`飞书监督已开启：每 ${minutes} 分钟自动提醒一次${pending?'（保存后生效）':''}`;
+    feishuStatusEl.textContent=tr('status.feishuOn',{minutes,pending:pending?tr('status.feishuPending'):''});
   }else{
-    feishuStatusEl.textContent=`未开启飞书监督；开启后每 ${minutes} 分钟提醒一次`;
+    feishuStatusEl.textContent=tr('status.feishuOff',{minutes});
   }
 }
 
 function longTaskStatusText(task){
-  if(!task.enabled) return '未启用';
-  if(task.lastError) return `等待重试：${task.lastError}`;
+  if(!task.enabled) return tr('status.disabled');
+  const error=storedErrorText(task);
+  if(error) return tr('status.retrying',{error});
   const last=Number(task.lastSentAt)||0;
   const next=Number(task.nextDueAt)||last+normalizeLongTaskInterval(task.interval)*60*1000;
-  if(!last) return `启用中：每 ${task.interval} 分钟提醒`;
+  if(!last) return tr('status.enabledEvery',{minutes:task.interval});
   const remain=Math.max(0,Math.ceil((next-Date.now())/60000));
-  return remain>0?`启用中：约 ${remain} 分钟后提醒`:'启用中：等待下一轮发送';
+  return remain>0?tr('status.enabledRemaining',{minutes:remain}):tr('status.waitingNext');
 }
 function createLongTaskDraft(){
   const now=Date.now();
   return {
     id:makeLongTaskId(),
-    title:'新的长远任务',
+    title:'',
+    usesDefaultTitle:true,
     goal:'',
     interval:1440,
     enabled:false,
@@ -621,7 +651,7 @@ async function refreshLongTaskWebhooks(){
       const input=longTaskListEl.querySelector(`[data-long-task-id="${task.id}"] [data-field="webhook"]`);
       if(input&&!input.matches(':focus')){
         input.value=longTaskWebhookDrafts[task.id]||'';
-        input.placeholder=saved?'已保存，留空继续使用当前 Webhook':'https://open.feishu.cn/open-apis/bot/v2/hook/...';
+        input.placeholder=saved?tr('longTasks.savedWebhookPlaceholder'):'https://open.feishu.cn/open-apis/bot/v2/hook/...';
       }
     }catch(e){console.error('hasLongTaskWebhook:',e)}
   }));
@@ -631,44 +661,46 @@ function renderLongTaskSettings(){
   if(!longTaskListEl) return;
   cfg.longTasks=normalizeLongTasks(cfg.longTasks);
   if(!cfg.longTasks.length){
-    longTaskListEl.innerHTML='<div class="long-task-empty">还没有长远任务</div>';
-    if(longTaskStatusEl) longTaskStatusEl.textContent='可添加多个目标，每个目标使用一个独立飞书机器人 Webhook。';
+    longTaskListEl.innerHTML=`<div class="long-task-empty">${tr('longTasks.empty')}</div>`;
+    if(longTaskStatusEl) longTaskStatusEl.textContent=tr('longTasks.emptyHint');
     return;
   }
-  longTaskListEl.innerHTML=cfg.longTasks.map(task=>`
+  longTaskListEl.innerHTML=cfg.longTasks.map(task=>{
+    const title=longTaskTitle(task);
+    return `
     <div class="lt-card" data-long-task-id="${escapeHTML(task.id)}">
       <div class="lt-card-head">
         <label class="lt-title-line">
           <input type="checkbox" data-field="enabled" ${task.enabled?'checked':''}>
-          <span>${escapeHTML(task.title)}</span>
+          <span>${escapeHTML(title)}</span>
         </label>
         <div class="lt-actions">
-          <button class="lt-action" type="button" data-act="test">测试</button>
-          <button class="lt-action danger" type="button" data-act="delete">删除</button>
+          <button class="lt-action" type="button" data-act="test">${tr('common.test')}</button>
+          <button class="lt-action danger" type="button" data-act="delete">${tr('common.delete')}</button>
         </div>
       </div>
       <div class="frow">
-        <label>任务名称</label>
-        <input type="text" data-field="title" maxlength="${LONG_TASK_TITLE_MAX}" value="${escapeHTML(task.title)}" placeholder="比如：毕业论文 / 体能训练 / 独立产品">
+        <label>${tr('longTasks.taskName')}</label>
+        <input type="text" data-field="title" maxlength="${LONG_TASK_TITLE_MAX}" value="${escapeHTML(title)}" placeholder="${tr('longTasks.taskPlaceholder')}">
       </div>
       <div class="frow">
-        <label>目标说明</label>
-        <textarea data-field="goal" maxlength="${LONG_TASK_GOAL_MAX}" placeholder="写清楚长期目标、当前阶段、希望机器人追问的进度">${escapeHTML(task.goal)}</textarea>
+        <label>${tr('longTasks.goal')}</label>
+        <textarea data-field="goal" maxlength="${LONG_TASK_GOAL_MAX}" placeholder="${tr('longTasks.goalPlaceholder')}">${escapeHTML(task.goal)}</textarea>
       </div>
       <div class="lt-grid">
         <div class="frow">
-          <label>提醒间隔（分钟）</label>
+          <label>${tr('longTasks.interval')}</label>
           <input type="number" data-field="interval" min="${LONG_TASK_INTERVAL_MIN}" max="${LONG_TASK_INTERVAL_MAX}" step="1" value="${task.interval}" inputmode="numeric">
         </div>
         <div class="frow">
-          <label>任务机器人 Webhook</label>
-          <input type="password" data-field="webhook" placeholder="${longTaskWebhookSaved[task.id]?'已保存，留空继续使用当前 Webhook':'https://open.feishu.cn/open-apis/bot/v2/hook/...'}" autocomplete="off" spellcheck="false" value="${escapeHTML(longTaskWebhookDrafts[task.id]||'')}">
+          <label>${tr('longTasks.webhook')}</label>
+          <input type="password" data-field="webhook" placeholder="${longTaskWebhookSaved[task.id]?tr('longTasks.savedWebhookPlaceholder'):'https://open.feishu.cn/open-apis/bot/v2/hook/...'}" autocomplete="off" spellcheck="false" value="${escapeHTML(longTaskWebhookDrafts[task.id]||'')}">
         </div>
       </div>
       <span class="lt-status">${escapeHTML(longTaskStatusText(task))}</span>
     </div>
-  `).join('');
-  if(longTaskStatusEl) longTaskStatusEl.textContent=`已配置 ${cfg.longTasks.length}/${LONG_TASK_MAX} 个长远任务`;
+  `}).join('');
+  if(longTaskStatusEl) longTaskStatusEl.textContent=tr('longTasks.count',{count:cfg.longTasks.length,max:LONG_TASK_MAX});
   refreshLongTaskWebhooks();
 }
 
@@ -681,13 +713,15 @@ function collectLongTasksFromUI(){
     const prev=(cfg.longTasks||[]).find(task=>task.id===id);
     const title=card.querySelector('[data-field="title"]')?.value.trim()||'';
     const goal=card.querySelector('[data-field="goal"]')?.value.trim()||'';
-    if(!title&&!goal) return;
+    const usesDefaultTitle=!!prev?.usesDefaultTitle&&card.dataset.titleEdited!=='1'&&title===longTaskTitle(prev);
+    if(!title&&!goal&&!usesDefaultTitle) return;
     const enabled=!!card.querySelector('[data-field="enabled"]')?.checked;
     const interval=normalizeLongTaskInterval(card.querySelector('[data-field="interval"]')?.value);
     longTaskWebhookDrafts[id]=card.querySelector('[data-field="webhook"]')?.value.trim()||'';
     next.push({
       id,
-      title:title.slice(0,LONG_TASK_TITLE_MAX)||'未命名长远任务',
+      title:usesDefaultTitle?'':title.slice(0,LONG_TASK_TITLE_MAX),
+      usesDefaultTitle,
       goal:goal.slice(0,LONG_TASK_GOAL_MAX),
       interval,
       enabled,
@@ -696,6 +730,8 @@ function collectLongTasksFromUI(){
       nextDueAt:enabled&&prev?.enabled ? (Number(prev.nextDueAt)||0) : 0,
       retryCount:enabled&&prev?.enabled ? (Number(prev.retryCount)||0) : 0,
       lastError:enabled&&prev?.enabled ? (prev.lastError||'') : '',
+      lastErrorKey:enabled&&prev?.enabled ? (prev.lastErrorKey||'') : '',
+      lastErrorValues:enabled&&prev?.enabled ? (prev.lastErrorValues||null) : null,
     });
   });
   return normalizeLongTasks(next);
@@ -712,17 +748,17 @@ async function saveLongTaskWebhooks(){
     const webhook=String(longTaskWebhookDrafts[task.id]||'').trim();
     const hasSaved=!!longTaskWebhookSaved[task.id];
     if(task.enabled&&!webhook&&!hasSaved){
-      if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」启用前需要填写任务机器人 Webhook`;
+      if(longTaskStatusEl) longTaskStatusEl.textContent=tr('longTasks.enableNeedsWebhook',{title:longTaskTitle(task)});
       return false;
     }
     if(webhook&&!isValidFeishuWebhook(webhook)){
-      if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」的 Webhook 格式不正确`;
+      if(longTaskStatusEl) longTaskStatusEl.textContent=tr('longTasks.invalidTaskWebhook',{title:longTaskTitle(task)});
       return false;
     }
     if(webhook){
       const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
       if(!saved){
-        if(longTaskStatusEl) longTaskStatusEl.textContent=`「${task.title}」的 Webhook 保存失败`;
+        if(longTaskStatusEl) longTaskStatusEl.textContent=tr('longTasks.taskWebhookSaveFailed',{title:longTaskTitle(task)});
         return false;
       }
       longTaskWebhookSaved[task.id]=true;
@@ -740,7 +776,7 @@ async function saveLongTaskSettings(){
   save();
   renderLongTaskSettings();
   restartLongTaskSupervisor();
-  if(longTaskStatusEl) longTaskStatusEl.textContent=`已保存 ${cfg.longTasks.length}/${LONG_TASK_MAX} 个长远任务`;
+  if(longTaskStatusEl) longTaskStatusEl.textContent=tr('longTasks.savedCount',{count:cfg.longTasks.length,max:LONG_TASK_MAX});
   return true;
 }
 
@@ -751,7 +787,7 @@ async function syncFeishuSettingsFields(){
   if(feishuAppEnabledEl) feishuAppEnabledEl.checked=!!cfg.feishuAppEnabled;
   if(feishuAppIdEl) feishuAppIdEl.value=cfg.feishuAppId||'';
   if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId||'';
-  if(feishuAppStatusEl) feishuAppStatusEl.textContent=cfg.feishuAppEnabled?'飞书应用长连接已启用':'未启用飞书应用长连接';
+  if(feishuAppStatusEl) feishuAppStatusEl.textContent=cfg.feishuAppEnabled?tr('status.feishuAppOn'):tr('status.feishuAppOff');
   if(hermesAgentEnabledEl) hermesAgentEnabledEl.checked=!!cfg.hermesAgentEnabled;
   if(hermesAgentBaseEl) hermesAgentBaseEl.value=cfg.hermesAgentBaseUrl||'http://127.0.0.1:8642/v1';
   if(hermesAgentModelEl) hermesAgentModelEl.value=cfg.hermesAgentModel||'';
@@ -763,7 +799,7 @@ async function syncFeishuSettingsFields(){
       const saved=!!(await window.petBridge.hasFeishuWebhook());
       feishuWebhookEl.value='';
       feishuWebhookEl.dataset.saved=saved?'1':'0';
-      feishuWebhookEl.placeholder=saved?'已保存，留空继续使用当前 Webhook':'https://open.feishu.cn/open-apis/bot/v2/hook/...';
+      feishuWebhookEl.placeholder=saved?tr('longTasks.savedWebhookPlaceholder'):'https://open.feishu.cn/open-apis/bot/v2/hook/...';
     }catch(e){console.error('hasFeishuWebhook failed:',e);feishuWebhookEl.value='';feishuWebhookEl.dataset.saved='0';}
   }
   if(feishuAppSecretEl && window.petBridge?.hasFeishuAppSecret){
@@ -771,7 +807,7 @@ async function syncFeishuSettingsFields(){
       const saved=!!(await window.petBridge.hasFeishuAppSecret());
       feishuAppSecretEl.value='';
       feishuAppSecretEl.dataset.saved=saved?'1':'0';
-      feishuAppSecretEl.placeholder=saved?'已保存，留空继续使用当前 App Secret':'App Secret';
+      feishuAppSecretEl.placeholder=saved?tr('settings.providers.savedSecretPlaceholder'):'App Secret';
     }catch(e){console.error('hasFeishuAppSecret failed:',e);feishuAppSecretEl.value='';feishuAppSecretEl.dataset.saved='0';}
   }
   if(hermesAgentKeyEl && window.petBridge?.hasHermesApiKey){
@@ -779,7 +815,7 @@ async function syncFeishuSettingsFields(){
       const saved=!!(await window.petBridge.hasHermesApiKey());
       hermesAgentKeyEl.value='';
       hermesAgentKeyEl.dataset.saved=saved?'1':'0';
-      hermesAgentKeyEl.placeholder=saved?'已保存，留空继续使用当前 Key':'可选 Bearer Token / API Key';
+      hermesAgentKeyEl.placeholder=saved?tr('settings.model.savedApiKeyPlaceholder'):'Bearer Token / API Key';
     }catch(e){console.error('hasHermesApiKey failed:',e);hermesAgentKeyEl.value='';hermesAgentKeyEl.dataset.saved='0';}
   }
 }
@@ -794,6 +830,7 @@ async function applyExternalConfigUpdate(){
   const apiKey=cfg.k;
   const hadApiKey=cfg.hasApiKey;
   cfg=load();
+  i18n?.setLocale(cfg.locale);
   if(IS_ELECTRON){
     cfg.k='';
     cfg.hasApiKey=await refreshProviderKeyState(hadApiKey);
@@ -805,6 +842,7 @@ async function applyExternalConfigUpdate(){
   syncSeg();
   syncFreq();
   syncPetMode();
+  syncLanguage();
   if(IS_SET_WIN||overlay.classList.contains('open')){
     syncApiKeyField();
     fModel.value=cfg.m;
@@ -833,15 +871,15 @@ hermesEnabledEl?.addEventListener('change',()=>{
 
 hermesReviewBtn?.addEventListener('click',async ()=>{
   const summary=summarizeHermesMemory();
-  await petDialog.alert(summary||'还没有沉淀出长期记忆。你可以直接对孬孬说“请记住……”。',{title:'Hermes 记忆摘要'});
+  await petDialog.alert(summary||tr('dialog.memoryEmpty'),{title:tr('dialog.memoryTitle')});
 });
 
 hermesClearBtn?.addEventListener('click',async ()=>{
-  const ok=await petDialog.confirm('确定要清空 Hermes 本地记忆吗？\n\n这不会删除聊天记录、任务、统计或飞书配置。',{title:'清空 Hermes 记忆'});
+  const ok=await petDialog.confirm(tr('dialog.clearMemoryMessage'),{title:tr('dialog.clearMemoryTitle')});
   if(!ok) return;
   privateRemove(HERMES_MEMORY_KEY);
   updateHermesStatus();
-  addLog('Hermes 记忆已清空');
+  addLog(tr('memory.cleared'));
 });
 
 hermesAgentTestBtn?.addEventListener('click',async ()=>{
@@ -849,7 +887,7 @@ hermesAgentTestBtn?.addEventListener('click',async ()=>{
   if(key&&window.petBridge?.setHermesApiKey){
     const saved=await window.petBridge.setHermesApiKey(key);
     if(!saved){
-      updateHermesAgentStatus('Hermes API Key 保存失败');
+      updateHermesAgentStatus(tr('error.hermesKeySave'));
       return;
     }
     hermesAgentKeyEl.dataset.saved='1';
@@ -870,8 +908,9 @@ longTaskListEl?.addEventListener('input',e=>{
     longTaskWebhookDrafts[card.dataset.longTaskId]=e.target.value.trim();
   }
   if(e.target.dataset.field==='title'){
+    card.dataset.titleEdited='1';
     const label=card.querySelector('.lt-title-line span');
-    if(label) label.textContent=e.target.value.trim()||'未命名长远任务';
+    if(label) label.textContent=e.target.value.trim()||tr('longTasks.untitled');
   }
 });
 
@@ -903,33 +942,33 @@ longTaskListEl?.addEventListener('click',async e=>{
     longTaskWebhookDrafts[id]=webhook;
     const hasSaved=!!longTaskWebhookSaved[id];
     if(!task){
-      if(status) status.textContent='请先填写任务名称或目标说明';
+      if(status) status.textContent=tr('longTasks.needName');
       return;
     }
     if(!webhook&&!hasSaved){
-      if(status) status.textContent='请先填写任务机器人 Webhook';
+      if(status) status.textContent=tr('longTasks.needWebhook');
       return;
     }
     if(webhook&&!isValidFeishuWebhook(webhook)){
-      if(status) status.textContent='Webhook 格式不正确';
+      if(status) status.textContent=tr('longTasks.invalidWebhook');
       return;
     }
     if(!window.petBridge?.setLongTaskWebhook||!window.petBridge?.sendLongTaskFeishu){
-      if(status) status.textContent='当前环境不支持长远任务发送';
+      if(status) status.textContent=tr('longTasks.unsupported');
       return;
     }
-    if(status) status.textContent='正在发送测试提醒…';
+    if(status) status.textContent=tr('longTasks.sendingTest');
     if(webhook){
       const saved=await window.petBridge.setLongTaskWebhook(task.id, webhook);
       if(!saved){
-        if(status) status.textContent='Webhook 保存失败';
+        if(status) status.textContent=tr('longTasks.webhookSaveFailed');
         return;
       }
       longTaskWebhookSaved[task.id]=true;
       longTaskWebhookDrafts[task.id]='';
     }
     const result=await sendLongTaskCheckin(task,true);
-    if(status) status.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
+    if(status) status.textContent=result?.success?tr('longTasks.testSent'):tr('longTasks.sendFailed',{error:resultError(result)});
   }
 });
 
@@ -942,7 +981,7 @@ async function openSettings(){
   syncApiKeyField();fModel.value=cfg.m;fBase.value=cfg.b;
   if(fProxy) fProxy.checked=false;
   await syncFeishuSettingsFields();
-  curP=cfg.p;syncSeg();syncFreq();syncPetMode();applyTheme();updateStatus();
+  curP=cfg.p;syncSeg();syncFreq();syncPetMode();syncLanguage();applyTheme();updateStatus();
   overlay.classList.add('open');panel.classList.add('open');
 }
 function closeSettings(){overlay.classList.remove('open');panel.classList.remove('open');}
@@ -973,44 +1012,53 @@ document.querySelectorAll('#pet-mode-seg .seg-b').forEach(b=>{
     b.classList.add('on');
   });
 });
+function syncLanguage(){
+  if(languageSelect) languageSelect.value=i18n?.normalizeLocale(cfg.locale)||'zh-CN';
+}
+languageSelect?.addEventListener('change',()=>{
+  cfg.locale=i18n?.normalizeLocale(languageSelect.value)||'zh-CN';
+  i18n?.setLocale(cfg.locale);
+  save();
+});
 syncPetMode();
+syncLanguage();
 applyTheme();
 function syncSeg(){
   segBtns.forEach(b=>b.classList.toggle('on',b.dataset.p===curP));
   frBase.style.display=curP==='openai'?'flex':'none';
-  mHint.textContent=MODEL_HINT[curP]||'';
+  mHint.textContent=DEFAULT_MODEL[curP]?`${tr('settings.model.namePlaceholder')}: ${DEFAULT_MODEL[curP]}`:'';
 }
 async function updateStatus(){
   await refreshLocalModelStatus();
   stRow.innerHTML=`<span class="st-badge ${hasKey()?'ok':'no'}">
-    <span class="dot"></span>${hasKey()?'API Key 已配置':'未配置，使用本地模型'}
+    <span class="dot"></span>${hasKey()?tr('status.apiConfigured'):tr('status.apiLocal')}
   </span>`;
   const modelStatus = document.getElementById('local-model-status');
   const downloadProgress = document.getElementById('download-progress');
   
   if (modelStatus) {
-    modelStatus.textContent = '本地模型：' + getLocalModelStatus();
+    modelStatus.textContent = tr('model.localPrefix',{status:getLocalModelStatus()});
   }
   const modelBtn = document.getElementById('local-model-btn');
   if (modelBtn) {
     if (localModelLoading) {
       modelBtn.disabled = true;
-      modelBtn.textContent = '加载中…';
+      modelBtn.textContent = tr('model.loading');
       if (downloadProgress) downloadProgress.style.display = 'none';
     } else if (localModelReady) {
       modelBtn.disabled = true;
-      modelBtn.textContent = '模型已就绪';
+      modelBtn.textContent = tr('model.ready');
       modelBtn.style.opacity = '0.6';
       if (downloadProgress) downloadProgress.style.display = 'none';
     } else if (localModelHasFiles) {
       modelBtn.disabled = false;
-      modelBtn.textContent = '加载本地模型';
+      modelBtn.textContent = tr('model.load');
       modelBtn.style.opacity = '1';
       if (downloadProgress) downloadProgress.style.display = 'none';
     } else {
       // 模型未下载
       modelBtn.disabled = false;
-      modelBtn.textContent = '下载并加载模型';
+      modelBtn.textContent = tr('model.download');
       modelBtn.style.opacity = '1';
       if (downloadProgress) downloadProgress.style.display = 'none';
     }
@@ -1030,7 +1078,7 @@ document.getElementById('download-cancel')?.addEventListener('click',async ()=>{
   await window.petBridge.localModelCancel();
   const btn=document.getElementById('local-model-btn');
   const dp=document.getElementById('download-progress');
-  if(btn){btn.disabled=false;btn.textContent='下载并加载模型';btn.style.opacity='1'}
+  if(btn){btn.disabled=false;btn.textContent=tr('model.download');btn.style.opacity='1'}
   if(dp)dp.style.display='none';
   addLog('⏹ 下载已取消');
 });
@@ -1051,10 +1099,10 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
   // 如果模型文件已存在，直接加载
   if (localModelHasFiles && !localModelLoading) {
     btn.disabled = true;
-    btn.textContent = '加载中…';
-    if (status) status.textContent = '本地模型：加载中…';
+    btn.textContent = tr('model.loading');
+    if (status) status.textContent = tr('model.localPrefix',{status:tr('model.loading')});
     const ok = await loadLocalModel((pct, msg) => {
-      if (status) status.textContent = '本地模型：' + (msg || '加载中…');
+      if (status) status.textContent = tr('model.localPrefix',{status:msg||tr('model.loading')});
       if (btn && pct !== null && pct >= 0) btn.textContent = pct + '%';
     });
     if (ok) {
@@ -1062,9 +1110,9 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
       updateStatus();
     } else {
       btn.disabled = false;
-      btn.textContent = '加载本地模型';
+      btn.textContent = tr('model.load');
       addLog('模型加载失败。详情请看日志或开发者工具控制台');
-      if (status) status.textContent = '本地模型：加载失败';
+      if (status) status.textContent = tr('model.localPrefix',{status:tr('model.loadFailed')});
     }
     return;
   }
@@ -1072,17 +1120,17 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
   // 模型文件不存在，需要下载
   downloadCancelled=false;
   btn.disabled = true;
-  btn.textContent = '下载中…';
-  if (status) status.textContent = '本地模型：准备下载…';
+  btn.textContent = tr('model.downloading');
+  if (status) status.textContent = tr('model.localPrefix',{status:tr('model.preparing')});
   if (downloadProgress) downloadProgress.style.display = 'block';
-  if (downloadStatus) downloadStatus.textContent = '正在连接下载服务器…';
+  if (downloadStatus) downloadStatus.textContent = tr('model.connecting');
   if (downloadBar) downloadBar.style.width = '0%';
   if (downloadPct) downloadPct.textContent = '0%';
   
   addLog('开始下载本地 AI 模型…');
   
   try {
-    const result = await window.petBridge.localModelDownload();
+    const result = await window.petBridge.localModelDownload(cfg.locale);
     if(downloadCancelled) return;
     if (result && result.success) {
       // 直接设置前端状态，不依赖 IPC 回查避免时序问题
@@ -1094,26 +1142,26 @@ document.getElementById('local-model-btn')?.addEventListener('click', async () =
       updateStatus();
     } else {
       btn.disabled = false;
-      btn.textContent = '下载并加载模型';
-      if (status) status.textContent = '本地模型：下载失败';
+      btn.textContent = tr('model.download');
+      if (status) status.textContent = tr('model.localPrefix',{status:tr('model.downloadFailed')});
       if (downloadProgress) downloadProgress.style.display = 'none';
       addLog('模型下载失败。请检查网络连接后重试。');
     }
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = '下载并加载模型';
-    if (status) status.textContent = '本地模型：下载异常';
+    btn.textContent = tr('model.download');
+    if (status) status.textContent = tr('model.localPrefix',{status:tr('model.downloadError')});
     if (downloadProgress) downloadProgress.style.display = 'none';
     addLog('模型下载异常: ' + (e?.message || e));
   }
 });
 // 删除本地模型按钮
 document.getElementById('local-model-delete-btn')?.addEventListener('click', async () => {
-  const ok = await petDialog.confirm('确定要删除本地模型吗？\n\n删除后需要重新下载（约 460MB）才能使用离线 AI。', { title:'删除确认' });
+  const ok = await petDialog.confirm(tr('dialog.deleteModelMessage'), { title:tr('dialog.deleteModelTitle') });
   if (!ok) return;
   const btn = document.getElementById('local-model-delete-btn');
   const status = document.getElementById('local-model-status');
-  if (btn) { btn.disabled = true; btn.textContent = '删除中…'; }
+  if (btn) { btn.disabled = true; btn.textContent = tr('model.deleting'); }
   const result = await window.petBridge.localModelDelete();
   if (result.success) {
     localModelReady = false;
@@ -1121,12 +1169,12 @@ document.getElementById('local-model-delete-btn')?.addEventListener('click', asy
     localModelLoading = false;
     addLog('本地模型已删除');
     updateStatus();
-    if (status) status.textContent = '本地模型：已删除';
+    if (status) status.textContent = tr('model.localPrefix',{status:tr('model.deleted')});
     // 恢复删除按钮
-    if (btn) { btn.disabled = false; btn.textContent = '删除本地模型'; }
+    if (btn) { btn.disabled = false; btn.textContent = tr('common.delete'); }
   } else {
-    addLog('删除模型失败: ' + (result.error || '未知错误'));
-    if (btn) { btn.disabled = false; btn.textContent = '删除本地模型'; }
+    addLog(`${tr('model.deleteFailed')}: ${resultError(result)}`);
+    if (btn) { btn.disabled = false; btn.textContent = tr('common.delete'); }
   }
 });
 segBtns.forEach(b=>b.addEventListener('click',()=>{if(!b.dataset.p)return;curP=b.dataset.p;syncSeg();}));
@@ -1151,7 +1199,7 @@ overlay.addEventListener('click',closeSettings);
 // Reset onboarding button
 document.getElementById('reset-onboarding-btn')?.addEventListener('click',()=>{
   localStorage.removeItem('nono_onboarding_done');
-  appendMsg('pet','好的，已清除引导标记。正在重新加载…');
+  appendMsg('pet',tr('status.onboardingReset'));
   setTimeout(()=>{location.reload();},1200);
 });
 let _logs = [];
@@ -1170,20 +1218,20 @@ document.getElementById('log-copy').addEventListener('click',()=>{
   const logContainer = document.getElementById('log-container');
   if(logContainer){
     navigator.clipboard.writeText(logContainer.textContent).then(()=>{
-      addLog('日志已复制到剪贴板');
+      addLog(tr('logs.copied'));
     }).catch(e=>{
-      addLog('复制失败: '+e.message);
+      addLog(tr('logs.copyFailed',{error:e.message}));
     });
   }
 });
 document.getElementById('log-clear').addEventListener('click',()=>{
   _logs = [];
   const logContainer = document.getElementById('log-container');
-  if(logContainer) logContainer.textContent = '暂无日志';
-  addLog('日志已清除');
+  if(logContainer) logContainer.textContent = tr('settings.advanced.noLogs');
+  addLog(tr('logs.cleared'));
 });
 
-addLog('孬孬启动');
+addLog(tr('logs.started'));
 
 // 接收主进程诊断日志
 if (window.petBridge && window.petBridge.onMainLog) {
@@ -1199,51 +1247,54 @@ if (window.petBridge && window.petBridge.onLocalModelProgress) {
     const downloadPct = document.getElementById('download-pct');
     const downloadBar = document.getElementById('download-bar');
     
+    const progressMessage=data.status==='downloading'
+      ? `${tr('model.downloading')} ${data.pct||0}%${data.name?` · ${data.name}`:''}`
+      : tr('model.preparing');
     if (downloadProgress) downloadProgress.style.display = 'block';
-    if (downloadStatus && data.msg) downloadStatus.textContent = data.msg;
+    if (downloadStatus) downloadStatus.textContent = progressMessage;
     if (downloadPct && data.pct !== undefined) downloadPct.textContent = data.pct + '%';
     if (downloadBar && data.pct !== undefined) downloadBar.style.width = data.pct + '%';
     
-    addLog('[下载] ' + (data.msg || '进度: ' + data.pct + '%'));
+    addLog(progressMessage);
   });
 }
 
 function summarizeFeishuReport(text){
   const clean=String(text||'').replace(/\s+/g,' ').trim().slice(0,120);
-  return clean ? `收到，你刚才汇报的是：${clean}\n我记下来了。下一步只要说清楚“接下来 5 分钟做什么”就行。` : '收到。我记下来了，下一步先用一句话说清楚要做什么。';
+  return clean ? tr('report.received',{text:clean}) : tr('report.receivedEmpty');
 }
 
 async function restartFeishuAppConnection(){
   if(!IS_ELECTRON||!window.petBridge?.startFeishuApp) return;
   if(!cfg.feishuAppEnabled){
     await window.petBridge.stopFeishuApp?.();
-    if(feishuAppStatusEl) feishuAppStatusEl.textContent='未启用飞书应用长连接';
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.feishuAppOff');
     return;
   }
   if(!isValidFeishuAppId(cfg.feishuAppId)){
-    if(feishuAppStatusEl) feishuAppStatusEl.textContent='App ID 格式不正确';
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.invalidAppId');
     return;
   }
-  if(feishuAppStatusEl) feishuAppStatusEl.textContent='正在连接飞书应用…';
+  if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.feishuConnecting');
   const result=await window.petBridge.startFeishuApp({appId:cfg.feishuAppId});
-  if(feishuAppStatusEl) feishuAppStatusEl.textContent=result?.success?'飞书应用已连接，给机器人发消息即可同步到孬孬':'连接失败：'+(result?.error||'未知错误');
+  if(feishuAppStatusEl) feishuAppStatusEl.textContent=result?.success?tr('status.feishuConnectedHint'):tr('status.sendFailed',{error:resultError(result)});
 }
 
 feishuConnectBtn?.addEventListener('click',async ()=>{
   const appId=feishuAppIdEl?.value.trim()||'';
   const secret=feishuAppSecretEl?.value.trim()||'';
   if(!isValidFeishuAppId(appId)){
-    if(feishuAppStatusEl) feishuAppStatusEl.textContent='App ID 格式不正确';
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.invalidAppId');
     return;
   }
   if(!secret){
-    if(feishuAppStatusEl) feishuAppStatusEl.textContent='请填写 App Secret';
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.needAppSecret');
     return;
   }
   if(window.petBridge?.setFeishuAppSecret){
     const saved=await window.petBridge.setFeishuAppSecret(secret);
     if(!saved){
-      if(feishuAppStatusEl) feishuAppStatusEl.textContent='App Secret 保存失败';
+      if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.secretSaveFailed');
       return;
     }
   }
@@ -1262,7 +1313,7 @@ if(window.petBridge?.onFeishuMessage){
     scheduleFeishuSupervisorSync();
     if(feishuChatIdEl) feishuChatIdEl.value=cfg.feishuAppChatId;
     learnHermesFromText(msg.text,'feishu');
-    appendMsg('user',`飞书汇报：${msg.text}`);
+    appendMsg('user',tr('report.feishuPrefix',{text:msg.text}));
     let reply=summarizeFeishuReport(msg.text);
     if(cfg.hermesAgentEnabled){
       try{
@@ -1280,7 +1331,7 @@ if(window.petBridge?.onFeishuMessage){
 
 if(window.petBridge?.onFeishuStatus){
   window.petBridge.onFeishuStatus(status=>{
-    if(feishuAppStatusEl) feishuAppStatusEl.textContent=status.connected?'飞书应用已连接':'飞书应用未连接';
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent=status.connected?tr('status.feishuConnected'):tr('status.feishuDisconnected');
   });
 }
 
@@ -1289,14 +1340,15 @@ if(window.petBridge?.onFeishuSupervisorStatus){
     if(!feishuStatusEl||!status) return;
     const minutes=normalizeFeishuInterval(status.interval||cfg.feishuInterval);
     if(!status.enabled){
-      feishuStatusEl.textContent=`飞书监督未开启；每 ${minutes} 分钟提醒一次`;
+      feishuStatusEl.textContent=tr('status.feishuOff',{minutes});
       return;
     }
     const next=Number(status.nextDueAt)||0;
     const remain=next?Math.max(0,Math.ceil((next-Date.now())/60000)):minutes;
-    feishuStatusEl.textContent=status.lastError
-      ? `飞书监督等待重试：${status.lastError}`
-      : `飞书监督由主进程运行：约 ${remain} 分钟后提醒`;
+    const error=storedErrorText(status);
+    feishuStatusEl.textContent=error
+      ? tr('status.feishuRetry',{error})
+      : tr('status.feishuRunning',{minutes:remain});
   });
 }
 
@@ -1310,29 +1362,29 @@ document.getElementById('feishu-test-btn')?.addEventListener('click',async ()=>{
   const webhook=feishuWebhookEl?.value.trim()||'';
   const hasSavedWebhook=feishuWebhookEl?.dataset.saved==='1';
   if(!window.petBridge?.setFeishuWebhook||!window.petBridge?.testFeishuSupervisor){
-    if(feishuStatusEl) feishuStatusEl.textContent='当前环境不支持飞书发送';
+    if(feishuStatusEl) feishuStatusEl.textContent=tr('status.sendUnsupported');
     return;
   }
   if(!feishuAppEnabledEl?.checked&&!webhook&&!hasSavedWebhook){
-    if(feishuStatusEl) feishuStatusEl.textContent='请先填写 Webhook';
+    if(feishuStatusEl) feishuStatusEl.textContent=tr('status.needWebhook');
     return;
   }
   if(webhook&&!isValidFeishuWebhook(webhook)){
-    if(feishuStatusEl) feishuStatusEl.textContent='Webhook 格式不正确';
+    if(feishuStatusEl) feishuStatusEl.textContent=tr('status.invalidWebhook');
     return;
   }
-  if(feishuStatusEl) feishuStatusEl.textContent='正在发送测试提醒...';
+  if(feishuStatusEl) feishuStatusEl.textContent=tr('status.testSending');
   if(webhook){
     const saved=await window.petBridge.setFeishuWebhook(webhook);
     if(!saved){
-      if(feishuStatusEl) feishuStatusEl.textContent='Webhook 保存失败';
+      if(feishuStatusEl) feishuStatusEl.textContent=tr('status.webhookSaveFailed');
       return;
     }
     feishuWebhookEl.dataset.saved='1';
     feishuWebhookEl.value='';
   }
   const result=await sendFeishuSupervisorCheckin(true);
-  if(feishuStatusEl) feishuStatusEl.textContent=result?.success?'测试提醒已发送':'发送失败：'+(result?.error||'未知错误');
+  if(feishuStatusEl) feishuStatusEl.textContent=result?.success?tr('status.testSent'):tr('status.sendFailed',{error:resultError(result)});
 });
 
 document.getElementById('save-btn').addEventListener('click',async ()=>{
@@ -1354,15 +1406,15 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   const hasSavedWebhook=feishuWebhookEl?.dataset.saved==='1';
   const hasSavedAppSecret=feishuAppSecretEl?.dataset.saved==='1';
   if(feishuEnabled&&!feishuAppEnabled&&!feishuWebhook&&!hasSavedWebhook){
-    if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
+    if(feishuStatusEl) feishuStatusEl.textContent=tr('status.needWebhook');
     return;
   }
   if(feishuWebhook&&!isValidFeishuWebhook(feishuWebhook)){
-    if(feishuStatusEl) feishuStatusEl.textContent='开启飞书监督前，请填写 Webhook，或启用飞书应用机器人';
+    if(feishuStatusEl) feishuStatusEl.textContent=tr('status.invalidWebhook');
     return;
   }
   if(feishuAppEnabled&&(!isValidFeishuAppId(feishuAppId)||(!feishuAppSecret&&!hasSavedAppSecret))){
-    if(feishuAppStatusEl) feishuAppStatusEl.textContent='启用飞书应用前，请填写 App ID 和 App Secret';
+    if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.needAppSecret');
     return;
   }
   if(hermesAgentEnabled){
@@ -1377,7 +1429,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
         cfg.confirmedHermesBaseUrl='';
       }
     }catch(e){
-      updateHermesAgentStatus(e.message||'Hermes API Base URL 不正确');
+      updateHermesAgentStatus(e.message||tr('error.hermesBase'));
       return;
     }
   }
@@ -1386,21 +1438,21 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
       providerBaseUrl=normalizeOpenAICompatibleBaseUrl(providerBaseUrl);
       if(needsOpenAIBaseUrlConsent(providerBaseUrl)){
         if(cfg.confirmedOpenAIBaseUrl!==providerBaseUrl){
-          const ok=await confirmThirdPartyBaseUrl('OpenAI 兼容接口',providerBaseUrl);
+          const ok=await confirmThirdPartyBaseUrl(tr('settings.model.openaiCompatible'),providerBaseUrl);
           if(!ok) return;
         }
       }else{
         cfg.confirmedOpenAIBaseUrl='';
       }
     }catch(e){
-      appendErrorMsg(e.message||'OpenAI Base URL 不正确');
+      appendErrorMsg(e.message||tr('error.openaiBase'));
       return;
     }
   }
   if(feishuWebhook&&window.petBridge?.setFeishuWebhook){
     const saved=await window.petBridge.setFeishuWebhook(feishuWebhook);
     if(!saved){
-      if(feishuStatusEl) feishuStatusEl.textContent='飞书 Webhook 保存失败';
+      if(feishuStatusEl) feishuStatusEl.textContent=tr('status.webhookSaveFailed');
       return;
     }
     feishuWebhookEl.dataset.saved='1';
@@ -1408,7 +1460,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   if(feishuAppSecret&&window.petBridge?.setFeishuAppSecret){
     const saved=await window.petBridge.setFeishuAppSecret(feishuAppSecret);
     if(!saved){
-      if(feishuAppStatusEl) feishuAppStatusEl.textContent='飞书 App Secret 保存失败';
+      if(feishuAppStatusEl) feishuAppStatusEl.textContent=tr('status.secretSaveFailed');
       return;
     }
     feishuAppSecretEl.dataset.saved='1';
@@ -1416,21 +1468,21 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
   if(hermesAgentKey&&window.petBridge?.setHermesApiKey){
     const saved=await window.petBridge.setHermesApiKey(hermesAgentKey);
     if(!saved){
-      updateHermesAgentStatus('Hermes API Key 保存失败');
+      updateHermesAgentStatus(tr('error.hermesKeySave'));
       return;
     }
     hermesAgentKeyEl.dataset.saved='1';
   }
   const providerKeySaved=await saveProviderApiKeyIfNeeded(providerApiKey);
   if(!providerKeySaved){
-    appendErrorMsg('API Key 保存失败');
+    appendErrorMsg(tr('error.apiKeySave'));
     return;
   }
   const hasProviderKey=IS_ELECTRON?await refreshProviderKeyState(cfg.hasApiKey):!!providerApiKey;
   const confirmedOpenAIBaseUrl=curP==='openai'&&providerBaseUrl&&needsOpenAIBaseUrlConsent(providerBaseUrl)?providerBaseUrl:'';
   const confirmedHermesBaseUrl=hermesAgentEnabled&&needsHermesBaseUrlConsent(hermesAgentBaseUrl)?hermesAgentBaseUrl:'';
   cfg={p:curP,k:IS_ELECTRON?'':providerApiKey,hasApiKey:hasProviderKey,m:fModel.value.trim(),
-    b:providerBaseUrl,proxy:false,freq:cfg.freq||'mid',confirmedOpenAIBaseUrl,
+    b:providerBaseUrl,proxy:false,freq:cfg.freq||'mid',locale:i18n?.normalizeLocale(cfg.locale)||'zh-CN',confirmedOpenAIBaseUrl,
     feishuEnabled,
     feishuInterval:normalizeFeishuInterval(feishuIntervalEl?.value),
     feishuAppEnabled,
@@ -1443,7 +1495,7 @@ document.getElementById('save-btn').addEventListener('click',async ()=>{
     hermesEnabled,
     longTasks};
   save();history=[];closeSettings();
-  appendMsg('pet',hasKey()?'设置好了。\n快来跟我聊天吧！':'好的，我在这里。');
+  appendMsg('pet',hasKey()?tr('status.settingsSaved'):tr('status.readyHere'));
   restartFeishuAppConnection();
   restartFeishuSupervisor();
   restartLongTaskSupervisor();
@@ -1475,7 +1527,7 @@ function scrollToBottom(){
 }
 
 function fmtTime(d){
-  return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
+  return d.toLocaleTimeString(i18n?.getIntlLocale()||'zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
 }
 
 function escHtml(s){
@@ -1550,11 +1602,11 @@ document.getElementById('dlg-clear').addEventListener('click',()=>{
 
 /* ════════ API — STREAMING ════════ */
 function hermesAgentMessages(userText, source='chat'){
-  const label=source==='feishu'?'飞书监督汇报':'桌面聊天';
+  const label=source==='feishu'?'Feishu supervision report':'desktop chat';
   return [
-    {role:'system',content:`${buildHermesSystemPrompt()}\n\n你正在通过孬孬连接官方 Hermes Agent。回复要短、直接、适合 ADHD 用户执行；如果是飞书监督汇报，先确认收到，再要求用户给出下一步 5-15 分钟的具体动作。`},
+    {role:'system',content:`${buildHermesSystemPrompt()}\n\nYou are connected through Nono. Keep replies short, direct, and actionable for a user with ADHD. For a Feishu report, acknowledge it and ask for one concrete action for the next 5-15 minutes.`},
     ...history.filter(item=>typeof item.content==='string').slice(-8),
-    {role:'user',content:`来源：${label}\n用户消息：${userText||''}`},
+    {role:'user',content:`Source: ${label}\nUser message: ${userText||''}`},
   ];
 }
 
@@ -1568,10 +1620,10 @@ async function requestHermesAgentReply(userText, source='chat'){
       messages,
       maxTokens:220,
     });
-    if(!result?.success) throw new Error(result?.error||'Hermes Agent 请求失败');
+    if(!result?.success) throw new Error(resultError(result,'error.requestFailed'));
     return String(result.text||'').trim()||summarizeFeishuReport(userText);
   }
-  throw new Error('当前客户端不支持主进程 Hermes 请求通道，请重新启动应用。');
+  throw new Error(tr('error.hermesChannel'));
 }
 
 async function streamHermesAgent(msg){
@@ -1586,7 +1638,7 @@ async function streamHermesAgent(msg){
       messages,
       maxTokens:240,
     });
-    if(!result?.success) throw new Error(result?.error||'Hermes Agent 请求失败');
+    if(!result?.success) throw new Error(resultError(result,'error.requestFailed'));
     const full=String(result.text||'').trim()||'…';
     const fn=window._streamPatch||onStreamChunk;
     for(const chunk of full.match(/.{1,16}/gs)||[full]) fn(chunk);
@@ -1596,7 +1648,7 @@ async function streamHermesAgent(msg){
     }
     return;
   }
-  throw new Error('当前客户端不支持主进程 Hermes 请求通道，请重新启动应用。');
+  throw new Error(tr('error.hermesChannel'));
 }
 
 /* ── streaming bubble state ── */
@@ -1654,11 +1706,11 @@ async function send(){
     // 没有 API key，确保本地模型已加载
     if (!localModelReady) {
       const loaded = await loadLocalModel((pct, msg) => {
-        updateStatus(msg || '加载中…');
+        updateStatus(msg || tr('model.loading'));
       });
       if (!loaded) {
         setTimeout(()=>{
-          appendMsg('pet', '本地模型加载失败，当前使用智能话术回复。\n\n你可以：\n1. 检查模型文件是否完整\n2. 设置里填入 API Key 获得更好的体验');
+          appendMsg('pet',tr('model.fallbackMessage'));
         }, 300);
         return;
       }
@@ -1711,7 +1763,7 @@ async function send(){
     pw.classList.remove('thinking');
     removeThinking();
     finalizeStreamBubble();
-    const txt=(e&&e.message)?e.message:String(e||'未知错误');
+    const txt=(e&&e.message)?e.message:String(e||tr('common.unknownError'));
     appendErrorMsg(txt);
     if(history.at(-1)?.role==='user') history.pop();
     console.error('[孬孬]',e);
@@ -1725,7 +1777,7 @@ async function streamAPIPatched(msg,img){
     return;
   }
   if(!IS_ELECTRON){
-    throw new Error('孬孬只维护 Electron 桌面客户端，请使用 npm start 或安装包启动。');
+    throw new Error(tr('error.desktopOnly'));
   }
   const isAnthropic=cfg.p==='anthropic';
   let userContent;
@@ -1736,11 +1788,11 @@ async function streamAPIPatched(msg,img){
       const data = m ? m[2] : '';
       userContent = [
         { type:'image', source:{ type:'base64', media_type:mediaType, data } },
-        { type:'text', text: msg || '(图片)' }
+        { type:'text', text: msg || tr('error.image') }
       ];
     } else {
       userContent = [
-        { type:'text', text: msg || '(图片)' },
+        { type:'text', text: msg || tr('error.image') },
         { type:'image_url', image_url:{ url: img } }
       ];
     }
@@ -1761,7 +1813,7 @@ async function streamAPIPatched(msg,img){
       messages:isAnthropic?history:[{role:'system',content:systemPrompt},...history],
       maxTokens:200,
     });
-    if(!result?.success) throw new Error(result?.error||'AI request failed');
+    if(!result?.success) throw new Error(resultError(result,'error.requestFailed'));
     const full=String(result.text||'').trim()||'…';
     const chunks=full.match(/[\s\S]{1,18}/g)||[full];
     for(const chunk of chunks){
@@ -1774,7 +1826,7 @@ async function streamAPIPatched(msg,img){
     }
     return;
   }
-  throw new Error('当前客户端不支持主进程 AI 请求通道，请重新启动应用。');
+  throw new Error(tr('error.aiChannel'));
 }
 
 function appendErrorMsg(txt){
@@ -1794,7 +1846,7 @@ function appendErrorMsg(txt){
 /* ════════ NON-STREAMING JSON REQUEST (for AI 拆解) ════════ */
 async function requestJSON(userPrompt, systemPrompt, opt={}){
   if(!IS_ELECTRON){
-    throw new Error('孬孬只维护 Electron 桌面客户端，请使用 npm start 或安装包启动。');
+    throw new Error(tr('error.desktopOnly'));
   }
   const isAnthropic=cfg.p==='anthropic';
   const model=cfg.m||(isAnthropic?DEFAULT_MODEL.anthropic:DEFAULT_MODEL.openai);
@@ -1815,10 +1867,10 @@ async function requestJSON(userPrompt, systemPrompt, opt={}){
       messages:body.messages,
       maxTokens:800,
     });
-    if(!result?.success) throw new Error(result?.error||'AI request failed');
+    if(!result?.success) throw new Error(resultError(result,'error.requestFailed'));
     return String(result.text||'');
   }
-  throw new Error('当前客户端不支持主进程 AI 请求通道，请重新启动应用。');
+  throw new Error(tr('error.aiChannel'));
 }
 
 function parseStepsLoose(s){
@@ -1850,21 +1902,21 @@ function parseStepsLoose(s){
 const BREAKDOWN_SYS = `You break a task into 3-5 concrete, sequential, actionable steps.
 Output ONLY JSON, no prose, no code fences:
 {"steps":["step1","step2","step3"]}
-Each step: imperative, <=20 chars (Chinese) or <=40 chars (English),
+Each step: imperative and concise (at most 40 characters),
 specific enough to start in <2 minutes. Match the language of the input.`;
 
 async function requestBreakdown(taskId, confirmReplace){
   const t=TaskStore.state.tasks.find(x=>x.id===taskId);
   if(!t) return;
   if(!hasKey()){
-    _toastByTaskId[taskId]='请先在设置里配置 API Key';
+    _toastByTaskId[taskId]=tr('task.needApiKey');
     renderTasks();return;
   }
   // 已有子步骤 → 弹框确认替换
   if(!confirmReplace && t.subtasks.length>0){
     const ok = await petDialog.confirm(
-      `「${t.title}」已经有 ${t.subtasks.length} 个子步骤，要替换成新的拆解结果吗？`,
-      { title:'重新拆解', okText:'替换', cancelText:'保留原来的' });
+      tr('dialog.replaceStepsMessage',{title:t.title,count:t.subtasks.length}),
+      { title:tr('dialog.replaceStepsTitle'), okText:tr('dialog.replace'), cancelText:tr('dialog.keep') });
     if(!ok) return;
   }
   _aiBusyTaskId=taskId;
@@ -1876,14 +1928,14 @@ async function requestBreakdown(taskId, confirmReplace){
     addLog(`拆解结果: ${raw.substring(0,100)}${raw.length>100?'...':''}`);
     const steps=parseStepsLoose(raw);
     if(!steps.length){
-      _toastByTaskId[taskId]='AI 没返回有效结果';
+      _toastByTaskId[taskId]=tr('task.invalidAiResult');
       addLog('AI 没返回有效结果');
     } else {
       TaskStore.setSubtasks(taskId, steps);
       addLog(`拆解成功，得到 ${steps.length} 个步骤`);
     }
   }catch(e){
-    _toastByTaskId[taskId]='拆解失败：'+(e.message||'未知错误');
+    _toastByTaskId[taskId]=tr('task.breakdownFailed',{error:e.message||tr('common.unknownError')});
     addLog('拆解失败: '+e.message);
   }finally{
     _aiBusyTaskId=null;
@@ -1918,14 +1970,14 @@ if(attachBtn && fileInput){
     const f = fileInput.files && fileInput.files[0];
     if(!f) return;
     const ALLOWED = ['image/png','image/jpeg','image/webp','image/gif'];
-    if(!ALLOWED.includes(f.type)){ petDialog.alert('只支持 PNG / JPEG / WEBP / GIF 图片', { title:'图片格式不支持' }); fileInput.value=''; return; }
-    if(f.size > 4*1024*1024){ petDialog.alert('图片太大啦，请上传 4MB 以内的图片', { title:'图片过大' }); fileInput.value=''; return; }
+    if(!ALLOWED.includes(f.type)){ petDialog.alert(tr('dialog.imageTypeMessage'), { title:tr('dialog.imageTypeTitle') }); fileInput.value=''; return; }
+    if(f.size > 4*1024*1024){ petDialog.alert(tr('dialog.imageLargeMessage'), { title:tr('dialog.imageLargeTitle') }); fileInput.value=''; return; }
     const reader = new FileReader();
     reader.onload = e => {
       const url = e.target.result;
       // Belt-and-suspenders: confirm the data URL prefix matches what we accepted
       if(typeof url !== 'string' || !/^data:image\/(png|jpe?g|webp|gif);/i.test(url)){
-        petDialog.alert('图片格式异常', { title:'图片读取失败' }); fileInput.value=''; return;
+        petDialog.alert(tr('dialog.imageReadMessage'), { title:tr('dialog.imageReadTitle') }); fileInput.value=''; return;
       }
       attachedImage = url;
       imgPreviewThumb.src = attachedImage;
@@ -2072,8 +2124,8 @@ if(taskAddInput){
       if(!v) return;
       const t=TaskStore.addTask(v);
       if(!t){
-        taskAddInput.placeholder=`已达上限 ${MAX_TASKS} 个任务`;
-        setTimeout(()=>{taskAddInput.placeholder='加个任务…（回车确认）';},2000);
+        taskAddInput.placeholder=tr('chat.taskLimit',{max:MAX_TASKS});
+        setTimeout(()=>{taskAddInput.placeholder=tr('chat.taskPlaceholder');},2000);
         return;
       }
       taskAddInput.value='';
@@ -2096,7 +2148,7 @@ function renderTasks(){
   if(!taskRowsEl) return;
   const {tasks,activeId}=TaskStore.state;
   if(!tasks.length){
-    taskRowsEl.innerHTML='<div id="task-empty">点 + 加第一个任务，让我陪你专注</div>';
+    taskRowsEl.innerHTML=`<div id="task-empty">${tr('task.empty')}</div>`;
     return;
   }
   // 排序：active 置顶，然后按 createdAt 倒序
@@ -2121,14 +2173,14 @@ function renderTasks(){
         <span class="tl-dot"></span>
         <span class="tl-title" data-act="title">${escHtml(t.title)}</span>
         ${progress}
-        <button class="tl-menu-btn" data-act="menu" aria-label="任务菜单">⋯</button>
+        <button class="tl-menu-btn" data-act="menu" aria-label="${tr('task.menu')}">⋯</button>
       </div>
       <div class="tl-subs">
         ${t.subtasks.map(s=>`
           <div class="tl-sub${s.done?' done':''}" data-sub-id="${escAttr(s.id)}">
             <div class="tl-check${s.done?' on':''}" data-act="toggle"></div>
             <span class="tl-sub-text" data-act="sub-text">${escHtml(s.text)}</span>
-            <button class="tl-sub-del" data-act="sub-del" aria-label="删除">✕</button>
+            <button class="tl-sub-del" data-act="sub-del" aria-label="${tr('task.deleteSubtask')}">✕</button>
           </div>
         `).join('')}
         ${_aiBusyTaskId===t.id ? `
@@ -2136,19 +2188,19 @@ function renderTasks(){
             <div class="tl-shimmer-row" style="width:80%"></div>
             <div class="tl-shimmer-row" style="width:60%"></div>
             <div class="tl-shimmer-row" style="width:72%"></div>
-            <div class="tl-shimmer-tip">✦ AI 正在拆解…</div>
+            <div class="tl-shimmer-tip">${tr('task.aiWorking')}</div>
           </div>
         ` : ''}
         ${_toastByTaskId[t.id] ? `
           <div class="tl-toast">
             <span>${escHtml(_toastByTaskId[t.id])}</span>
-            <button data-act="retry">重试</button>
-            <button data-act="toast-close">关</button>
+            <button data-act="retry">${tr('common.retry')}</button>
+            <button data-act="toast-close">${tr('common.dismiss')}</button>
           </div>
         ` : ''}
         <div class="tl-actions">
-          ${(hasKey() && _aiBusyTaskId!==t.id) ? `<button class="tl-btn primary" data-act="ai">✦ AI 帮我拆</button>`:''}
-          ${t.subtasks.length<MAX_SUBS ? `<button class="tl-btn" data-act="add-sub">+ 子步骤</button>`:''}
+          ${(hasKey() && _aiBusyTaskId!==t.id) ? `<button class="tl-btn primary" data-act="ai">${tr('task.aiBreakdown')}</button>`:''}
+          ${t.subtasks.length<MAX_SUBS ? `<button class="tl-btn" data-act="add-sub">${tr('task.addSubtask')}</button>`:''}
         </div>
       </div>
     `;
@@ -2206,8 +2258,8 @@ if(taskRowsEl){
     }
     if(act==='add-sub'){
       e.stopPropagation();
-      petDialog.prompt('新的子步骤：',
-        { title:'添加子步骤', placeholder:'比如「打开编辑器」', okText:'添加' })
+      petDialog.prompt(tr('dialog.addSubtaskMessage'),
+        { title:tr('dialog.addSubtaskTitle'), placeholder:tr('dialog.addSubtaskPlaceholder'), okText:tr('common.add').replace(/^\+\s*/, '') })
         .then(text=>{ if(text) TaskStore.addSub(taskId, text); });
       return;
     }
@@ -2259,9 +2311,9 @@ function openTaskMenu(container, btn, taskId){
   _menuPop=document.createElement('div');
   _menuPop.className='tl-menu-pop';
   _menuPop.innerHTML=`
-    <button data-m="rename">重命名</button>
-    <button data-m="toggle-done">${t.done?'恢复':'标记完成'}</button>
-    <button data-m="delete" class="danger">删除任务</button>
+    <button data-m="rename">${tr('task.rename')}</button>
+    <button data-m="toggle-done">${t.done?tr('task.restore'):tr('task.markDone')}</button>
+    <button data-m="delete" class="danger">${tr('task.delete')}</button>
   `;
   document.body.appendChild(_menuPop);
   const r=btn.getBoundingClientRect();
@@ -2279,8 +2331,8 @@ function openTaskMenu(container, btn, taskId){
       closeMenu();
     } else if(m==='delete'){
       closeMenu();
-      const ok = await petDialog.confirm(`确定要删除任务「${t.title}」吗？这个操作无法撤销。`,
-        { title:'删除任务', danger:true, okText:'删除', cancelText:'再想想' });
+      const ok = await petDialog.confirm(tr('dialog.deleteTaskMessage',{title:t.title}),
+        { title:tr('dialog.deleteTaskTitle'), danger:true, okText:tr('common.delete'), cancelText:tr('dialog.thinkAgain') });
       if(ok) TaskStore.removeTask(taskId);
     } else {
       closeMenu();
@@ -2320,10 +2372,10 @@ function renderPomo(){
   pomoTimeEl.textContent=fmtPomo(pomoLeft);
   const pct=100*(1-pomoLeft/pomoTotal);
   pomoFill.style.width=pct+'%';
-  pomoModeEl.textContent=pomoMode==='work'?'专注中':'休息中';
+  pomoModeEl.textContent=pomoMode==='work'?tr('pomo.focus'):tr('pomo.break');
   pomoCountEl.textContent=`● × ${pomoCount}`;
   pomoWidget.classList.toggle('break-mode',pomoMode==='break');
-  pomoStartBtn.textContent=pomoRunning?'暂停':'开始';
+  pomoStartBtn.textContent=pomoRunning?tr('common.pause'):tr('common.start');
   pomoStartBtn.classList.toggle('running',pomoRunning);
 }
 
@@ -2337,17 +2389,17 @@ function pomoComplete(){
     pomoMode='break';pomoLeft=POMO_BREAK;pomoTotal=POMO_BREAK;
     spawnHeart(px+55,py+35);
     const act=TaskStore.getActive();
-    const head=act?`「${act.title}」专注完成。`:'专注完成。';
+    const head=act?tr('pomo.taskComplete',{title:act.title}):tr('pomo.focusComplete');
     const next=act?TaskStore.nextUnchecked(act.id):null;
     if(next){
       appendPomoNext(head, act.id, next.id, next.text);
     } else {
-      appendMsg('pet',`${head}\n休息 5 分钟，深呼吸～`);
+      appendMsg('pet',tr('pomo.takeBreak',{head}));
       setTimeout(()=>promptMood(),800);
     }
   } else {
     pomoMode='work';pomoLeft=POMO_WORK;pomoTotal=POMO_WORK;
-    appendMsg('pet','休息结束了。\n准备好继续了吗？');
+    appendMsg('pet',tr('pomo.breakOver'));
   }
   renderPomo();
 }
@@ -2387,16 +2439,16 @@ const StatsRenderer={
     const total=StatsStore.totalFocusMin();
     const streak=StatsStore.streakDays();
     el.innerHTML=today===0 && week===0
-      ?`<div class="stat-empty">●<br>还没有番茄记录<br>开一个试试吧</div>`
-      :`<div class="stat-numbers"><div class="stat-big">◉ ${streak}</div><div class="stat-label">连续打卡</div></div>
-         <div class="stat-row"><span>今日</span><strong>${today} 次</strong><span>本周</span><strong>${week} 次</strong></div>
-         <div class="stat-row">累计专注 <strong>${total} 分钟</strong></div>`;
+      ?`<div class="stat-empty">${escHtml(tr('stats.noPomodoro'))}</div>`
+      :`<div class="stat-numbers"><div class="stat-big">◉ ${streak}</div><div class="stat-label">${tr('stats.streak')}</div></div>
+         <div class="stat-row"><span>${tr('stats.today')}</span><strong>${tr('stats.times',{count:today})}</strong><span>${tr('stats.week')}</span><strong>${tr('stats.times',{count:week})}</strong></div>
+         <div class="stat-row">${tr('stats.totalFocus',{minutes:`<strong>${total}</strong>`})}</div>`;
   },
   renderCalendar(){
     const el=document.getElementById('stats-cal');
     const weeks=StatsStore.calendarWeeks();
     let h='<div class="cal-grid">';
-    const labels=['一','二','三','四','五','六','日'];
+    const labels=Array.from({length:7},(_,index)=>new Intl.DateTimeFormat(i18n?.getIntlLocale(),{weekday:'narrow'}).format(new Date(2024,0,index+1)));
     h+='<div class="cal-row cal-hdr">'+labels.map(l=>`<div class="cal-cell cal-label">${l}</div>`).join('')+'</div>';
     weeks.forEach(w=>{
       h+='<div class="cal-row">'+w.map(d=>{
@@ -2405,7 +2457,7 @@ const StatsRenderer={
         else if(d.count>0) cls+=' cal-done';
         else cls+=' cal-empty';
         if(d.today) cls+=' cal-today';
-        return `<div class="${cls}" title="${d.date}: ${d.count} 次">${d.count>0?'●':''}</div>`;
+        return `<div class="${cls}" title="${d.date}: ${tr('stats.times',{count:d.count})}">${d.count>0?'●':''}</div>`;
       }).join('')+'</div>';
     });
     h+='</div>';
@@ -2415,25 +2467,25 @@ const StatsRenderer={
     const el=document.getElementById('stats-fridge-card');
     const total=freezerItems.length;
     el.innerHTML=total===0
-      ?`<div class="stat-empty">◇<br>还没有冷冻的想法<br><small>点击右下角按钮，把闪现的想法冻起来</small></div>`
-      :`<div class="stat-numbers"><div class="stat-big">◇ ${total}</div><div class="stat-label">已冷冻的想法</div></div>
-         <div class="stat-row">最新：<strong>${escHtml((freezerItems[0]?.text||'').slice(0,20))}</strong></div>`;
+      ?`<div class="stat-empty">${escHtml(tr('stats.noIdeas'))}<br><small>${tr('stats.noIdeasHint')}</small></div>`
+      :`<div class="stat-numbers"><div class="stat-big">◇ ${total}</div><div class="stat-label">${tr('stats.frozenIdeas')}</div></div>
+         <div class="stat-row">${tr('stats.latest')}<strong>${escHtml((freezerItems[0]?.text||'').slice(0,20))}</strong></div>`;
   },
   renderTrend(){
     const el=document.getElementById('stats-trend');
     const m=StatsStore.dailyMap(this.trendDays);
     const days=Object.keys(m).sort();
     const max=Math.max(...Object.values(m),1);
-    let h=`<div class="trend-header">▧ 近${this.trendDays}天趋势 <button class="trend-switch">${this.trendDays===7?'30天':'7天'}</button></div>
+    let h=`<div class="trend-header">${tr('stats.trendDays',{days:this.trendDays})} <button class="trend-switch">${tr('stats.switchDays',{days:this.trendDays===7?30:7})}</button></div>
            <div class="trend-bars">`;
     days.forEach(d=>{
       const v=m[d];const pct=(v/max*100).toFixed(0);
       const label=d.slice(5);
-      h+=`<div class="trend-bar-wrap"><div class="trend-bar" style="height:${pct}%" title="${d}: ${v} 次"></div><span class="trend-label">${label}</span></div>`;
+      h+=`<div class="trend-bar-wrap"><div class="trend-bar" style="height:${pct}%" title="${d}: ${tr('stats.times',{count:v})}"></div><span class="trend-label">${label}</span></div>`;
     });
     h+='</div>';
     const mm=getMoodTrend(this.trendDays);
-    const me={3:'稳',2:'中',1:'低'};
+    const me={3:tr('stats.stable'),2:tr('stats.medium'),1:tr('stats.low')};
     h+='<div class="mood-row">'+days.map(d=>`<span class="mood-dot">${mm[d]?me[mm[d]]:''}</span>`).join('')+'</div>';
     el.innerHTML=h;
     setTimeout(()=>{const btn=document.querySelector('#stats-trend .trend-switch');if(btn)btn.addEventListener('click',()=>StatsRenderer.switchTrend(StatsRenderer.trendDays===7?30:7));},0);
@@ -2482,7 +2534,7 @@ const updateBD=(persist=true)=>{
 };
 bdBtn.addEventListener('click',()=>{
   bdOn=!bdOn;updateBD();
-  if(bdOn)appendMsg('pet','孬孬也在认真陪你。');
+  if(bdOn)appendMsg('pet',tr('bodyDouble.active'));
 });
 window.addEventListener('storage',e=>{
   if(e.key==='nono_bd'){
@@ -2505,7 +2557,7 @@ const updateFreezer=()=>{privateSet('nono_freezer',JSON.stringify(freezerItems))
 const freezeIdea=(text)=>{if(!text.trim())return;freezerItems.unshift({id:'fz_'+Date.now(),text:text.trim(),frozenAt:new Date().toISOString()});updateFreezer();fzInput.value=''};
 const thawIdea=(id)=>{freezerItems=freezerItems.filter(i=>i.id!==id);updateFreezer()};
 const useIdea=(id)=>{const item=freezerItems.find(i=>i.id===id);if(!item)return;const taskInput=document.getElementById('task-add-input');if(taskInput){taskInput.value=item.text;taskInput.focus();taskInput.dispatchEvent(new Event('input',{bubbles:true}))}thawIdea(id);closeFreezer()};
-const renderFreezerList=()=>{fzList.innerHTML='';if(freezerItems.length===0){fzEmpty.style.display='block';fzList.style.display='none'}else{fzEmpty.style.display='none';fzList.style.display='flex';freezerItems.forEach(item=>{const el=document.createElement('div');el.className='fz-item';el.innerHTML=`<span class="fz-text"></span><button class="fz-use" title="取用为任务锚">⌖</button><button class="fz-thaw" title="解冻删除">✕</button>`;el.querySelector('.fz-text').textContent=item.text;el.querySelector('.fz-use').addEventListener('click',()=>useIdea(item.id));el.querySelector('.fz-thaw').addEventListener('click',()=>thawIdea(item.id));fzList.appendChild(el)})}};
+const renderFreezerList=()=>{fzList.innerHTML='';if(freezerItems.length===0){fzEmpty.style.display='block';fzList.style.display='none'}else{fzEmpty.style.display='none';fzList.style.display='flex';freezerItems.forEach(item=>{const el=document.createElement('div');el.className='fz-item';el.innerHTML=`<span class="fz-text"></span><button class="fz-use" title="${tr('freezer.use')}">⌖</button><button class="fz-thaw" title="${tr('freezer.thaw')}">✕</button>`;el.querySelector('.fz-text').textContent=item.text;el.querySelector('.fz-use').addEventListener('click',()=>useIdea(item.id));el.querySelector('.fz-thaw').addEventListener('click',()=>thawIdea(item.id));fzList.appendChild(el)})}};
 const openFreezer=()=>{renderFreezerList();fzDrawer.classList.add('open');fzOverlay.style.display='block';fzBtn.classList.add('active')};
 const closeFreezer=()=>{fzDrawer.classList.remove('open');fzOverlay.style.display='none';fzBtn.classList.remove('active')};
 
@@ -2522,11 +2574,11 @@ let moodJournal=JSON.parse(privateGet(MOOD_KEY,'[]'));
 const saveMood=()=>privateSet(MOOD_KEY,JSON.stringify(moodJournal));
 const promptMood=()=>{
   const row=document.createElement('div');row.className='mood-prompt';
-  row.innerHTML='<span>刚才感觉怎么样？</span><button data-m="great">稳</button><button data-m="ok">中</button><button data-m="low">低</button>';
+  row.innerHTML=`<span>${tr('mood.question')}</span><button data-m="great">${tr('stats.stable')}</button><button data-m="ok">${tr('stats.medium')}</button><button data-m="low">${tr('stats.low')}</button>`;
   row.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
     moodJournal.push({mood:b.dataset.m,date:localDateKey(),ts:Date.now()});
     saveMood();
-    row.innerHTML='<span style="opacity:.7">已记录：'+b.textContent+'</span>';
+    row.innerHTML=`<span style="opacity:.7">${tr('mood.recorded',{mood:b.textContent})}</span>`;
   }));
   dlgMsgs.appendChild(row);dlgMsgs.scrollTop=dlgMsgs.scrollHeight;
 };
@@ -2554,10 +2606,10 @@ function appendPomoNext(head, taskId, subId, subText){
   function render(currentSub){
     const checks=doneList.map(t=>`<div style="color:var(--green)">✓ ${escHtml(t)}</div>`).join('');
     if(currentSub){
-      bubble.innerHTML=`${escHtml(head)}${checks}<br>下一步：<b>${escHtml(currentSub.text)}</b>
+      bubble.innerHTML=`${escHtml(head)}${checks}<br>${tr('pomo.next')}<b>${escHtml(currentSub.text)}</b>
         <div class="pomo-next-act">
-          <button class="pomo-next-do">✓ 完成这步</button>
-          <button class="pomo-next-skip">跳过</button>
+          <button class="pomo-next-do">${tr('pomo.completeStep')}</button>
+          <button class="pomo-next-skip">${tr('pomo.skip')}</button>
         </div>`;
       bubble.querySelector('.pomo-next-do').addEventListener('click',()=>{
         TaskStore.toggleSub(taskId,currentSub.id);
@@ -2569,7 +2621,7 @@ function appendPomoNext(head, taskId, subId, subText){
         bubble.querySelector('.pomo-next-act')?.remove();
       });
     } else {
-      bubble.innerHTML=`${escHtml(head)}${checks}<br>全部完成。休息 5 分钟吧`;
+      bubble.innerHTML=`${escHtml(head)}${checks}<br>${tr('pomo.allDone')}`;
     }
   }
   render({id:subId, text:subText});
@@ -2680,32 +2732,16 @@ const IDLE_INTERVAL=15000+Math.random()*15000; // first idle message sooner
 
 function checkinMsg(){
   const now=new Date();
-  const hm=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const hm=now.toLocaleTimeString(i18n?.getIntlLocale()||'zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
   const act = TaskStore.getActive();
   if(act){
     const next = TaskStore.nextUnchecked(act.id);
     if(next){
-      const msgs=[
-        `${hm}\n下一步：${next.text}`,
-        `${hm} 了\n要不要做「${next.text}」？`,
-        `${hm}\n「${act.title}」下一步：${next.text}`,
-      ];
-      return rand(msgs);
+      return `${hm}\n${tr('reminder.nextStep',{step:next.text})}`;
     }
-    const msgs=[
-      `${hm}\n你还在做「${act.title}」吗？`,
-      `${hm} 了\n「${act.title}」进展怎么样？`,
-      `${hm}\n还好吗，还在做「${act.title}」？`,
-    ];
-    return rand(msgs);
-  } else {
-    const msgs=[
-      `${hm}\n你在做什么呢？`,
-      `${hm} 了，注意时间。`,
-      `${hm}，还好吗？`,
-    ];
-    return rand(msgs);
+    return `${tr('reminder.whatDoing',{time:hm})}\n${tr('reminder.currentTask',{title:act.title})}`;
   }
+  return tr('reminder.whatDoing',{time:hm});
 }
 
 let feishuSupervisorSyncTimer=null;
@@ -2730,39 +2766,40 @@ function buildFeishuSupervisorConfig(opt={}){
     appEnabled: fromFields ? !!feishuAppEnabledEl?.checked : !!cfg.feishuAppEnabled,
     appId: fromFields ? (feishuAppIdEl?.value.trim()||'') : (cfg.feishuAppId||''),
     chatId: fromFields ? (feishuChatIdEl?.value.trim()||'') : (cfg.feishuAppChatId||''),
+    locale: cfg.locale,
     task: getFeishuSupervisorTaskSnapshot(),
   };
 }
 
 function buildFeishuCheckinText(isTest=false){
   const now=new Date();
-  const hm=now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const hm=now.toLocaleTimeString(i18n?.getIntlLocale()||'zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
   const act=TaskStore.getActive();
   const lines=[
-    isTest ? '【孬孬测试提醒】' : '【孬孬监督签到】',
-    `${hm} 现在在做什么？`,
+    tr(isTest?'reminder.checkinTest':'reminder.checkin'),
+    tr('reminder.whatDoing',{time:hm}),
   ];
   if(act){
     const next=TaskStore.nextUnchecked(act.id);
-    lines.push(`当前任务：${act.title}`);
-    if(next) lines.push(`下一步：${next.text}`);
+    lines.push(tr('reminder.currentTask',{title:act.title}));
+    if(next) lines.push(tr('reminder.nextStep',{step:next.text}));
   }
-  lines.push('请用一句话回复/记录：我刚才在做什么，下一步做什么。');
+  lines.push(tr('reminder.replyOneLine'));
   return lines.join('\n');
 }
 
 async function sendFeishuSupervisorCheckin(isTest=false){
-  if(!IS_ELECTRON||feishuSending) return {success:false,error:'飞书发送不可用'};
+  if(!IS_ELECTRON||feishuSending) return {success:false,errorKey:'status.sendUnsupported'};
   feishuSending=true;
   try{
     const config=buildFeishuSupervisorConfig({fromFields:isTest, enabled:isTest?true:undefined});
     const result=window.petBridge?.testFeishuSupervisor
       ? await window.petBridge.testFeishuSupervisor(config)
-      : {success:false,error:'飞书发送不可用'};
+      : {success:false,errorKey:'status.sendUnsupported'};
     if(result?.success){
       addLog(isTest?'飞书测试提醒已发送':'飞书监督提醒已发送');
     }else{
-      addLog('Feishu supervisor configure failed: '+(result?.error||'unknown error'));
+      addLog('Feishu supervisor configure failed: '+resultError(result));
     }
     return result;
   }finally{
@@ -2777,7 +2814,7 @@ function restartFeishuSupervisor(){
       const minutes=normalizeFeishuInterval(config.interval);
       addLog(config.enabled?('Feishu supervisor moved to main: every '+minutes+' minutes'):'Feishu supervisor disabled in main');
     }else{
-      addLog('Feishu supervisor configure failed: '+(result?.error||'unknown error'));
+      addLog('Feishu supervisor configure failed: '+resultError(result));
     }
   }).catch(e=>addLog('Feishu supervisor configure failed: '+(e.message||e)));
 }
@@ -2795,9 +2832,10 @@ const longTaskSendingIds=new Set();
 
 function buildLongTaskSupervisorConfig(){
   return {
+    locale:cfg.locale,
     tasks:normalizeLongTasks(cfg.longTasks).map(task=>({
       id:task.id,
-      title:task.title,
+      title:longTaskTitle(task),
       goal:task.goal,
       interval:task.interval,
       enabled:task.enabled,
@@ -2806,6 +2844,8 @@ function buildLongTaskSupervisorConfig(){
       nextDueAt:task.nextDueAt,
       retryCount:task.retryCount,
       lastError:task.lastError,
+      lastErrorKey:task.lastErrorKey,
+      lastErrorValues:task.lastErrorValues,
     })),
   };
 }
@@ -2817,14 +2857,25 @@ function applyLongTaskSupervisorState(state){
   cfg.longTasks=normalizeLongTasks(cfg.longTasks).map(task=>{
     const fresh=tasks.find(item=>item.id===task.id);
     if(!fresh) return task;
-    changed=true;
-    return {
+    const next={
       ...task,
       lastSentAt:Number(fresh.lastSentAt)||task.lastSentAt,
       nextDueAt:Number(fresh.nextDueAt)||0,
       retryCount:Number(fresh.retryCount)||0,
       lastError:String(fresh.lastError||''),
+      lastErrorKey:String(fresh.lastErrorKey||''),
+      lastErrorValues:fresh.lastErrorValues&&typeof fresh.lastErrorValues==='object'&&!Array.isArray(fresh.lastErrorValues)
+        ? {...fresh.lastErrorValues}
+        : null,
     };
+    const taskChanged=next.lastSentAt!==task.lastSentAt
+      ||next.nextDueAt!==task.nextDueAt
+      ||next.retryCount!==task.retryCount
+      ||next.lastError!==task.lastError
+      ||next.lastErrorKey!==task.lastErrorKey
+      ||JSON.stringify(next.lastErrorValues)!==JSON.stringify(task.lastErrorValues);
+    if(taskChanged) changed=true;
+    return taskChanged?next:task;
   });
   if(changed){
     save();
@@ -2833,27 +2884,28 @@ function applyLongTaskSupervisorState(state){
 }
 
 function buildLongTaskCheckinText(task,isTest=false){
-  const hm=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  const hm=new Date().toLocaleTimeString(i18n?.getIntlLocale()||'zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
   const lines=[
-    isTest?'[孬孬长远任务测试]':'[孬孬长远任务追踪]',
-    `${hm} 请汇报这个目标的进度：${task.title}`,
+    tr(isTest?'reminder.longTaskTest':'reminder.longTask'),
+    tr('reminder.longTaskProgress',{time:hm,title:longTaskTitle(task)}),
   ];
-  if(task.goal) lines.push(`目标说明：${task.goal}`);
-  lines.push(`汇报间隔：每 ${normalizeLongTaskInterval(task.interval)} 分钟`);
-  lines.push('请用三句话回复：1. 刚推进了什么；2. 遇到什么阻碍；3. 下一步具体做什么。');
+  if(task.goal) lines.push(tr('reminder.goal',{goal:task.goal}));
+  lines.push(tr('reminder.interval',{minutes:normalizeLongTaskInterval(task.interval)}));
+  lines.push(tr('reminder.replyThreeLines'));
   return lines.join('\n');
 }
 
 async function sendLongTaskCheckin(task,isTest=false){
-  if(!IS_ELECTRON||!task?.id||longTaskSendingIds.has(task.id)) return {success:false,error:'long task send unavailable'};
+  if(!IS_ELECTRON||!task?.id||longTaskSendingIds.has(task.id)) return {success:false,errorKey:'longTasks.unsupported'};
   longTaskSendingIds.add(task.id);
   try{
     const result=window.petBridge?.testLongTaskSupervisor
-      ? await window.petBridge.testLongTaskSupervisor(task)
+      ? await window.petBridge.testLongTaskSupervisor({...task,locale:cfg.locale})
       : window.petBridge?.sendLongTaskFeishu
         ? await window.petBridge.sendLongTaskFeishu(task.id, buildLongTaskCheckinText(task,isTest))
-        : {success:false,error:'long task send unavailable'};
-    addLog(result?.success?`Long task reminder sent: ${task.title}`:`Long task reminder failed: ${task.title} - ${result?.error||'unknown error'}`);
+        : {success:false,errorKey:'longTasks.unsupported'};
+    const title=longTaskTitle(task);
+    addLog(result?.success?`Long task reminder sent: ${title}`:`Long task reminder failed: ${title} - ${resultError(result)}`);
     return result;
   }finally{
     longTaskSendingIds.delete(task.id);
@@ -2869,7 +2921,7 @@ function restartLongTaskSupervisor(){
       addLog(active?`Long task supervisor moved to main: ${active} active task(s)`:'Long task supervisor disabled in main');
       applyLongTaskSupervisorState(result.state);
     }else{
-      addLog('Long task supervisor configure failed: '+(result?.error||'unknown error'));
+      addLog('Long task supervisor configure failed: '+resultError(result));
     }
   }).catch(e=>addLog('Long task supervisor configure failed: '+(e.message||e)));
 }
@@ -2906,7 +2958,7 @@ if(_isPetWin){
       if(!busy && (first || (cfg.freq||'mid')!=='off')){
         const msg = currentTask
           ? checkinMsg()
-          : (Math.random()<0.4?rand(ADHD_TIPS):smartFallback(''));
+          : (Math.random()<0.4?localizedAdhdTip():smartFallback(''));
         _bubblePush(msg);
       }
       scheduleIdle(false);
@@ -3053,30 +3105,32 @@ const _moodObs=new MutationObserver(()=>{
   else setMouthNormal();
 });
 _moodObs.observe(pw,{attributes:true,attributeFilter:['class']});
-const PHRASES=[
-  {label:'走神',text:'我刚才走神了，帮我重新专注一下'},
-  {label:'疲惫',text:'感觉好累，不想动'},
-  {label:'乱',text:'脑子很乱，不知道该做什么'},
-  {label:'专注',text:'帮我专注，我现在要开始做事了'},
-  {label:'鼓励',text:'给我一句鼓励吧'},
-  {label:'卡住',text:'这件事我做不下去了'},
+const PHRASE_KEYS=[
+  ['quick.distractedLabel','quick.distractedText'],
+  ['quick.tiredLabel','quick.tiredText'],
+  ['quick.overwhelmedLabel','quick.overwhelmedText'],
+  ['quick.focusLabel','quick.focusText'],
+  ['quick.encourageLabel','quick.encourageText'],
+  ['quick.stuckLabel','quick.stuckText'],
 ];
 
 const quickBar=document.getElementById('quick-bar');
-PHRASES.forEach(({label,text})=>{
-  const btn=document.createElement('button');
-  btn.className='qp'; btn.textContent=label;
-  btn.addEventListener('click',()=>{
-    if(busy) return;
-    // brief "sent" flash
-    btn.classList.add('sent');
-    setTimeout(()=>btn.classList.remove('sent'),600);
-    // put text into input then send
-    chatInput.value=text;
-    send();
+function renderQuickBar(){
+  quickBar.innerHTML='';
+  PHRASE_KEYS.forEach(([labelKey,textKey])=>{
+    const btn=document.createElement('button');
+    btn.className='qp'; btn.textContent=tr(labelKey);
+    btn.addEventListener('click',()=>{
+      if(busy) return;
+      btn.classList.add('sent');
+      setTimeout(()=>btn.classList.remove('sent'),600);
+      chatInput.value=tr(textKey);
+      send();
+    });
+    quickBar.appendChild(btn);
   });
-  quickBar.appendChild(btn);
-});
+}
+renderQuickBar();
 
 
 const BAR_H_PET=110;
@@ -3118,7 +3172,7 @@ function onEnd(){
   if(!moved){
     petReact();
     setHappy(true);spawnHeart(px+55,py+40);
-    appendMsg('pet',hasKey()?'在这里。\n有什么想说的吗？':smartFallback('你好'));
+    appendMsg('pet',hasKey()?tr('greeting.here'):smartFallback(''));
   }
 }
 // Browser preview and desktop pet mode both move the pet inside the page.
@@ -3180,7 +3234,7 @@ setTimeout(()=>{pw.style.transition='filter .2s';},700);
     // Start greetings now that onboarding is done
     if(typeof startGreetings==='function') startGreetings();
     // 引导完成后显示问候气泡
-    setTimeout(()=>{if(typeof showMini==='function') showMini('你好呀，我是孬孬');},800);
+    setTimeout(()=>{if(typeof showMini==='function') showMini(tr('greeting.hello'));},800);
   }
 
   // Provider segment toggle in onboarding
@@ -3321,7 +3375,7 @@ function readPetSize(){
 
 function updatePetSizeButtons(){
   const handle=document.getElementById('pet-size-handle');
-  if(handle) handle.title=`拖动调整大小，点击切换大小 · 当前 ${Math.round(petSize*100)}%`;
+  if(handle) handle.title=tr('pet.resizeCurrent',{percent:Math.round(petSize*100)});
 }
 
 function defaultPetPosition(){
@@ -3403,8 +3457,8 @@ if(IS_CHAT_WIN){
     const closeBtn = document.createElement('button');
     closeBtn.id = 'dlg-close';
     closeBtn.className = 'danger';
-    closeBtn.setAttribute('aria-label', '关闭');
-    closeBtn.title = '关闭';
+    closeBtn.setAttribute('aria-label', tr('common.close'));
+    closeBtn.title = tr('common.close');
     closeBtn.innerHTML = '✕';
     closeBtn.onclick = () => window.petBridge.closeSelf();
     hdrBtns.appendChild(closeBtn);
@@ -3504,7 +3558,7 @@ if(IS_CHAT_WIN){
     privateSet('nono_last_activity', Date.now());
   };
   // 上线问候——让用户立刻确认气泡能弹出
-  setTimeout(()=>showMini('你好呀，我是孬孬'), 4000);
+  setTimeout(()=>showMini(tr('greeting.hello')), 4000);
 
   /* ── Pixel-perfect click-through ── */
   const petImg = document.getElementById('pet-img');
@@ -3795,7 +3849,7 @@ if(IS_CHAT_WIN){
       setHappy(true);
       const p=getPetEffectPoint();
       spawnHeart(p.x,p.y);
-      const msg = Math.random()<0.35 ? rand(ADHD_TIPS) : smartFallback('');
+      const msg = Math.random()<0.35 ? localizedAdhdTip() : smartFallback('');
       showMini(msg);
     }
   });
@@ -3812,14 +3866,6 @@ if(IS_CHAT_WIN){
   /* ── 主动冒泡提醒：闲置超时后提醒当前任务 ── */
   // 各频率对应的闲置阈值（毫秒）
   const IDLE_THRESHOLDS = { off: null, low: 20*60*1000, mid: 10*60*1000, high: 5*60*1000 };
-  const IDLE_REMIND_MSGS = [
-    '你还在做「{t}」吗？',
-    '「{t}」进展怎么样了？',
-    '嘿，别忘了「{t}」。',
-    '「{t}」继续推进，我在陪着你。',
-    '还好吗？「{t}」还等着你呢。',
-    '休息够了就继续「{t}」吧～',
-  ];
   // 初始化活跃时间（冷启动时不立刻提醒）
   if(!privateGet('nono_last_activity','')){
     privateSet('nono_last_activity', Date.now());
@@ -3854,21 +3900,34 @@ if(IS_CHAT_WIN){
       const next = TaskStore.nextUnchecked(act.id);
       let msg;
       if(next){
-        // 优先提醒下一个具体子步骤
-        const tpls = [
-          `下一步：${next.text}`,
-          `还差「${next.text}」一步～`,
-          `继续推进「${next.text}」`,
-        ];
-        msg = tpls[Math.floor(Math.random()*tpls.length)];
+        msg = tr('reminder.nextStep',{step:next.text});
       } else {
-        const tpl = IDLE_REMIND_MSGS[Math.floor(Math.random()*IDLE_REMIND_MSGS.length)];
-        msg = tpl.replace('{t}', act.title);
+        msg = `${tr('reminder.currentTask',{title:act.title})}\n${smartFallback('')}`;
       }
       showMini(msg);
       privateSet('nono_last_activity', Date.now());
     }
   }, 60*1000);
 }
+
+window.addEventListener('nono:locale-changed',()=>{
+  cfg.locale=i18n?.getLocale()||'zh-CN';
+  syncLanguage();
+  const activeTab=document.querySelector('.settings-tab.active')?.dataset.settingsTab||'model';
+  syncSettingsWindowTitle(activeTab);
+  syncApiKeyField();
+  syncSeg();
+  updateHermesAgentStatus();
+  updateHermesStatus();
+  updateFeishuSupervisorStatus(false);
+  updateStatus();
+  renderLongTaskSettings();
+  renderTasks();
+  renderPomo();
+  StatsRenderer.renderAll();
+  renderFreezerList();
+  renderQuickBar();
+  updatePetSizeButtons();
+});
 
 })();

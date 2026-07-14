@@ -5004,3 +5004,36 @@ body.pet-mode #mini-bubble.left-side::after{
   border-bottom:1px solid rgba(34,39,31,.45) !important;
   transform:rotate(45deg) !important;
 }
+
+/* Locale selector and long-label resilience. */
+.language-select{
+  width:100%;
+  min-height:42px;
+  padding:10px 38px 10px 14px;
+  border:1.5px solid rgba(31,33,28,.44);
+  border-radius:8px;
+  background-color:#eef0e8;
+  color:var(--text-main);
+  font-family:var(--font-body);
+  font-size:14px;
+  font-weight:700;
+  outline:none;
+  box-shadow:var(--real-inset);
+  cursor:pointer;
+  -webkit-app-region:no-drag;
+}
+
+.language-select:focus{
+  border-color:var(--focus);
+  box-shadow:var(--real-inset),0 0 0 3px rgba(50,50,46,.11);
+}
+
+.settings-tab{
+  letter-spacing:0 !important;
+}
+
+.settings-tab > span:last-child{
+  min-width:0;
+  line-height:1.2;
+  overflow-wrap:anywhere;
+}

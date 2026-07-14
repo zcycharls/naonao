@@ -4,6 +4,8 @@
 /* Replaces native window.confirm/alert/prompt with a modal that matches
    the Lavender Stationery system. All three return Promises. */
 const petDialog = (function(){
+  const translate = (key) => window.nonoI18n?.t(key) || key;
+
   function build(opts){
     // opts: { kind:'confirm'|'alert'|'prompt', title, message, okText, cancelText,
     //         danger, placeholder, defaultValue }
@@ -14,7 +16,7 @@ const petDialog = (function(){
 
     const tape = document.createElement('span');
     tape.className = 'pet-mdl-tape';
-    tape.textContent = opts.tape || (opts.danger ? '注意' : (opts.kind==='alert' ? '提示' : '确认'));
+    tape.textContent = opts.tape || (opts.danger ? translate('dialog.attention') : (opts.kind==='alert' ? translate('dialog.notice') : translate('dialog.confirm')));
     card.appendChild(tape);
 
     if(opts.title){
@@ -46,13 +48,13 @@ const petDialog = (function(){
     if(opts.kind !== 'alert'){
       cancelBtn = document.createElement('button');
       cancelBtn.className = 'pet-mdl-btn ghost';
-      cancelBtn.textContent = opts.cancelText || '取消';
+      cancelBtn.textContent = opts.cancelText || translate('dialog.cancel');
       btns.appendChild(cancelBtn);
     }
 
     const okBtn = document.createElement('button');
     okBtn.className = 'pet-mdl-btn ' + (opts.danger ? 'danger' : 'primary');
-    okBtn.textContent = opts.okText || '确定';
+    okBtn.textContent = opts.okText || translate('dialog.ok');
     btns.appendChild(okBtn);
 
     card.appendChild(btns);
@@ -118,7 +120,7 @@ const petDialog = (function(){
     alert(message, opts){
       opts = opts || {};
       return open({ kind:'alert', message, title: opts.title,
-        okText: opts.okText || '知道了', tape: opts.tape });
+        okText: opts.okText || translate('dialog.gotIt'), tape: opts.tape });
     },
     prompt(message, opts){
       opts = opts || {};

@@ -23,12 +23,12 @@ async function refreshLocalModelStatus() {
 async function loadLocalModel(onProgress) {
   if (localModelLoading) return false;
   localModelLoading = true;
-  if (onProgress) onProgress(10, '正在初始化本地模型…');
+  if (onProgress) onProgress(10, window.nonoI18n?.t('model.loading') || '加载中…');
   try {
     const ok = await window.petBridge.localModelLoad();
     localModelReady = ok;
     localModelLoading = false;
-    if (ok && onProgress) onProgress(100, '模型已就绪');
+    if (ok && onProgress) onProgress(100, window.nonoI18n?.t('model.ready') || '模型已就绪');
     return ok;
   } catch (e) {
     console.error('[孬孬] 加载本地模型失败:', e);
@@ -40,7 +40,7 @@ async function loadLocalModel(onProgress) {
 async function localInference(text) {
   try {
     if (typeof addLog === 'function') addLog('[模型] 开始推理…');
-    const response = await window.petBridge.localModelInference(text);
+    const response = await window.petBridge.localModelInference(text, window.nonoI18n?.getLocale());
     if (typeof addLog === 'function') addLog('[模型] 推理结果: ' + (response ? response.slice(0, 80) : 'null'));
     return response;
   } catch (e) {
@@ -55,8 +55,9 @@ function hasLocalModel() {
 }
 
 function getLocalModelStatus() {
-  if (localModelLoading) return '加载中…';
-  if (localModelReady) return '已就绪';
-  if (localModelHasFiles) return '已下载，点击加载';
-  return '未下载（约 460MB）';
+  const translate = (key) => window.nonoI18n?.t(key) || key;
+  if (localModelLoading) return translate('model.loading');
+  if (localModelReady) return translate('model.ready');
+  if (localModelHasFiles) return translate('model.downloaded');
+  return translate('model.notDownloaded');
 }

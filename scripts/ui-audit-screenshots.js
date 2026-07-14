@@ -3,7 +3,10 @@ const path = require('path')
 const { execFileSync, spawn } = require('child_process')
 
 const root = path.resolve(__dirname, '..')
-const outDir = path.join(root, 'deliverables', 'ui-audit')
+const localeArg = process.argv.find(arg => arg.startsWith('--locale='))?.slice('--locale='.length) || ''
+const outputArg = process.argv.find(arg => arg.startsWith('--out='))?.slice('--out='.length) || ''
+const settingsOnly = process.argv.includes('--settings-only')
+const outDir = outputArg ? path.resolve(root, outputArg) : path.join(root, 'deliverables', 'ui-audit')
 const port = 9440 + Math.floor(Math.random() * 300)
 const electronPath = require('electron')
 const env = { ...process.env }
@@ -113,6 +116,44 @@ async function main() {
   const mainTarget = await waitForTarget(t => t.type === 'page' && !String(t.url || '').includes('mode='))
   const main = await connect(mainTarget)
   await delay(2500)
+
+  if (settingsOnly) {
+    const previousLocale = await evalIn(main, `
+      (() => {
+        const previous = window.nonoI18n?.getLocale() || 'zh-CN';
+        const select = document.getElementById('language-select');
+        if (select && ${JSON.stringify(localeArg)}) {
+          select.value = ${JSON.stringify(localeArg)};
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return previous;
+      })()
+    `)
+    await delay(500)
+    await evalIn(main, `window.petBridge.openSettings(); true`)
+    const settingsTarget = await waitForTarget(t => String(t.url || '').includes('mode=settings'))
+    const settings = await connect(settingsTarget)
+    await delay(1600)
+    await evalIn(settings, `
+      document.querySelector('[data-settings-tab="appearance"]')?.click();
+      true
+    `)
+    await delay(300)
+    await screenshot(settings, `settings-${localeArg || 'current'}`)
+    await evalIn(main, `
+      (() => {
+        const select = document.getElementById('language-select');
+        if (select) {
+          select.value = ${JSON.stringify(previousLocale)};
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return true;
+      })()
+    `)
+    settings.ws.close()
+    main.ws.close()
+    return
+  }
 
   await evalIn(main, `
     (async () => {
