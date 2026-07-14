@@ -155,6 +155,7 @@
       'status.waitingNext': '启用中：等待下一轮发送',
       'chat.dialogAria': '聊天对话框',
       'chat.focusTimer': '专注番茄钟',
+      'chat.tasks': '任务',
       'chat.focus': '专注',
       'chat.clear': '清空对话',
       'chat.bodyDouble': '一起专注',

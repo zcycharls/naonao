@@ -155,6 +155,7 @@
       'status.waitingNext': '有効：次の通知を待機中',
       'chat.dialogAria': 'チャットダイアログ',
       'chat.focusTimer': '集中タイマー',
+      'chat.tasks': 'タスク',
       'chat.focus': '集中',
       'chat.clear': '会話を消去',
       'chat.bodyDouble': '一緒に集中',

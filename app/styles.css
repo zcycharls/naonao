@@ -3658,7 +3658,7 @@ body.long-tasks-only-mode::after{
     inset 0 1px 0 rgba(255,255,255,.9),
     inset 0 -3px 0 rgba(17,18,15,.18),
     inset 1px 0 0 rgba(255,255,255,.18) !important;
-  text-shadow:0 1px 0 rgba(255,255,255,.48) !important;
+  text-shadow:var(--button-engrave-shadow) !important;
 }
 
 #pomo-toggle,
@@ -3678,7 +3678,7 @@ body.long-tasks-only-mode::after{
     linear-gradient(145deg,#f17a3e 0%,var(--metal-rust) 50%,#661c09 100%) !important;
   border-color:rgba(74,20,8,.55) !important;
   color:#fff7eb !important;
-  text-shadow:0 1px 0 rgba(0,0,0,.36) !important;
+  text-shadow:var(--button-engrave-shadow) !important;
 }
 
 .settings-nav,
@@ -4220,7 +4220,7 @@ body.chat-only-mode #pomo-toggle{
     inset 0 1px 0 rgba(255,255,255,.92),
     inset 0 -3px 0 rgba(24,25,21,.22),
     inset 1px 0 0 rgba(255,255,255,.32) !important;
-  text-shadow:0 1px 0 rgba(255,255,255,.62) !important;
+  text-shadow:var(--button-engrave-shadow) !important;
   transform:none !important;
 }
 
@@ -4248,7 +4248,7 @@ body.chat-only-mode #pomo-toggle.on{
     inset 0 1px 0 rgba(255,255,255,.86),
     inset 0 -3px 0 rgba(73,100,58,.42),
     0 0 0 1px rgba(192,211,157,.18) !important;
-  text-shadow:0 1px 0 rgba(255,255,255,.62) !important;
+  text-shadow:var(--button-engrave-shadow) !important;
 }
 
 body.chat-only-mode #pomo-toggle .pomo-toggle-label{
@@ -5036,4 +5036,258 @@ body.pet-mode #mini-bubble.left-side::after{
   min-width:0;
   line-height:1.2;
   overflow-wrap:anywhere;
+}
+
+/* Conversation-first chat tools: compact by default, expanded on demand. */
+#chat-tools{
+  display:flex;
+  align-items:stretch;
+  gap:5px;
+  flex:0 0 auto;
+  margin:8px 12px 0;
+  padding:4px;
+  border:1px solid rgba(31,33,28,.38);
+  border-radius:8px;
+  background-image:
+    linear-gradient(180deg,rgba(255,255,255,.64),rgba(211,214,204,.42)),
+    url('assets/metal-brushed-light.png');
+  background-size:100% 100%,320px 320px;
+  box-shadow:
+    inset 0 2px 5px rgba(24,26,22,.2),
+    inset 0 -1px 0 rgba(255,255,255,.66),
+    0 5px 10px rgba(18,19,16,.1);
+}
+
+.chat-tool-toggle,
+#chat-tools #pomo-toggle{
+  position:relative !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:9px !important;
+  flex:1 1 0 !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:40px !important;
+  padding:0 11px !important;
+  box-sizing:border-box !important;
+  overflow:hidden !important;
+  border:1px solid rgba(255,255,255,.78) !important;
+  border-right-color:rgba(83,86,78,.44) !important;
+  border-bottom-color:rgba(27,29,25,.48) !important;
+  border-radius:6px !important;
+  background-image:
+    linear-gradient(180deg,rgba(255,255,255,.76),rgba(235,237,228,.42) 36%,rgba(111,117,107,.3)),
+    url('assets/metal-brushed-button.png') !important;
+  background-size:100% 100%,256px 256px !important;
+  background-repeat:no-repeat,repeat !important;
+  color:#181a16 !important;
+  font-family:var(--font-body) !important;
+  cursor:pointer !important;
+  box-shadow:
+    0 4px 7px rgba(13,14,12,.18),
+    inset 0 1px 0 rgba(255,255,255,.9),
+    inset 0 -2px 0 rgba(24,26,22,.2) !important;
+  text-shadow:var(--button-engrave-shadow) !important;
+  transition:filter .16s ease,box-shadow .16s ease,transform .12s ease !important;
+}
+
+.chat-tool-toggle:hover,
+#chat-tools #pomo-toggle:hover{
+  filter:brightness(1.04) !important;
+}
+
+.chat-tool-toggle:focus-visible,
+#chat-tools #pomo-toggle:focus-visible{
+  outline:2px solid #4d5b42 !important;
+  outline-offset:2px !important;
+}
+
+.chat-tool-toggle:active,
+#chat-tools #pomo-toggle:active{
+  transform:translateY(1px) !important;
+  box-shadow:inset 0 3px 7px rgba(18,20,17,.26),inset 0 -1px 0 rgba(255,255,255,.5) !important;
+}
+
+.chat-tool-toggle.on,
+#chat-tools #pomo-toggle.on{
+  color:#11150f !important;
+  border-color:rgba(218,225,204,.8) rgba(77,87,68,.58) rgba(35,43,29,.66) rgba(232,237,222,.84) !important;
+  background-image:
+    linear-gradient(180deg,rgba(242,247,232,.78),rgba(188,201,169,.5) 44%,rgba(86,104,72,.34)),
+    url('assets/metal-brushed-button.png') !important;
+  box-shadow:
+    inset 0 3px 8px rgba(31,39,26,.22),
+    inset 0 -1px 0 rgba(255,255,255,.66),
+    0 2px 4px rgba(13,14,12,.12) !important;
+}
+
+.chat-tool-icon{
+  flex:0 0 16px;
+  opacity:.82;
+}
+
+.chat-tool-copy{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  flex:1 1 auto;
+}
+
+.chat-tool-name,
+#chat-tools #pomo-toggle .pomo-toggle-label{
+  display:block !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  letter-spacing:0 !important;
+}
+
+.chat-tool-meta{
+  flex:0 0 auto;
+  min-width:23px;
+  padding:3px 5px 2px;
+  border:1px solid rgba(0,0,0,.5);
+  border-radius:4px;
+  background:#22251f;
+  color:#dce8bd;
+  font-family:Consolas,'SFMono-Regular',monospace;
+  font-size:10px;
+  font-weight:800;
+  line-height:1;
+  letter-spacing:0;
+  text-align:center;
+  text-shadow:0 0 5px rgba(197,223,143,.35);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.42);
+}
+
+.chat-tool-chevron{
+  width:7px;
+  height:7px;
+  flex:0 0 7px;
+  border-right:1.5px solid currentColor;
+  border-bottom:1.5px solid currentColor;
+  transform:rotate(45deg) translate(-1px,-1px);
+  opacity:.72;
+  transition:transform .18s ease;
+}
+
+.chat-tool-toggle.on .chat-tool-chevron{
+  transform:rotate(225deg) translate(-1px,-1px);
+}
+
+#chat-tools #pomo-toggle .pomo-toggle-led{
+  width:7px !important;
+  height:7px !important;
+  flex:0 0 7px !important;
+  border-radius:50% !important;
+  background:#292c26 !important;
+  border:1px solid rgba(0,0,0,.48) !important;
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.52),0 1px 0 rgba(255,255,255,.5) !important;
+}
+
+#chat-tools #pomo-toggle.running .pomo-toggle-led{
+  background:#b8dc69 !important;
+  border-color:rgba(61,91,32,.72) !important;
+  box-shadow:0 0 8px rgba(184,220,105,.82),inset 0 1px 0 rgba(255,255,255,.72) !important;
+}
+
+#task-list[hidden],
+#pomo-widget[hidden]{
+  display:none !important;
+}
+
+#task-list.open,
+#pomo-widget.open{
+  display:flex !important;
+  animation:chat-tool-panel-in .2s cubic-bezier(.22,.75,.3,1);
+}
+
+@keyframes chat-tool-panel-in{
+  from{opacity:0;transform:translateY(-5px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+#dlg-msgs{
+  min-height:0;
+}
+
+body.chat-only-mode #chat-tools{
+  margin:9px 18px 0 !important;
+}
+
+body.chat-only-mode #task-list.open,
+body.chat-only-mode #pomo-widget.open{
+  margin-top:8px !important;
+}
+
+body.chat-only-mode #task-list.open{
+  max-height:185px !important;
+}
+
+body.chat-only-mode #pomo-widget.open{
+  max-height:220px !important;
+  overflow-y:auto !important;
+}
+
+@media (prefers-reduced-motion:reduce){
+  #task-list.open,
+  #pomo-widget.open,
+  .chat-tool-chevron{
+    animation:none !important;
+    transition:none !important;
+  }
+}
+
+/* Button legends are recessed into the hardware instead of floating above it. */
+:root{
+  --button-engrave-dark:rgba(12,14,11,.68);
+  --button-engrave-light:rgba(255,255,255,.62);
+  --button-engrave-shadow:
+    0 -1px 0 var(--button-engrave-dark),
+    0 1px 0 var(--button-engrave-light);
+}
+
+button{
+  text-shadow:var(--button-engrave-shadow) !important;
+}
+
+button span:not(.chat-tool-meta),
+button strong,
+button small{
+  text-shadow:inherit !important;
+}
+
+button svg{
+  filter:
+    drop-shadow(0 -1px 0 rgba(12,14,11,.52))
+    drop-shadow(0 1px 0 rgba(255,255,255,.58)) !important;
+}
+
+body.settings-only-mode .settings-tab,
+#pomo-start,
+.pomo-next-do,
+#save-btn,
+#long-task-save-btn,
+#freezer-add,
+#send-btn,
+.pi-go,
+.settings-action.danger,
+.lt-action.danger,
+.qp.sent,
+.tl-btn.primary,
+.onboard-btn.primary{
+  --button-engrave-dark:rgba(0,0,0,.88);
+  --button-engrave-light:rgba(255,244,225,.24);
+}
+
+button:active{
+  --button-engrave-dark:rgba(0,0,0,.78);
+  --button-engrave-light:rgba(255,255,255,.42);
 }

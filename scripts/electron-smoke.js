@@ -30,18 +30,55 @@ function killTree() {
   }
 }
 
-async function getPageTarget() {
+async function getPageTarget(match = () => true) {
   const started = Date.now()
   while (Date.now() - started < 15000) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json`)
       const targets = await response.json()
-      const page = targets.find(target => target.type === 'page' && target.webSocketDebuggerUrl)
+      const page = targets.find(target => target.type === 'page' && target.webSocketDebuggerUrl && match(target))
       if (page) return page
     } catch {}
     await delay(300)
   }
   throw new Error('No Electron page target found')
+}
+
+async function evaluatePage(target, expression) {
+  const ws = new WebSocket(target.webSocketDebuggerUrl)
+  let nextId = 1
+  const pending = new Map()
+  await new Promise((resolve, reject) => {
+    ws.addEventListener('open', resolve, { once: true })
+    ws.addEventListener('error', reject, { once: true })
+  })
+  ws.addEventListener('message', event => {
+    const msg = JSON.parse(event.data)
+    if (!msg.id || !pending.has(msg.id)) return
+    const item = pending.get(msg.id)
+    pending.delete(msg.id)
+    clearTimeout(item.timer)
+    msg.error ? item.reject(new Error(msg.error.message)) : item.resolve(msg.result)
+  })
+  function request(method, params = {}) {
+    const id = nextId++
+    ws.send(JSON.stringify({ id, method, params }))
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pending.delete(id)
+        reject(new Error(`CDP timeout: ${method}`))
+      }, 5000)
+      pending.set(id, { resolve, reject, timer })
+    })
+  }
+  await request('Runtime.enable')
+  const result = await request('Runtime.evaluate', {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+  })
+  ws.close()
+  return result
 }
 
 async function main() {
@@ -351,6 +388,24 @@ async function main() {
         }
       }
       const statsToggleRemoved = !document.getElementById('stats-toggle');
+      const buttons = [...document.querySelectorAll('button')];
+      const buttonSvgs = buttons.flatMap(button => [...button.querySelectorAll('svg')]);
+      const hasEngravedText = button => {
+        const shadow = getComputedStyle(button).textShadow;
+        return /0px -1px 0px/.test(shadow) && /0px 1px 0px/.test(shadow);
+      };
+      const textFailures = buttons.filter(button => !hasEngravedText(button)).map(button => ({
+        id: button.id,
+        className: button.className,
+        text: button.textContent.trim().slice(0, 40),
+        shadow: getComputedStyle(button).textShadow,
+      }));
+      const buttonEngraving = {
+        count: buttons.length,
+        allTextEngraved: textFailures.length === 0,
+        textFailures,
+        allSvgEngraved: buttonSvgs.every(svg => getComputedStyle(svg).filter.includes('drop-shadow')),
+      };
       let taskListOpensStats = false;
       const taskList = document.getElementById('task-list');
       const statsDrawer = document.getElementById('stats-drawer');
@@ -421,6 +476,7 @@ async function main() {
         petSizeControls: !!document.getElementById('pet-size-handle') && !document.getElementById('tray-size-down') && !document.getElementById('tray-size-up'),
         hermesSettings: !!document.getElementById('hermes-agent-enabled') && !!document.getElementById('hermes-agent-base') && !!document.getElementById('hermes-agent-key') && !!document.getElementById('hermes-agent-test-btn') && !!document.getElementById('hermes-enabled') && !!document.getElementById('hermes-review-btn') && !!document.getElementById('hermes-clear-btn'),
         statsToggleRemoved,
+        buttonEngraving,
         taskListOpensStats,
         localStatusLeaksPath: 'modelDir' in localStatus || 'modelsRoot' in localStatus,
         bodyDoubleShowsHat,
@@ -452,6 +508,46 @@ async function main() {
   })
   assert.ok(!result.exceptionDetails, `smoke evaluation failed: ${JSON.stringify(result.exceptionDetails, null, 2)}`)
   const smoke = JSON.parse(result.result.value)
+
+  await send('Runtime.evaluate', {
+    expression: 'window.petBridge.expand(); true',
+    returnByValue: true,
+  })
+  const chatPage = await getPageTarget(target => String(target.url || '').includes('mode=chat'))
+  await delay(1000)
+  const chatResult = await evaluatePage(chatPage, `
+    (async () => {
+      const task = document.getElementById('task-list');
+      const focus = document.getElementById('pomo-widget');
+      const taskToggle = document.getElementById('task-toggle');
+      const focusToggle = document.getElementById('pomo-toggle');
+      const messages = document.getElementById('dlg-msgs');
+      const read = () => ({
+        taskHidden: task?.hidden,
+        taskDisplay: task ? getComputedStyle(task).display : null,
+        taskExpanded: taskToggle?.getAttribute('aria-expanded'),
+        focusHidden: focus?.hidden,
+        focusDisplay: focus ? getComputedStyle(focus).display : null,
+        focusExpanded: focusToggle?.getAttribute('aria-expanded'),
+      });
+      window.setChatToolPanel?.(null);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const initial = read();
+      const messagesHeight = messages?.getBoundingClientRect().height || 0;
+      taskToggle?.click();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const tasks = read();
+      focusToggle?.click();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const focusOpen = read();
+      focusToggle?.click();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const closed = read();
+      return JSON.stringify({ width: innerWidth, height: innerHeight, messagesHeight, initial, tasks, focus: focusOpen, closed });
+    })()
+  `)
+  assert.ok(!chatResult.exceptionDetails, `chat smoke evaluation failed: ${JSON.stringify(chatResult.exceptionDetails, null, 2)}`)
+  const chatLayout = JSON.parse(chatResult.result.value)
 
   ws.close()
 
@@ -494,7 +590,24 @@ async function main() {
   assert.strictEqual(smoke.petSizeControls, true)
   assert.strictEqual(smoke.hermesSettings, true)
   assert.strictEqual(smoke.statsToggleRemoved, true)
+  assert.ok(smoke.buttonEngraving.count >= 68)
+  assert.strictEqual(smoke.buttonEngraving.allTextEngraved, true, JSON.stringify(smoke.buttonEngraving.textFailures, null, 2))
+  assert.strictEqual(smoke.buttonEngraving.allSvgEngraved, true)
   assert.strictEqual(smoke.taskListOpensStats, true)
+  assert.strictEqual(chatLayout.width, 560)
+  assert.strictEqual(chatLayout.height, 680)
+  assert.ok(chatLayout.messagesHeight >= chatLayout.height * 0.5, `chat messages too short: ${chatLayout.messagesHeight}px`)
+  assert.deepStrictEqual({
+    initial: chatLayout.initial,
+    tasks: chatLayout.tasks,
+    focus: chatLayout.focus,
+    closed: chatLayout.closed,
+  }, {
+    initial: { taskHidden: true, taskDisplay: 'none', taskExpanded: 'false', focusHidden: true, focusDisplay: 'none', focusExpanded: 'false' },
+    tasks: { taskHidden: false, taskDisplay: 'flex', taskExpanded: 'true', focusHidden: true, focusDisplay: 'none', focusExpanded: 'false' },
+    focus: { taskHidden: true, taskDisplay: 'none', taskExpanded: 'false', focusHidden: false, focusDisplay: 'flex', focusExpanded: 'true' },
+    closed: { taskHidden: true, taskDisplay: 'none', taskExpanded: 'false', focusHidden: true, focusDisplay: 'none', focusExpanded: 'false' },
+  })
   assert.strictEqual(smoke.localStatusLeaksPath, false)
   assert.strictEqual(smoke.bodyDoubleShowsHat, true)
   assert.strictEqual(smoke.petBodyPinned, true)

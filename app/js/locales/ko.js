@@ -155,6 +155,7 @@
       'status.waitingNext': '활성화: 다음 알림 대기 중',
       'chat.dialogAria': '채팅 대화 상자',
       'chat.focusTimer': '집중 타이머',
+      'chat.tasks': '작업',
       'chat.focus': '집중',
       'chat.clear': '대화 지우기',
       'chat.bodyDouble': '함께 집중',

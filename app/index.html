@@ -413,10 +413,6 @@
       孬孬
     </div>
     <div id="dlg-header-btns">
-      <button id="pomo-toggle" aria-label="专注番茄钟" title="专注番茄钟" data-i18n-aria-label="chat.focusTimer" data-i18n-title="chat.focusTimer">
-        <span class="pomo-toggle-label" data-i18n="chat.focus">专注</span>
-        <span class="pomo-toggle-led" aria-hidden="true"></span>
-      </button>
       <button id="dlg-clear" aria-label="清空对话" title="清空对话" data-i18n-aria-label="chat.clear" data-i18n-title="chat.clear"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
       <button id="dlg-minimize" aria-label="最小化" title="最小化" data-i18n-aria-label="common.minimize" data-i18n-title="common.minimize">−</button>
       <button id="body-double-btn" aria-label="一起专注" title="一起专注" data-i18n-aria-label="chat.bodyDouble" data-i18n-title="chat.bodyDouble">▤</button>
@@ -424,8 +420,38 @@
     </div>
   </div>
 
+  <div id="chat-tools">
+    <button id="task-toggle" class="chat-tool-toggle" type="button"
+            aria-controls="task-list" aria-expanded="false"
+            aria-label="任务" title="任务"
+            data-i18n-aria-label="chat.tasks" data-i18n-title="chat.tasks">
+      <svg class="chat-tool-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>
+      </svg>
+      <span class="chat-tool-copy">
+        <span class="chat-tool-name" data-i18n="chat.tasks">任务</span>
+        <span id="task-toggle-count" class="chat-tool-meta">0</span>
+      </span>
+      <span class="chat-tool-chevron" aria-hidden="true"></span>
+    </button>
+    <button id="pomo-toggle" class="chat-tool-toggle" type="button"
+            aria-controls="pomo-widget" aria-expanded="false"
+            aria-label="专注番茄钟" title="专注番茄钟"
+            data-i18n-aria-label="chat.focusTimer" data-i18n-title="chat.focusTimer">
+      <svg class="chat-tool-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+      </svg>
+      <span class="chat-tool-copy">
+        <span class="pomo-toggle-label chat-tool-name" data-i18n="chat.focus">专注</span>
+        <span id="pomo-toggle-summary" class="chat-tool-meta">25:00</span>
+      </span>
+      <span class="pomo-toggle-led" aria-hidden="true"></span>
+      <span class="chat-tool-chevron" aria-hidden="true"></span>
+    </button>
+  </div>
+
   <!-- Task list -->
-  <div id="task-list">
+  <div id="task-list" hidden>
     <div id="task-add-row">
       <span class="tl-icon">⌖</span>
       <input id="task-add-input" type="text" placeholder="加个任务…（回车确认）" data-i18n-placeholder="chat.taskPlaceholder" maxlength="60">
@@ -434,7 +460,7 @@
   </div>
 
   <!-- Pomodoro widget -->
-  <div id="pomo-widget">
+  <div id="pomo-widget" hidden>
     <div id="pomo-row">
       <span id="pomo-mode" data-i18n="chat.focus">专注</span>
       <span id="pomo-time">25:00</span>
@@ -445,7 +471,7 @@
       </div>
     </div>
     <div id="pomo-track"><div id="pomo-fill"></div></div>
-    <div id="pomo-intent">
+    <div id="pomo-intent" hidden>
       <div class="pi-eyebrow">
         <span class="pi-leaf">⌁</span>
         <span data-i18n="chat.intentQuestion">这一段想推进什么？</span>

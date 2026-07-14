@@ -155,6 +155,7 @@
       'status.waitingNext': 'Enabled: waiting for the next reminder',
       'chat.dialogAria': 'Chat dialog',
       'chat.focusTimer': 'Focus timer',
+      'chat.tasks': 'Tasks',
       'chat.focus': 'Focus',
       'chat.clear': 'Clear chat',
       'chat.bodyDouble': 'Focus together',

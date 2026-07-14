@@ -205,22 +205,90 @@ async function main() {
           '<div class="dlg-row user"><div class="dlg-msg-wrap"><div class="dlg-bubble">我先写迁移方案。</div><div class="dlg-time">15:21</div></div></div>'
         ].join('');
       }
-      document.getElementById('pomo-toggle')?.click();
+      window.setChatToolPanel?.(null);
       await new Promise(resolve => setTimeout(resolve, 400));
     })()
   `)
-  await screenshot(chat, '02-chat-pomodoro-tasks')
+  const defaultChatLayout = await evalIn(chat, `
+    (() => {
+      const task = document.getElementById('task-list');
+      const focus = document.getElementById('pomo-widget');
+      const messages = document.getElementById('dlg-msgs');
+      return {
+        width: innerWidth,
+        height: innerHeight,
+        messagesHeight: messages?.getBoundingClientRect().height || 0,
+        taskHidden: task?.hidden,
+        taskDisplay: task ? getComputedStyle(task).display : null,
+        focusHidden: focus?.hidden,
+        focusDisplay: focus ? getComputedStyle(focus).display : null,
+      };
+    })()
+  `)
+  if (defaultChatLayout.width !== 560 || defaultChatLayout.height !== 680 ||
+      defaultChatLayout.messagesHeight < defaultChatLayout.height * 0.5 || !defaultChatLayout.taskHidden ||
+      defaultChatLayout.taskDisplay !== 'none' || !defaultChatLayout.focusHidden ||
+      defaultChatLayout.focusDisplay !== 'none') {
+    throw new Error(`Invalid default chat layout: ${JSON.stringify(defaultChatLayout)}`)
+  }
+  await screenshot(chat, '02-chat-default-collapsed')
+
+  const tasksOpenLayout = await evalIn(chat, `
+    (async () => {
+      document.getElementById('task-toggle')?.click();
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const task = document.getElementById('task-list');
+      const focus = document.getElementById('pomo-widget');
+      return {
+        taskHidden: task?.hidden,
+        taskDisplay: task ? getComputedStyle(task).display : null,
+        taskExpanded: document.getElementById('task-toggle')?.getAttribute('aria-expanded'),
+        focusHidden: focus?.hidden,
+        focusExpanded: document.getElementById('pomo-toggle')?.getAttribute('aria-expanded'),
+      };
+    })()
+  `)
+  if (tasksOpenLayout.taskHidden || tasksOpenLayout.taskDisplay !== 'flex' ||
+      tasksOpenLayout.taskExpanded !== 'true' || !tasksOpenLayout.focusHidden ||
+      tasksOpenLayout.focusExpanded !== 'false') {
+    throw new Error(`Invalid expanded task layout: ${JSON.stringify(tasksOpenLayout)}`)
+  }
+  await screenshot(chat, '03-chat-tasks-open')
+
+  const focusOpenLayout = await evalIn(chat, `
+    (async () => {
+      document.getElementById('pomo-toggle')?.click();
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const task = document.getElementById('task-list');
+      const focus = document.getElementById('pomo-widget');
+      return {
+        taskHidden: task?.hidden,
+        taskExpanded: document.getElementById('task-toggle')?.getAttribute('aria-expanded'),
+        focusHidden: focus?.hidden,
+        focusDisplay: focus ? getComputedStyle(focus).display : null,
+        focusExpanded: document.getElementById('pomo-toggle')?.getAttribute('aria-expanded'),
+      };
+    })()
+  `)
+  if (!focusOpenLayout.taskHidden || focusOpenLayout.taskExpanded !== 'false' ||
+      focusOpenLayout.focusHidden || focusOpenLayout.focusDisplay !== 'flex' ||
+      focusOpenLayout.focusExpanded !== 'true') {
+    throw new Error(`Invalid expanded focus layout: ${JSON.stringify(focusOpenLayout)}`)
+  }
+  await screenshot(chat, '04-chat-focus-open')
 
   await evalIn(chat, `
     (async () => {
+      document.getElementById('task-toggle')?.click();
       document.getElementById('task-list')?.click();
       await new Promise(resolve => setTimeout(resolve, 500));
     })()
   `)
-  await screenshot(chat, '03-stats-drawer')
+  await screenshot(chat, '05-stats-drawer')
 
   await evalIn(chat, `
     (async () => {
+      document.getElementById('stats-close')?.click();
       const input = document.getElementById('freezer-input');
       const btn = document.getElementById('freezer-btn');
       btn?.click();
@@ -230,7 +298,31 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 500));
     })()
   `)
-  await screenshot(chat, '04-freezer-drawer')
+  await screenshot(chat, '06-freezer-drawer')
+
+  const freezerToTaskLayout = await evalIn(chat, `
+    (async () => {
+      document.querySelector('#freezer-list .fz-use')?.click();
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const task = document.getElementById('task-list');
+      const focus = document.getElementById('pomo-widget');
+      const input = document.getElementById('task-add-input');
+      return {
+        taskHidden: task?.hidden,
+        taskExpanded: document.getElementById('task-toggle')?.getAttribute('aria-expanded'),
+        focusHidden: focus?.hidden,
+        inputValue: input?.value || '',
+        inputFocused: document.activeElement === input,
+        freezerOpen: document.getElementById('freezer-drawer')?.classList.contains('open'),
+      };
+    })()
+  `)
+  if (freezerToTaskLayout.taskHidden || freezerToTaskLayout.taskExpanded !== 'true' ||
+      !freezerToTaskLayout.focusHidden || !freezerToTaskLayout.inputValue ||
+      !freezerToTaskLayout.inputFocused || freezerToTaskLayout.freezerOpen) {
+    throw new Error(`Invalid freezer-to-task layout: ${JSON.stringify(freezerToTaskLayout)}`)
+  }
+  await screenshot(chat, '07-freezer-to-task')
 
   await evalIn(main, `window.petBridge.openSettings(); true`)
   const settingsTarget = await waitForTarget(t => String(t.url || '').includes('mode=settings'))
@@ -243,14 +335,14 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 300));
     })()
   `)
-  await screenshot(settings, '05-settings-memory')
+  await screenshot(settings, '08-settings-memory')
   await evalIn(settings, `
     (async () => {
       document.querySelector('[data-settings-tab="providers"]')?.click();
       await new Promise(resolve => setTimeout(resolve, 300));
     })()
   `)
-  await screenshot(settings, '06-settings-providers')
+  await screenshot(settings, '09-settings-providers')
 
   await evalIn(main, `window.petBridge.openLongTasks(); true`)
   const longTarget = await waitForTarget(t => String(t.url || '').includes('mode=long-tasks'))
@@ -262,7 +354,7 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 300));
     })()
   `)
-  await screenshot(longTasks, '07-long-tasks')
+  await screenshot(longTasks, '10-long-tasks')
 
   await evalIn(main, `
     (async () => {
@@ -271,7 +363,7 @@ async function main() {
     })()
   `)
   await delay(1800)
-  await screenshot(main, '08-onboarding')
+  await screenshot(main, '11-onboarding')
 
   main.ws.close()
   chat.ws.close()

@@ -2113,6 +2113,8 @@ Object.defineProperty(window,'currentTask',{
 const taskListEl=document.getElementById('task-list');
 const taskRowsEl=document.getElementById('task-rows');
 const taskAddInput=document.getElementById('task-add-input');
+const taskToggle=document.getElementById('task-toggle');
+const taskToggleCount=document.getElementById('task-toggle-count');
 
 if(taskAddInput){
   taskAddInput.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
@@ -2145,8 +2147,9 @@ let _toastByTaskId={}; // {taskId: 'msg'}
 function escAttr(s){return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function renderTasks(){
-  if(!taskRowsEl) return;
   const {tasks,activeId}=TaskStore.state;
+  if(taskToggleCount) taskToggleCount.textContent=String(tasks.length);
+  if(!taskRowsEl) return;
   if(!tasks.length){
     taskRowsEl.innerHTML=`<div id="task-empty">${tr('task.empty')}</div>`;
     return;
@@ -2364,19 +2367,53 @@ const pomoModeEl=document.getElementById('pomo-mode');
 const pomoCountEl=document.getElementById('pomo-count');
 const pomoStartBtn=document.getElementById('pomo-start');
 const pomoResetBtn=document.getElementById('pomo-reset');
+const pomoToggleLabel=pomoToggle?.querySelector('.pomo-toggle-label');
+const pomoToggleSummary=document.getElementById('pomo-toggle-summary');
+
+let activeChatToolPanel=null;
+function setChatToolPanel(panel=null){
+  const nextPanel=panel==='tasks'||panel==='focus'?panel:null;
+  const tasksOpen=nextPanel==='tasks';
+  const focusOpen=nextPanel==='focus';
+  activeChatToolPanel=nextPanel;
+
+  if(taskListEl){
+    taskListEl.hidden=!tasksOpen;
+    taskListEl.classList.toggle('open',tasksOpen);
+  }
+  taskToggle?.classList.toggle('on',tasksOpen);
+  taskToggle?.setAttribute('aria-expanded',String(tasksOpen));
+
+  if(pomoWidget){
+    pomoWidget.hidden=!focusOpen;
+    pomoWidget.classList.toggle('open',focusOpen);
+  }
+  pomoToggle?.classList.toggle('on',focusOpen);
+  pomoToggle?.setAttribute('aria-expanded',String(focusOpen));
+}
+
+taskToggle?.addEventListener('click',()=>{
+  setChatToolPanel(activeChatToolPanel==='tasks'?null:'tasks');
+  if(!dlg.classList.contains('visible')) showDialog();
+});
+
+window.setChatToolPanel=setChatToolPanel;
 
 function fmtPomo(s){
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
 function renderPomo(){
   pomoTimeEl.textContent=fmtPomo(pomoLeft);
+  if(pomoToggleSummary) pomoToggleSummary.textContent=fmtPomo(pomoLeft);
   const pct=100*(1-pomoLeft/pomoTotal);
   pomoFill.style.width=pct+'%';
   pomoModeEl.textContent=pomoMode==='work'?tr('pomo.focus'):tr('pomo.break');
+  if(pomoToggleLabel) pomoToggleLabel.textContent=pomoMode==='work'?tr('pomo.focus'):tr('pomo.break');
   pomoCountEl.textContent=`● × ${pomoCount}`;
   pomoWidget.classList.toggle('break-mode',pomoMode==='break');
   pomoStartBtn.textContent=pomoRunning?tr('common.pause'):tr('common.start');
   pomoStartBtn.classList.toggle('running',pomoRunning);
+  pomoToggle?.classList.toggle('running',pomoRunning);
 }
 
 function pomoComplete(){
@@ -2556,7 +2593,17 @@ const fzBtn=document.getElementById('freezer-btn');
 const updateFreezer=()=>{privateSet('nono_freezer',JSON.stringify(freezerItems));fzBtn.setAttribute('data-count',freezerItems.length);renderFreezerList()};
 const freezeIdea=(text)=>{if(!text.trim())return;freezerItems.unshift({id:'fz_'+Date.now(),text:text.trim(),frozenAt:new Date().toISOString()});updateFreezer();fzInput.value=''};
 const thawIdea=(id)=>{freezerItems=freezerItems.filter(i=>i.id!==id);updateFreezer()};
-const useIdea=(id)=>{const item=freezerItems.find(i=>i.id===id);if(!item)return;const taskInput=document.getElementById('task-add-input');if(taskInput){taskInput.value=item.text;taskInput.focus();taskInput.dispatchEvent(new Event('input',{bubbles:true}))}thawIdea(id);closeFreezer()};
+const useIdea=(id)=>{
+  const item=freezerItems.find(i=>i.id===id);if(!item)return;
+  setChatToolPanel('tasks');
+  const taskInput=document.getElementById('task-add-input');
+  if(taskInput){
+    taskInput.value=item.text;
+    requestAnimationFrame(()=>taskInput.focus());
+    taskInput.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  thawIdea(id);closeFreezer();
+};
 const renderFreezerList=()=>{fzList.innerHTML='';if(freezerItems.length===0){fzEmpty.style.display='block';fzList.style.display='none'}else{fzEmpty.style.display='none';fzList.style.display='flex';freezerItems.forEach(item=>{const el=document.createElement('div');el.className='fz-item';el.innerHTML=`<span class="fz-text"></span><button class="fz-use" title="${tr('freezer.use')}">⌖</button><button class="fz-thaw" title="${tr('freezer.thaw')}">✕</button>`;el.querySelector('.fz-text').textContent=item.text;el.querySelector('.fz-use').addEventListener('click',()=>useIdea(item.id));el.querySelector('.fz-thaw').addEventListener('click',()=>thawIdea(item.id));fzList.appendChild(el)})}};
 const openFreezer=()=>{renderFreezerList();fzDrawer.classList.add('open');fzOverlay.style.display='block';fzBtn.classList.add('active')};
 const closeFreezer=()=>{fzDrawer.classList.remove('open');fzOverlay.style.display='none';fzBtn.classList.remove('active')};
@@ -2635,6 +2682,7 @@ const pomoIntentSkip  = document.getElementById('pomo-intent-skip');
 const pomoIntentGo    = document.getElementById('pomo-intent-go');
 
 function showIntentPrompt(){
+  setChatToolPanel('focus');
   pomoIntent.hidden = false;
   pomoIntentInput.value = '';
   // micro-delay so the rise animation finishes before focus jump
@@ -2719,9 +2767,8 @@ pomoResetBtn.addEventListener('click',()=>{
 });
 
 pomoToggle.addEventListener('click',()=>{
-  const open=pomoWidget.classList.toggle('open');
-  pomoToggle.classList.toggle('on',open);
-  if(open&&!dlg.classList.contains('visible')) showDialog();
+  setChatToolPanel(activeChatToolPanel==='focus'?null:'focus');
+  if(activeChatToolPanel==='focus'&&!dlg.classList.contains('visible')) showDialog();
 });
 
 renderPomo();

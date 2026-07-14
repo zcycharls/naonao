@@ -155,6 +155,7 @@
       'status.waitingNext': 'Activé : en attente du prochain rappel',
       'chat.dialogAria': 'Fenêtre de chat',
       'chat.focusTimer': 'Minuteur de concentration',
+      'chat.tasks': 'Tâches',
       'chat.focus': 'Concentration',
       'chat.clear': 'Effacer le chat',
       'chat.bodyDouble': 'Se concentrer ensemble',

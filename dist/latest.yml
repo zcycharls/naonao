@@ -1,8 +1,8 @@
-version: 1.714.935
+version: 1.714.1650
 files:
-  - url: naonao-setup-1.714.935.exe
-    sha512: U81MAudgg5VCQ/4uPNlEzfH5SCRpubcvMpai3SCUfh3h+vqBLAJ7lHygxVtqFeXLK8e+hEvJ/tOedwzs3d2AvQ==
-    size: 179725300
-path: naonao-setup-1.714.935.exe
-sha512: U81MAudgg5VCQ/4uPNlEzfH5SCRpubcvMpai3SCUfh3h+vqBLAJ7lHygxVtqFeXLK8e+hEvJ/tOedwzs3d2AvQ==
-releaseDate: '2026-07-14T01:38:40.273Z'
+  - url: naonao-setup-1.714.1650.exe
+    sha512: 81eJv18+X/QC5856fmpm/SAybdGcjkTjHVty6nCxVxjE1tXJEi9GMLRYMTLVf5/LJS+6q7Sw84SdW2TuwP5TKA==
+    size: 179730388
+path: naonao-setup-1.714.1650.exe
+sha512: 81eJv18+X/QC5856fmpm/SAybdGcjkTjHVty6nCxVxjE1tXJEi9GMLRYMTLVf5/LJS+6q7Sw84SdW2TuwP5TKA==
+releaseDate: '2026-07-14T08:53:02.024Z'

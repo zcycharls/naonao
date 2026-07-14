@@ -155,6 +155,7 @@
       'status.waitingNext': 'Aktiv: Warten auf den nächsten Versand',
       'chat.dialogAria': 'Chatfenster',
       'chat.focusTimer': 'Fokus-Pomodoro',
+      'chat.tasks': 'Aufgaben',
       'chat.focus': 'Fokus',
       'chat.clear': 'Gespräch löschen',
       'chat.bodyDouble': 'Gemeinsam fokussieren',
