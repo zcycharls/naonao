@@ -1,74 +1,60 @@
 {
-  "name": "naonao",
-  "version": "1.709.1453",
-  "description": "孬孬 ADHD 陪伴宠物",
-  "main": "main.js",
+  "name": "naonao-focus-quest",
+  "version": "1.1.0",
+  "description": "由可选 AI 与 Hermes 任务导演驱动的现实任务冒险游戏",
+  "main": "steam-main.js",
   "scripts": {
-    "start": "node scripts/start-electron.js",
-    "test": "node scripts/test.js && node scripts/electron-smoke.js",
-    "version:bump": "node scripts/bump-version.js",
-    "pack": "electron-builder --dir",
-    "build": "electron-builder --win --x64"
+    "start": "electron .",
+    "test": "npm run test:unit && npm run verify:source && npm run test:smoke",
+    "test:unit": "node scripts/steam-game-tests.js && node scripts/steam-director-tests.js && node scripts/steam-main-tests.js && node scripts/steam-renderer-tests.js && node scripts/verify-steam-release-tests.js",
+    "test:smoke": "node scripts/steam-smoke.js",
+    "test:packaged": "node scripts/steam-smoke.js --packaged",
+    "verify:source": "node scripts/verify-steam-release.js --source-only",
+    "verify:steam": "node scripts/verify-steam-release.js",
+    "verify:submission": "node scripts/verify-steam-submission.js",
+    "release:check": "npm test && npm run steam:depot && npm run verify:steam && npm run test:packaged",
+    "pack": "npm run steam:depot",
+    "build": "npm run steam:depot",
+    "steam:depot": "electron-builder --win --x64 --dir"
   },
   "build": {
-    "appId": "com.naonao.app",
-    "productName": "孬孬",
+    "appId": "help.naonao.focusquest",
+    "productName": "Naonao Focus Quest",
+    "executableName": "NaonaoFocusQuest",
     "directories": {
-      "output": "dist"
+      "output": "dist/steam"
     },
     "files": [
-      "app/**/*",
-      "!app/models/**",
-      "main.js",
-      "preload.js"
+      "steam-main.js",
+      "steam-preload.js",
+      "steam-companion-preload.js",
+      "app/steam-game.html",
+      "app/steam-game.css",
+      "app/steam-game.js",
+      "app/steam-companion.html",
+      "app/steam-companion.css",
+      "app/steam-companion.js",
+      "app/js/steam-game-engine.js",
+      "app/js/steam-director-engine.js",
+      "app/assets/naonao-pet.png",
+      "app/assets/hat.png",
+      "app/assets/metal-brushed-light.png",
+      "app/assets/metal-brushed-dark.png"
     ],
     "asar": true,
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
     "extraResources": [],
     "win": {
-      "icon": "build/icon.ico",
-      "artifactName": "孬孬-Setup-${version}.${ext}",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "孬孬",
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
-      "installerHeader": "build/installerHeader.bmp",
-      "installerSidebar": "build/installerSidebar.bmp",
-      "uninstallerSidebar": "build/installerSidebar.bmp",
-      "include": "build/installer.nsh",
-      "deleteAppDataOnUninstall": false,
-      "runAfterFinish": true,
-      "menuCategory": false
+      "icon": "build/icon.ico"
     },
     "electronVersion": "42.3.0"
   },
-  "dependencies": {
-    "@electron/get": "^5.0.0",
-    "@larksuiteoapi/node-sdk": "^1.56.1",
-    "@xenova/transformers": "^2.17.2",
-    "onnxruntime-node": "^1.14.0"
-  },
-  "overrides": {
-    "axios": "1.16.1",
-    "onnxruntime-web": "1.16.3",
-    "protobufjs": "7.5.8"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@electron/asar": "^3.4.1",
     "electron": "^42.3.0",
     "electron-builder": "^26.8.1"
   },

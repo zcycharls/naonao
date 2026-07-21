@@ -17,6 +17,8 @@ npm-debug.log*
 # Environment
 .env
 .env.local
+steam/submission.json
+steam/scripts/*.vdf
 
 # OS
 .DS_Store

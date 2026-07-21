@@ -1,0 +1,9 @@
+{
+  "publisherName": "CHANGE_ME",
+  "contact": "https://example.com/support",
+  "privacyPolicyUrl": "https://example.com/privacy",
+  "assetRightsConfirmed": false,
+  "aiDisclosureConfirmed": false,
+  "minimumRequirementsVerified": false,
+  "codeSigningDecision": "steam-unsigned-approved"
+}

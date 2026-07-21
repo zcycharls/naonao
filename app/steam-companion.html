@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>Naonao Companion</title>
+  <link rel="stylesheet" href="steam-companion.css">
+</head>
+<body>
+  <main class="companion-shell">
+    <header class="companion-head">
+      <div class="signal"><span></span>NAONAO</div>
+      <div class="companion-actions">
+        <button id="show-main" type="button" aria-label="打开主界面" title="打开主界面">□</button>
+        <button id="disable-companion" type="button" aria-label="关闭桌面陪伴" title="关闭桌面陪伴">×</button>
+      </div>
+    </header>
+    <section class="companion-scene">
+      <div class="speech" id="speech">我在这里陪你。</div>
+      <img src="assets/naonao-pet.png" alt="孬孬树袋熊">
+    </section>
+    <section class="focus-readout">
+      <div>
+        <span id="run-label">待机</span>
+        <strong id="timer">25:00</strong>
+      </div>
+      <button id="run-control" type="button">开始</button>
+    </section>
+  </main>
+  <script src="steam-companion.js"></script>
+</body>
+</html>

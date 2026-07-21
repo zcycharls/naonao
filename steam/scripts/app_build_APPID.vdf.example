@@ -1,0 +1,11 @@
+"AppBuild"
+{
+  "AppID" "YOUR_APP_ID"
+  "Desc" "Naonao Focus Quest 1.1.0"
+  "ContentRoot" "..\..\dist\steam"
+  "BuildOutput" "..\..\dist\steamcmd-output"
+  "Depots"
+  {
+    "YOUR_DEPOT_ID" "depot_build_DEPOTID.vdf"
+  }
+}

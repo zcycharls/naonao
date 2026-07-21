@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Naonao: Focus Quest</title>
+  <link rel="stylesheet" href="steam-game.css">
+</head>
+<body>
+  <header class="titlebar">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true">N</span>
+      <span class="brand-name">Naonao</span>
+      <span class="brand-subtitle">FOCUS QUEST</span>
+    </div>
+    <div class="titlebar-status">
+      <span class="status-light" aria-hidden="true"></span>
+      <span>LOCAL CORE</span>
+      <span class="status-divider" aria-hidden="true"></span>
+      <span id="integration-status">AI OFF</span>
+      <button id="integration-open" class="titlebar-tool" type="button" aria-label="连接设置" title="连接设置">⚙</button>
+    </div>
+    <div class="window-controls">
+      <button id="window-minimize" type="button" aria-label="最小化" title="最小化">−</button>
+      <button id="window-maximize" type="button" aria-label="最大化或还原" title="最大化或还原">□</button>
+      <button id="window-close" class="danger" type="button" aria-label="关闭" title="关闭">×</button>
+    </div>
+  </header>
+
+  <main class="game-layout">
+    <section class="habitat" aria-labelledby="habitat-title">
+      <div class="section-label" id="habitat-title">COMPANION BAY</div>
+      <div class="habitat-scene" id="habitat-scene">
+        <div class="scene-sun" aria-hidden="true"></div>
+        <div class="scene-hill hill-back" aria-hidden="true"></div>
+        <div class="scene-hill hill-front" aria-hidden="true"></div>
+        <div class="pet-stage" id="pet-stage">
+          <img class="pet-hat" id="pet-hat" src="assets/hat.png" alt="">
+          <img class="pet-image" id="pet-image" src="assets/naonao-pet.png" alt="孬孬树袋熊">
+        </div>
+        <div class="pet-speech" id="pet-speech" role="status">今天也从一小步开始。</div>
+      </div>
+
+      <div class="profile-strip">
+        <div class="profile-level">
+          <span class="profile-key">LEVEL</span>
+          <strong id="profile-level">1</strong>
+        </div>
+        <div class="profile-xp">
+          <div class="meter-head"><span>成长</span><span id="profile-xp-label">0 / 80</span></div>
+          <div class="meter-track"><div class="meter-fill" id="profile-xp-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="instrument-grid" aria-label="孬孬状态">
+        <div class="instrument"><span>叶片</span><strong id="profile-leaves">0</strong></div>
+        <div class="instrument"><span>羁绊</span><strong id="profile-bond">0</strong></div>
+        <div class="instrument"><span>连续</span><strong><span id="profile-streak">0</span> 天</strong></div>
+        <div class="instrument"><span>精力</span><strong><span id="profile-energy">50</span>%</strong></div>
+      </div>
+
+      <div class="habitat-actions">
+        <button id="companion-toggle" class="hardware-button" type="button" aria-pressed="false">
+          <span class="button-led" aria-hidden="true"></span>
+          桌面陪伴
+        </button>
+        <button id="sound-toggle" class="icon-hardware" type="button" aria-pressed="true" title="声音" aria-label="声音">♪</button>
+      </div>
+    </section>
+
+    <section class="focus-deck" aria-labelledby="focus-title">
+      <div class="deck-head">
+        <div>
+          <div class="section-label">FOCUS CONSOLE</div>
+          <h1 id="focus-title">这一程，要带回什么？</h1>
+        </div>
+        <div class="deck-actions">
+          <button id="director-open" class="director-control" type="button"><span aria-hidden="true">✦</span>任务导演</button>
+          <div class="run-state" id="run-state">待机</div>
+        </div>
+      </div>
+
+      <form id="task-form" class="task-entry">
+        <label for="task-input">现实任务</label>
+        <div class="task-entry-row">
+          <input id="task-input" type="text" maxlength="80" autocomplete="off" placeholder="写下一件可以完成的小事">
+          <button type="submit">加入</button>
+        </div>
+      </form>
+
+      <div class="timer-console">
+        <div class="duration-selector" role="group" aria-label="专注时长">
+          <button type="button" data-duration="10">10</button>
+          <button type="button" data-duration="25" class="selected">25</button>
+          <button type="button" data-duration="45">45</button>
+          <button type="button" data-duration="60">60</button>
+        </div>
+        <div class="timer-display" id="timer-display">25:00</div>
+        <div class="timer-caption"><span id="timer-caption">选择任务后启程</span><span>MIN</span></div>
+        <div class="timer-actions">
+          <button id="run-primary" class="primary-control" type="button">开始旅程</button>
+          <button id="run-cancel" class="secondary-control" type="button" disabled>放弃本段</button>
+        </div>
+      </div>
+
+      <div class="task-console">
+        <div class="console-head">
+          <span>任务舱</span>
+          <span id="task-count">0 OPEN</span>
+        </div>
+        <div id="task-list" class="task-list" aria-live="polite"></div>
+        <div id="task-empty" class="empty-state">任务舱为空</div>
+      </div>
+    </section>
+
+    <aside class="mission-deck" aria-label="旅程与奖励">
+      <section class="daily-panel" aria-labelledby="daily-title">
+        <div class="panel-head">
+          <div>
+            <div class="section-label">DAILY SIGNAL</div>
+            <h2 id="daily-title">今日委托</h2>
+          </div>
+          <span class="date-display" id="daily-date"></span>
+        </div>
+        <div id="daily-quests" class="daily-quests"></div>
+      </section>
+
+      <section class="journey-panel" aria-labelledby="journey-title">
+        <div class="panel-head compact">
+          <div>
+            <div class="section-label">STARLEAF TRAIL</div>
+            <h2 id="journey-title">星叶小径</h2>
+          </div>
+          <span id="journey-chapter">CH. 1</span>
+        </div>
+        <div id="journey-track" class="journey-track" aria-label="旅程进度"></div>
+      </section>
+
+      <section class="collection-panel" aria-labelledby="collection-title">
+        <div class="panel-head compact">
+          <div>
+            <div class="section-label">FIELD KIT</div>
+            <h2 id="collection-title">收藏柜</h2>
+          </div>
+          <span id="collection-count">1 / 5</span>
+        </div>
+        <div id="collection-grid" class="collection-grid"></div>
+      </section>
+
+      <section class="achievement-panel" aria-labelledby="achievement-title">
+        <div class="panel-head compact">
+          <div>
+            <div class="section-label">BADGES</div>
+            <h2 id="achievement-title">勋章记录</h2>
+          </div>
+          <span id="achievement-count">0 / 6</span>
+        </div>
+        <div id="achievement-list" class="achievement-list"></div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="footer-bar">
+    <span id="save-status">存档已就绪</span>
+    <span id="session-total">0 次旅程 · 0 分钟</span>
+    <span>本地核心 · 可选联网 · 简体中文</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="drawer-overlay" id="director-overlay" hidden>
+    <aside class="director-drawer" role="dialog" aria-modal="true" aria-labelledby="director-title">
+      <header class="drawer-head">
+        <div>
+          <div class="section-label">QUEST DIRECTOR</div>
+          <h2 id="director-title">任务导演台</h2>
+        </div>
+        <button id="director-close" class="drawer-close" type="button" aria-label="关闭" title="关闭">×</button>
+      </header>
+
+      <nav class="drawer-tabs" aria-label="任务导演视图">
+        <button type="button" data-director-tab="quest" class="active">导演台</button>
+        <button type="button" data-director-tab="connections">连接</button>
+      </nav>
+
+      <section class="drawer-panel" data-director-panel="quest">
+        <div class="director-source">
+          <span>现实任务</span>
+          <strong id="director-task-name">尚未选择任务</strong>
+        </div>
+        <div id="director-preview" class="director-preview"></div>
+        <label class="consent-line">
+          <input id="director-consent" type="checkbox">
+          <span>每次 AI 生成请求都会固定发送当前任务、等级、连续天数和累计专注分钟；“最近 5 条已完成任务名称”选项默认关闭，玩家开启后才会额外发送这些任务名称。</span>
+        </label>
+        <div class="director-actions">
+          <button id="director-generate" class="drawer-primary" type="button">AI 生成关卡</button>
+          <button id="director-offline" class="drawer-secondary" type="button">离线生成</button>
+        </div>
+        <div id="director-status" class="connection-status" role="status"></div>
+      </section>
+
+      <section class="drawer-panel" data-director-panel="connections" hidden>
+        <form id="ai-config-form" class="connection-form">
+          <div class="connection-heading">
+            <label class="switch-line">
+              <input id="ai-enabled" type="checkbox">
+              <span class="switch-track" aria-hidden="true"></span>
+              <strong>AI 任务导演</strong>
+            </label>
+            <span id="ai-key-state">未配置</span>
+          </div>
+
+          <div class="form-grid">
+            <label>连接方式
+              <select id="ai-provider">
+                <option value="hermes">Hermes Agent</option>
+                <option value="openai">OpenAI 兼容</option>
+              </select>
+            </label>
+            <label>模型
+              <input id="ai-model" type="text" maxlength="120" autocomplete="off">
+            </label>
+          </div>
+          <label>Base URL
+            <input id="ai-base-url" type="url" maxlength="500" spellcheck="false" autocomplete="off">
+          </label>
+          <label>API Key
+            <div class="secret-row">
+              <input id="ai-key" type="password" maxlength="4096" autocomplete="new-password" placeholder="留空则保留已保存密钥">
+              <button id="ai-clear-key" type="button" title="清除 API Key" aria-label="清除 API Key">×</button>
+            </div>
+          </label>
+          <label class="check-line"><input id="ai-network-consent" type="checkbox">允许连接并将上述固定数据发送到该地址</label>
+          <label class="check-line"><input id="ai-share-memory" type="checkbox">同时发送最近 5 条已完成任务名称</label>
+          <div class="form-actions">
+            <button class="drawer-primary" type="submit">保存 AI</button>
+            <button id="ai-test" class="drawer-secondary" type="button">测试连接</button>
+          </div>
+          <div id="ai-status" class="connection-status" role="status"></div>
+        </form>
+
+        <form id="feishu-config-form" class="connection-form feishu-form">
+          <div class="connection-heading">
+            <label class="switch-line">
+              <input id="feishu-enabled" type="checkbox">
+              <span class="switch-track" aria-hidden="true"></span>
+              <strong>飞书回执</strong>
+            </label>
+            <span id="feishu-webhook-state">未配置</span>
+          </div>
+          <label>机器人 Webhook
+            <div class="secret-row">
+              <input id="feishu-webhook" type="password" maxlength="2048" autocomplete="new-password" placeholder="留空则保留已保存地址">
+              <button id="feishu-clear-webhook" type="button" title="清除 Webhook" aria-label="清除 Webhook">×</button>
+            </div>
+          </label>
+          <div class="form-grid checks">
+            <label class="check-line"><input id="feishu-notify-focus" type="checkbox">专注完成</label>
+            <label class="check-line"><input id="feishu-notify-task" type="checkbox">现实任务完成</label>
+          </div>
+          <div class="form-actions">
+            <button class="drawer-primary" type="submit">保存飞书</button>
+            <button id="feishu-test" class="drawer-secondary" type="button">发送测试</button>
+          </div>
+          <div id="feishu-status" class="connection-status" role="status"></div>
+        </form>
+      </section>
+    </aside>
+  </div>
+
+  <script src="js/steam-game-engine.js"></script>
+  <script src="steam-game.js"></script>
+</body>
+</html>
